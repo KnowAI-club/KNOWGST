@@ -31,7 +31,7 @@ OCR runs the real Tesseract worker/core/language bundle in Chromium against a ge
 
 ## Boundaries preserved
 
-Minimal UI is retained. Five helpers still match upstream hashes; the filing-year helper has a separately recorded unsupported-year guard with historical arithmetic preserved. New provider tests cover adapters; they do not certify external services. Full production parity still requires broader edge cases, print-device coverage, hosted controls and exhaustive current-rule/filing validation. New AI, email-provider and messaging-API features remain outside this parity pass.
+Minimal UI is retained. Three protected helpers still match the original hashes; filing-year rejection, purchase tax splitting and CSV date-order safeguards have separately reviewed change records. Historical invoice arithmetic is preserved. New provider tests cover adapters; they do not certify external services. Full production parity still requires broader edge cases, print-device coverage, hosted controls and exhaustive current-rule/filing validation. New AI, email-provider and messaging-API features remain outside this parity pass.
 
 ## Complete backups, tax safety and user guide
 
@@ -40,3 +40,5 @@ New snapshots include data, Saved Invoices and PDF trash. Restore verifies byte 
 Current-year ordinary-income estimates, historical filing-year separation and HSN rate preservation have regression tests. TAX-RULE-REVIEW.md records official sources, scope and remaining statutory review.
 
 The local `/docs/` guide covers 20 topics. Fourteen actual app captures use isolated fictional records. Browser checks cover guide links, image availability, TOC targets, contextual help, mobile layout and persistent theme; capture regeneration is an explicit opt-in test.
+
+The subsequent current-main review, transactional import hardening and expanded coverage are documented in [FEATURE-PARITY.md](FEATURE-PARITY.md) and [PRODUCTION-GAP-REVIEW.md](PRODUCTION-GAP-REVIEW.md).
