@@ -46,7 +46,7 @@ test('compatibility service: module persistence, isolation and recovery', async 
       expenses: { id:'expense-test', date:'2026-10-29', category:'Office', description:'Stationery', amount:100, taxAmount:18, profile },
       purchases: { id:'purchase-test', date:'2026-10-29', supplierName:'Example Supplier', invoiceNumber:'SUP-1', taxableAmount:500, cgst:45, sgst:45, igst:0, totalAmount:590, profile },
       receipts: { id:'receipt-test', date:'2026-10-29', receiptNumber:'REC-1', receivedFrom:'Example Client', amount:100, paymentMode:'Cash', profile },
-      recurring: { id:'recurring-test', clientName:'Example Client', frequency:'monthly', nextDate:'2099-01-01', enabled:false, active:false, items:[{name:'Service',qty:1,rate:100,taxPercent:18}], profile },
+      recurring: { id:'recurring-test', clientName:'Example Client', frequency:'monthly', nextDate:'2099-01-01', enabled:false, active:false, items:[{name:'Service',quantity:1,rate:100,taxPercent:18}], profile },
       templates: { id:'terms-test', name:'Test terms', content:'Payment due in 15 days.' },
     };
     for (const [module, record] of Object.entries(records)) await t.test(`${module}: create, update and list preserve fields`, async () => {
@@ -56,7 +56,7 @@ test('compatibility service: module persistence, isolation and recovery', async 
       assert.equal((await call(`/${module}`,'POST',updated)).status,200);
       assert.deepEqual((await call(`/${module}`)).body.find(x=>x.id===record.id),updated);
     });
-    const bill = { id:'INV-TEST-1', invoiceNumber:'INV-TEST-1', invoiceDate:'2026-10-29', clientName:'Example Client', totalAmount:118, totalTaxAmount:18, status:'unpaid', paidAmount:0, payments:[], data:{profile, client:records.clients, details:{invoiceNumber:'INV-TEST-1',invoiceDate:'2026-10-29'},items:[{name:'Service',qty:1,rate:100,taxPercent:18}],totals:{total:118,totalTaxAmount:18},invoiceType:'tax-invoice'} };
+    const bill = { id:'INV-TEST-1', invoiceNumber:'INV-TEST-1', invoiceDate:'2026-10-29', clientName:'Example Client', totalAmount:118, totalTaxAmount:18, status:'unpaid', paidAmount:0, payments:[], data:{profile, client:records.clients, details:{invoiceNumber:'INV-TEST-1',invoiceDate:'2026-10-29'},items:[{name:'Service',quantity:1,rate:100,taxPercent:18}],totals:{total:118,totalTaxAmount:18},invoiceType:'tax-invoice'} };
     await t.test('sales duplicate protection, trash and restore', async () => {
       assert.equal((await call('/bills','POST',bill)).status,200);
       assert.equal((await call('/bills','POST',bill)).status,409);
@@ -111,6 +111,40 @@ test('compatibility service: module persistence, isolation and recovery', async 
         assert.equal((await call(`/${module}`)).body.some(x=>x.id===record.id),false);
       }
       assert.equal((await call('/bills')).body.length,1);
+    });
+    await t.test('recurring documents preserve tax behavior, end conditions and month-end anchors', async () => {
+      for (const [type,total] of [['tax-invoice',118],['quotation',118],['proforma',118],['bill-of-supply',100],['composition',100],['credit-note',118],['delivery-challan',100]]) {
+        const tpl={id:`repeat-${type}`,clientName:'Recurring client',clientState:'Maharashtra',clientCountry:'India',profileId:profile.id,invoiceType:type,active:false,frequency:'monthly',interval:1,nextDate:'2028-01-31',endMode:'afterN',maxOccurrences:2,items:[{name:'Service',quantity:1,rate:100,taxPercent:18}]};
+        assert.equal((await call('/recurring','POST',tpl)).status,200);
+        const first=await call(`/recurring/${tpl.id}/generate`,'POST',{});
+        assert.equal(first.status,200);
+        const generated=(await call('/bills')).body.find(b=>b.id===first.body.invoiceNumber);
+        assert.equal(generated.totalAmount,total);
+        assert.equal(generated.invoiceType,type);
+        assert.equal(generated.data.items[0].name,'Service');
+        let saved=(await call('/recurring')).body.find(x=>x.id===tpl.id);
+        assert.equal(saved.nextDate,'2028-02-29');assert.equal(saved.occurrencesCreated,1);
+        const second=await call(`/recurring/${tpl.id}/generate`,'POST',{});
+        assert.equal(second.status,200);assert.notEqual(second.body.invoiceNumber,first.body.invoiceNumber);
+        saved=(await call('/recurring')).body.find(x=>x.id===tpl.id);
+        assert.equal(saved.nextDate,'2028-03-31');
+        assert.equal((await call(`/recurring/${tpl.id}/generate`,'POST',{})).status,409);
+      }
+      assert.equal((await call('/recurring/unknown/generate','POST',{})).status,404);
+    });
+    await t.test('startup scheduler generates due templates once and skips paused or ended templates', async () => {
+      const now=new Date();const today=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+      const base={clientName:'Scheduled client',clientState:'Maharashtra',clientCountry:'India',profileId:profile.id,active:true,frequency:'monthly',nextDate:today,items:[{name:'Scheduled service',quantity:1,rate:100,taxPercent:18}]};
+      for(const tpl of [{...base,id:'due'},{...base,id:'paused',active:false},{...base,id:'ended',endMode:'afterN',maxOccurrences:1,occurrencesCreated:1}]) await call('/recurring','POST',tpl);
+      await stop();port=await start();
+      await new Promise(resolve=>setTimeout(resolve,3500));
+      let bills=(await call('/bills')).body;
+      assert.equal(bills.filter(b=>b.generatedFrom==='due').length,1);
+      assert.equal(bills.filter(b=>['paused','ended'].includes(b.generatedFrom)).length,0);
+      await stop();port=await start();
+      await new Promise(resolve=>setTimeout(resolve,3500));
+      bills=(await call('/bills')).body;
+      assert.equal(bills.filter(b=>b.generatedFrom==='due').length,1);
     });
   } finally { await stop(); await rm(runtime,{recursive:true,force:true}); }
 });

@@ -7,21 +7,21 @@ The primary app now integrates the original Free GST modules in KNOWGST's minima
 | Module | Implementation and verification |
 | --- | --- |
 | Dashboard | Reused dashboard, browser load and saved invoice visibility |
-| Invoices | All seven source document types retained; browser tax invoice creation, 118 total on 100 taxable value, PDF generation/storage and persistence verified |
+| Invoices | All seven source document types retained; browser creation, calculated total, valid downloadable PDF, archive storage and persisted particulars verified for every type |
 | Clients | Browser create/reload; API create/edit/delete |
 | Products | Browser price, stock and tax defaults; API create/edit/delete |
 | Purchases | Browser supplier bill creation; API create/edit/delete |
 | Expenses | Browser form persistence; API create/edit/delete |
 | Receipts | Browser standalone payment; API create/edit/delete |
-| Recurring | Original scheduling code retained; browser load and API record persistence; automatic generation workflow still needs dedicated coverage |
-| Reports | Original reports retained; browser load; report-by-report reconciliation remains |
-| GST returns | Original exports/calculations retained; browser load; no live government filing verification |
+| Recurring | Generation tested for seven types, month-end anchors, occurrence limits, paused/ended schedules and restart deduplication; UI create/pause/generate covered |
+| Reports | P&L fixture reconciliation, client/product totals, stock value, aging/party CSV exports and Excel archive verified |
+| GST returns | GSTR-1/3B exported totals reconciled on fixtures; GSTR-2B matched/mismatch/books-only/portal-only states tested; no live government filing verification |
 | Income tax | Original calculations and regression fixtures retained; browser load; source CURRENT_FY remains 2025-26 and is not certified current |
 | Settings / print | Source controls retained; browser load, preference mirroring and profile persistence tested; not every printer/template tested |
 | Backup / control panel | SHA256 manifests, verified staging, manual refresh and corruption rejection tested; control-panel load; API restore and corrupt-snapshot rejection verified |
 | Onboarding / local lock | Source flows retained and renamed; preferences and lock-secret export restrictions tested; not hosted authentication |
 | Mobile / theme | Navigation, dark mode and horizontal overflow browser checks |
-| OCR / Drive / sharing | Source capabilities retained; OCR packaged locally; OCR extraction quality and external provider authorization/delivery not verified |
+| OCR / Drive / sharing | Actual local OCR extraction tested on a synthetic invoice with external requests blocked; Drive request/error contracts and WhatsApp draft links tested; live authorization/delivery not verified |
 
 ## Safety changes
 
@@ -33,10 +33,12 @@ Six original financial/helper modules are hash-checked against the upstream comm
 
 ## Remaining release gates
 
-This is a compatibility integration, not a completed architecture migration or an assertion of exhaustive 1:1 parity. JSON storage retains upstream transaction/validation limitations. Current GST and income-tax rules need independent review; historical tests only prove historical behavior. Remaining coverage includes all seven document variants, recurrence generation, report reconciliation, complete backup/restore including PDFs and simulated disk failure, OCR and external integrations, accessibility and performance. Hosted authentication, normalized migrations, PostgreSQL, audit/security hardening, dependency review, production deployment and packaged macOS builds remain unfinished.
+This is a compatibility integration, not a completed architecture migration or an assertion of exhaustive 1:1 parity. JSON storage retains upstream transaction/validation limitations. Current GST and income-tax rules need independent review; historical tests only prove historical behavior. Remaining coverage includes broader financial edge cases across reports/document variants, complete backup/restore including PDFs and simulated disk failure, real-world OCR accuracy, live external integrations, accessibility and performance. Hosted authentication, normalized migrations, PostgreSQL, audit/security hardening, dependency review, production deployment and packaged macOS builds remain unfinished.
 
 The earlier transactional SQLite prototype remains available via `pnpm dev:prototype`, in a separate database. It is not silently combined with the compatibility data. AI, bank feeds and expanded messaging integrations remain deferred.
 
 ## Verification commands for this increment
 
-`pnpm check`, `pnpm test`, `pnpm build` and `pnpm test:e2e` are the release checks. The browser suite has 21 cases; the compatibility service/backup suite has 18 Node test results including its parent suite, alongside the unchanged source regression scripts and 12 prototype tests. Desktop and mobile captures are in `docs/verification/parity-*.png`. Screenshots use synthetic test records.
+`pnpm check`, `pnpm test`, `pnpm build` and `pnpm test:e2e` are the release checks. The browser suite has 33 cases; the compatibility service/backup/integration suites have 27 Node test results including its parent suite, alongside the unchanged source regression scripts and 12 prototype tests. Desktop and mobile captures are in `docs/verification/parity-*.png`. Screenshots use synthetic test records.
+
+Detailed evidence, fixed defects and external-service boundaries: [Parity verification](PARITY-VERIFICATION.md).

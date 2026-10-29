@@ -2,7 +2,6 @@
 // No backend needed — runs entirely in the browser.
 
 const SCOPES = 'https://www.googleapis.com/auth/drive.file';
-const DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest';
 
 let tokenClient = null;
 let accessToken = null;
@@ -30,9 +29,11 @@ export async function initGoogleDrive(clientId) {
     tokenClient = window.google.accounts.oauth2.initTokenClient({
       client_id: clientId,
       scope: SCOPES,
+      error_callback: (error) => { accessToken = null; tokenExpiry = 0; resolve({ success: false, error: error.type || 'Authorization failed' }); },
       callback: (response) => {
-        if (response.error) {
-          resolve({ success: false, error: response.error });
+        if (response.error || !response.access_token || !(Number(response.expires_in) > 0)) {
+          accessToken = null; tokenExpiry = 0;
+          resolve({ success: false, error: response.error || 'Invalid authorization response' });
           return;
         }
         accessToken = response.access_token;
@@ -59,8 +60,10 @@ export async function ensureToken(clientId) {
     tokenClient = window.google.accounts.oauth2.initTokenClient({
       client_id: clientId,
       scope: SCOPES,
+      error_callback: () => { accessToken = null; tokenExpiry = 0; resolve(false); },
       callback: (response) => {
-        if (response.error) {
+        if (response.error || !response.access_token || !(Number(response.expires_in) > 0)) {
+          accessToken = null; tokenExpiry = 0;
           resolve(false);
           return;
         }
@@ -86,17 +89,18 @@ export function disconnect() {
 
 // Find or create a folder in Google Drive
 export async function findOrCreateFolder(folderName) {
-  if (!accessToken) throw new Error('Not connected to Google Drive');
+  if (!isConnected()) throw new Error('Not connected to Google Drive');
 
+  const queryName = String(folderName).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
   // Search for existing folder
   const searchRes = await fetch(
     `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(
-      `name='${folderName}' and mimeType='application/vnd.google-apps.folder' and trashed=false`
+      `name='${queryName}' and mimeType='application/vnd.google-apps.folder' and trashed=false`
     )}&fields=files(id,name)`,
     { headers: { Authorization: `Bearer ${accessToken}` } }
   );
 
-  const searchData = await searchRes.json();
+  const searchData = await driveResponse(searchRes, 'Folder search failed');
   if (searchData.files?.length > 0) {
     return searchData.files[0].id;
   }
@@ -114,13 +118,14 @@ export async function findOrCreateFolder(folderName) {
     }),
   });
 
-  const folder = await createRes.json();
+  const folder = await driveResponse(createRes, 'Folder creation failed');
+  if (!folder.id) throw new Error('Drive returned no folder ID');
   return folder.id;
 }
 
 // Upload a PDF file to a specific folder
 export async function uploadPDF(fileName, pdfBlob, folderId) {
-  if (!accessToken) throw new Error('Not connected to Google Drive');
+  if (!isConnected()) throw new Error('Not connected to Google Drive');
 
   const metadata = {
     name: fileName,
@@ -152,12 +157,7 @@ export async function uploadPDF(fileName, pdfBlob, folderId) {
     }
   );
 
-  if (!res.ok) {
-    const err = await res.json();
-    throw new Error(err.error?.message || 'Upload failed');
-  }
-
-  return await res.json();
+  return await driveResponse(res, 'Upload failed');
 }
 
 function blobToBase64(blob) {
@@ -175,7 +175,7 @@ function blobToBase64(blob) {
 // Upload a JSON file (e.g. an app backup) to a folder. Same multipart pattern as
 // uploadPDF but with application/json. Used by the Backup → "Save to Drive" button.
 export async function uploadJSON(fileName, jsonString, folderId) {
-  if (!accessToken) throw new Error('Not connected to Google Drive');
+  if (!isConnected()) throw new Error('Not connected to Google Drive');
 
   const metadata = {
     name: fileName,
@@ -205,14 +205,20 @@ export async function uploadJSON(fileName, jsonString, folderId) {
     }
   );
 
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.error?.message || 'JSON upload failed');
-  }
-  return await res.json();
+  return await driveResponse(res, 'JSON upload failed');
 }
 
 // v1.10.6 — audit L6: `listBackupsInFolder()` and `downloadFileText()`
 // had no importers. The "Restore from Drive" UI they were built for
 // never landed; the current Drive integration is upload-only. Reintroduce
 // when the restore-from-Drive feature does.
+
+// Preserve provider errors and never turn a failed lookup into a create request.
+async function driveResponse(response, fallback) {
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    if (response.status === 401) { accessToken = null; tokenExpiry = 0; }
+    throw new Error(data.error?.message || `${fallback} (${response.status})`);
+  }
+  return data;
+}
