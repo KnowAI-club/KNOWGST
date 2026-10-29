@@ -821,7 +821,7 @@ function App() {
           <div className="sidebar-logo knowgst-brand-symbol" aria-hidden="true"><span className="knowai-symbol" /></div>
           <div>
             <h2 className="sidebar-title">KNOWGST</h2>
-            
+
           </div>
           {/* Auto-hide as a ☰ button (was a text checkbox): pressed = the menu
               shrinks to icons and opens when pointed at. */}

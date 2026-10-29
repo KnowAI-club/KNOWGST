@@ -17,6 +17,7 @@ import PrintSettings from './PrintSettings';
 import HelpButton from './HelpButton';
 import AppLockSettings from './AppLockSettings';
 import InvoiceNumberSettings from './InvoiceNumberSettings';
+import SignatureImages, { SIGN_LAYOUTS } from './SignatureImages';
 import { getBackupsList, restoreBackup, triggerBackup, deleteBackup, getTrashedBills, restoreTrashedBill, purgeTrashedBill, runUpdateNow, saveBill, applyStockChanges, getBackupFolder, setBackupFolder } from '../store';
 
 // v1.10.36 — Section order for the jump-nav pill bar. Keeping this at
@@ -1483,6 +1484,21 @@ export default function SettingsView({ onSaved }) {
               )}
               <input ref={stampInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => handleImageUpload('stamp', e)} />
             </div>
+            {/* v1.10.83 (#117) - where the stamp goes relative to the signature. */}
+            {profile.stamp && profile.signature && (
+              <div style={{ marginTop: '0.75rem' }}>
+                <label className="form-label" htmlFor="sign-layout">Signature and stamp layout</label>
+                <select id="sign-layout" className="form-input" value={profile.signLayout || 'side'}
+                  onChange={(e) => setProfile(prev => ({ ...prev, signLayout: e.target.value }))}>
+                  {SIGN_LAYOUTS.map((l) => <option key={l.value} value={l.value}>{l.label}</option>)}
+                </select>
+                <div style={{ marginTop: '0.6rem', padding: '0.6rem', background: '#fff', border: '1px solid var(--border-color)', borderRadius: 8, color: '#0f172a', fontSize: '0.8rem' }}>
+                  <div style={{ textAlign: 'center', marginBottom: '0.3rem', color: '#64748b' }}>Preview</div>
+                  <SignatureImages sigImg={profile.signature} stampImg={profile.stamp}
+                    sigHeight={profile.signatureHeight || 60} stampHeight={profile.stampHeight || 70} layout={profile.signLayout || 'side'} />
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

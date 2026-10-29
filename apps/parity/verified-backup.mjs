@@ -106,3 +106,13 @@ export function restoreVerifiedBackup(dataDir,source,options={}) {
     return manifest;
   } catch(error) {recoverInterruptedRestore(dataDir);throw error;}
 }
+
+// Keep installation identity outside restored data so a restore cannot impersonate another PC.
+export function claimBackupFolder(dir,installationId){
+ fs.mkdirSync(dir,{recursive:true});const marker=path.join(dir,'.knowgst-owner');
+ if(!fs.existsSync(marker)){
+  if(fs.readdirSync(dir).some(n=>/^\d{4}-\d{2}-\d{2}$/.test(n)))throw new Error('This folder contains backups with no recorded owner. Choose a new empty backup folder; existing copies remain available to restore.');
+  try{fs.writeFileSync(marker,installationId,{flag:'wx',mode:0o600});}catch(error){if(error.code!=='EEXIST')throw error;}
+ }
+ if(fs.readFileSync(marker,'utf8').trim()!==installationId)throw new Error('This backup folder belongs to another installation. Choose a separate folder so its backups are not replaced.');
+}

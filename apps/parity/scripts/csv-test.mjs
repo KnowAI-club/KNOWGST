@@ -11,7 +11,7 @@
 // the fix breaks every sum a user runs over an exported column.
 
 import { toCsvCell, toCsvLine } from '../src/utils.js';
-import { parseCsv, toIsoDate, toNum, salesCsvToBills, billsToSalesCsv, purchaseCsvToRecords, purchasesToCsv, SALES_TEMPLATE, PURCHASE_TEMPLATE } from '../src/utils/bulkCsv.js';
+import { dateOrderNote, parseCsv, toIsoDate, toNum, salesCsvToBills, billsToSalesCsv, purchaseCsvToRecords, purchasesToCsv, SALES_TEMPLATE, PURCHASE_TEMPLATE } from '../src/utils/bulkCsv.js';
 
 let passed = 0, failed = 0;
 function eq(actual, expected, label) {
@@ -107,6 +107,18 @@ console.log('\n[Review] Import never merges different invoices or double-books a
   const existing = [{ supplierName: 'Ravi Paper Mart', supplierGstin: '03AAAAA1111A1Z1', invoiceNumber: 'RP-9' }];
   const p = purchaseCsvToRecords('Invoice Number,Invoice Date,Supplier Name,Item Name,Quantity,Rate\nRP-9,2026-10-01,ravi paper mart,A4 Paper,10,250\n', { existing });
   eq(`${p.purchases.length}/${p.skipped.length}`, "0/1", 'A bill saved with a GSTIN is found again from a CSV row with only the supplier name');
+}
+
+console.log('\n[Review] Day-first and month-first dates');
+{
+  eq(dateOrderNote(['13/01/2026', '10/01/2026']).warning, undefined, 'A file with a day over 12 is clearly day first: no warning');
+  eq(/10 January 2026/.test(dateOrderNote(['10/01/2026', '2026-01-05']).warning), true, 'Only ambiguous dates: a warning names how one was read');
+  eq(/month first/.test(dateOrderNote(['10/25/2026', '10/01/2026']).error), true, 'A month-first file (10/25/2026) is refused as a whole');
+  const head = 'Invoice Number,Invoice Date,Client Name,Item Name,Rate\n';
+  const us = salesCsvToBills(head + '1,10/25/2026,A,Pen,10\n2,10/01/2026,B,Ink,10\n', { profile: { country: 'India', state: 'Punjab' } });
+  eq(`${us.bills.length}/${us.errors.length}`, '0/1', '...so not even its ambiguous rows are imported with swapped dates');
+  const p = purchaseCsvToRecords('Invoice Number,Invoice Date,Supplier Name,Item Name,Rate\nX1,03/04/2026,S,Paper,5\n', {});
+  eq(`${p.purchases.length}/${p.warnings.length}`, '1/1', 'Purchases get the same warning');
 }
 
 console.log('\n────────────────────────────────────────');

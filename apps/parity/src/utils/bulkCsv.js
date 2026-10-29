@@ -88,6 +88,32 @@ export function toIsoDate(v) {
   return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 }
 
+// 10/01/2026 is 10 January day first and 1 October month first, and nothing
+// in the date says which. Day first is the rule here (India's way). A file that
+// is clearly month first (some date like 10/25/2026, as US Excel writes) is
+// refused as a whole, since its other dates would be read wrongly without an
+// error; a file whose dates could be either gets a warning to check one.
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+export function dateOrderNote(values) {
+  let dayFirst = false; let monthFirst = false; let example = '';
+  for (const v of values || []) {
+    const m = /^(\d{1,2})[-/.](\d{1,2})[-/.]\d{2,4}$/.exec(String(v || '').trim());
+    if (!m) continue;
+    const a = Number(m[1]); const b = Number(m[2]);
+    if (a > 12) dayFirst = true;
+    else if (b > 12) monthFirst = true;
+    else if (a !== b && !example) example = String(v).trim();
+  }
+  if (monthFirst) {
+    return { error: 'The dates are month first (MM/DD/YYYY, as US Excel writes them). Change the date columns to DD-MM-YYYY or YYYY-MM-DD and choose the file again.' };
+  }
+  if (example && !dayFirst) {
+    const [y, mo, d] = toIsoDate(example).split('-').map(Number);
+    return { warning: `Dates are read day first: ${example} is ${d} ${MONTHS[mo - 1]} ${y}. If your file puts the month first, change the dates to DD-MM-YYYY before importing.` };
+  }
+  return {};
+}
+
 const yes = (v) => /^(y|yes|true|1|inter|interstate|igst)$/i.test(String(v || '').trim());
 // A state given as a name, a 2-digit code or a GSTIN -> the State dropdown's spelling.
 const stateName = (v) => {
@@ -149,7 +175,9 @@ const SALES_FIELDS = {
 export function salesCsvToBills(text, { profile = {}, products = [], adjustStock = false, existingIds = new Set(), clients = [] } = {}) {
   const { records } = rowsToRecords(text, SALES_FIELDS);
   const errors = [];
-  if (!records.length) return { bills: [], errors: ['The file has no rows under the header.'], skipped: [], newClients: [] };
+  if (!records.length) return { bills: [], errors: ['The file has no rows under the header.'], skipped: [], newClients: [], warnings: [] };
+  const order = dateOrderNote(records.flatMap((r) => [r.invoiceDate, r.dueDate]));
+  if (order.error) return { bills: [], errors: [order.error], skipped: [], newClients: [], warnings: [] };
   const groups = new Map();
   for (const r of records) {
     if (!r.invoiceNumber) { errors.push(`Row ${r._line}: no invoice number.`); continue; }
@@ -246,7 +274,7 @@ export function salesCsvToBills(text, { profile = {}, products = [], adjustStock
       },
     });
   }
-  return { bills, errors, skipped, newClients: [...newClients.values()] };
+  return { bills, errors, skipped, newClients: [...newClients.values()], warnings: order.warning ? [order.warning] : [] };
 }
 
 // Bills -> CSV in the import's own columns (one row per item).
@@ -307,7 +335,9 @@ const PAYMENT_STATUSES = ['Unpaid', 'Partial', 'Paid'];
 export function purchaseCsvToRecords(text, { profile = {}, existing = [], inferInterstate = null } = {}) {
   const { records } = rowsToRecords(text, PURCHASE_FIELDS);
   const errors = [];
-  if (!records.length) return { purchases: [], errors: ['The file has no rows under the header.'], skipped: [] };
+  if (!records.length) return { purchases: [], errors: ['The file has no rows under the header.'], skipped: [], warnings: [] };
+  const order = dateOrderNote(records.map((r) => r.date));
+  if (order.error) return { purchases: [], errors: [order.error], skipped: [], warnings: [] };
   const keyOf = (gstin, name, num) => `${(gstin || name || '').trim().toUpperCase()}::${String(num || '').trim().toUpperCase()}`;
   // A booked bill is found by GSTIN or by supplier name, so a CSV row that
   // leaves out the GSTIN still matches a bill saved with one.
@@ -378,7 +408,7 @@ export function purchaseCsvToRecords(text, { profile = {}, existing = [], inferI
       importedAt: new Date().toISOString(),
     });
   }
-  return { purchases, errors, skipped };
+  return { purchases, errors, skipped, warnings: order.warning ? [order.warning] : [] };
 }
 
 // Purchases -> CSV in the import's own columns (one row per item).

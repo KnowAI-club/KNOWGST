@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import QRCode from 'qrcode';
+import SignatureImages from './SignatureImages';
 import DOMPurify from 'dompurify';
 import { numberToWords, printedSubtotal, formatCurrency, INVOICE_TYPES, getCountryConfig, CURRENCY_NAMES, formatExchangeRateLine, getAccountById, getPaperSize, resolveLineDiscount, htmlHasText, splitNumberedTerms, invoiceOptionOn, DEFAULT_DECLARATION, filledOrderDetails, formatShortDate } from '../utils';
 import { getPrintSettings, getLabel, formatCurrencyEx, formatDate } from '../utils/printSettings';
@@ -974,6 +975,7 @@ const InvoicePreview = React.forwardRef(({ profile: profileProp, client, details
     return {
       show: showSignature && !!(sigImg || stampImg), sigImg, stampImg,
       sigHeight: Number(profile?.signatureHeight) || 60, stampHeight: Number(profile?.stampHeight) || 70,
+      layout: profile?.signLayout || 'side',
     };
   })();
   const shipToParty = details?.shipToSameAsBilling === false
@@ -1502,14 +1504,8 @@ const InvoicePreview = React.forwardRef(({ profile: profileProp, client, details
           return (
             <div className="inv-signature">
               {showSignatoryText && <p className="inv-sig-label">{getLabel(_ps_labels, 'authorizedSignatory')}</p>}
-              <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: '0.5rem', marginBottom: '0.4rem' }}>
-                {stampImg && <img src={stampImg} alt="Stamp" style={{
-                  maxHeight: `${stampMaxHeight}px`, maxWidth: '120px', objectFit: 'contain', display: 'block',
-                }} />}
-                {sigImg && <img src={sigImg} alt="Signature" style={{
-                  maxHeight: `${sigMaxHeight}px`, maxWidth: '180px', objectFit: 'contain', display: 'block',
-                }} />}
-              </div>
+              <SignatureImages sigImg={sigImg} stampImg={stampImg} sigHeight={sigMaxHeight} stampHeight={stampMaxHeight}
+                layout={profile?.signLayout} gap={8} />
               <p className="inv-sig-name">{sigName}</p>
             </div>
           );

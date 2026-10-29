@@ -36,7 +36,15 @@ export const parseSupporters = (raw) => {
     totalReceived: Math.round(total),
     supporters: supporters === null ? null : Math.floor(supporters),
     goal: goalAmount ? { amount: Math.round(goalAmount), label: text(raw.goal.label, 80) } : null,
-    thanks: (Array.isArray(raw.thanks) ? raw.thanks : []).map((n) => text(n, 60)).filter(Boolean).slice(0, 100),
+    thanks: (Array.isArray(raw.thanks) ? raw.thanks : []).map((n) => text(n, 60)).filter(Boolean).slice(-2000), // newest are last
+    // v1.10.83 - each supporter with what they gave (scripts/add-supporter.mjs
+    // keeps it). Older files have names only; the page then lists those.
+    people: (Array.isArray(raw.people) ? raw.people : [])
+      .filter((p) => p && typeof p === 'object')
+      .map((p) => ({ name: text(p.name, 60), amount: num(p.amount, 1e9), date: /^\d{4}-\d{2}-\d{2}$/.test(String(p.date || '')) ? p.date : '' }))
+      .filter((p) => p.name && p.amount !== null)
+      .map((p) => ({ ...p, amount: Math.round(p.amount) }))
+      .slice(-2000),
     updated,
   };
 };

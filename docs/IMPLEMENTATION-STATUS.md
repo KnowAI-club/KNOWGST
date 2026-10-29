@@ -29,7 +29,7 @@ The local API requires an ephemeral server-only key and binds to loopback. The d
 
 Backup snapshots include application data and an integrity manifest. New format-2 snapshots include Saved Invoices and PDF trash; format-1 snapshots remain data-only. A missing or mismatched manifest blocks snapshot restore before live mutation. Legacy exports can still be imported through Settings. Hashes detect accidental corruption, not malicious tampering by someone with filesystem write access.
 
-Five original financial/helper modules match upstream hashes; the sixth retains its arithmetic with an explicit unsupported-year guard recorded in FINANCIAL-CHANGES.json. Tax, discount and CSV regression suites run unchanged. New service tests cover authorization, module persistence, invoice conflicts/trash/restore, concurrent numbering, selective import, preferences, restart persistence and backup corruption. Browser tests exercise 14 module entry points plus principal data-entry workflows and mobile behavior.
+Three protected helper modules match the original upstream hashes. Three have explicit reviewed records: filing-year rejection, purchase tax splitting, and CSV date-order safeguards. Existing invoice arithmetic is preserved. Tax, discount and CSV regression suites run unchanged. New service tests cover authorization, module persistence, invoice conflicts/trash/restore, concurrent numbering, selective import, preferences, restart persistence and backup corruption. Browser tests exercise 14 module entry points plus principal data-entry workflows and mobile behavior.
 
 ## Remaining release gates
 
@@ -39,10 +39,14 @@ The earlier transactional SQLite prototype remains available via `pnpm dev:proto
 
 ## Verification commands for this increment
 
-`pnpm check`, `pnpm test`, `pnpm build` and `pnpm test:e2e` are the release checks. The normal browser suite has 38 active cases plus one opt-in documentation capture; the compatibility suites have 34 Node test results including their parent suite, alongside the unchanged source regression scripts and 12 prototype tests. Desktop and mobile captures are in `docs/verification/parity-*.png`. Screenshots use synthetic test records.
+`pnpm check`, `pnpm test`, `pnpm build` and `pnpm test:e2e` are the release checks. The normal browser suite has 43 active cases plus one opt-in documentation capture; the compatibility suites have 40 Node test results including their parent suite, alongside the unchanged source regression scripts and 12 prototype tests. Desktop and mobile captures are in `docs/verification/parity-*.png`. Screenshots use synthetic test records.
 
 Detailed evidence, fixed defects and external-service boundaries: [Parity verification](PARITY-VERIFICATION.md).
 
 ## User documentation
 
 The app now links to `/docs/`: 20 topics with search, mobile navigation, light/dark themes and 14 actual app screenshots using fictional records. Purchase register and entry-form images are included. See [guide maintenance](USER-GUIDE.md), [complete backups](BACKUP-RESTORE.md) and [tax-rule review](TAX-RULE-REVIEW.md).
+
+## Current upstream gap pass
+
+Compared current main at `f2cf339` (package 1.10.82 plus explicitly unreleased 1.10.83 changes), covering 66 source files and 48 API declarations. Ported functional fixes while preserving KNOWGST UI and identity. JSON imports now validate before mutation and use recoverable transactions; corrupt data and storage-ID collisions fail visibly. See [feature matrix](FEATURE-PARITY.md), [production review](PRODUCTION-GAP-REVIEW.md) and [source surface audit](UPSTREAM-SURFACE-AUDIT.md).

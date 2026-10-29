@@ -4,5 +4,17 @@
     "reason": "Reject unimplemented filing years instead of silently falling back to FY 2024-25. Existing year arithmetic unchanged.",
     "tests": "apps/parity/tests/tax-review.test.mjs",
     "review": "docs/TAX-RULE-REVIEW.md"
+  },
+  "src/utils.js": {
+    "sha256": "90f345810177385aec549edbebdb5f2b5a2aa5d5d4fb2b8aa20da215cb497773",
+    "reason": "Reviewed upstream purchase tax split addition; existing invoice arithmetic unchanged at f2cf33939842db5d9e8206e922f2c8552da4cc38.",
+    "tests": "apps/parity/scripts/tax-test.mjs",
+    "review": "docs/PRODUCTION-GAP-REVIEW.md"
+  },
+  "src/utils/bulkCsv.js": {
+    "sha256": "2fb39a7c62edcedca93d6d2d93f3f881e2295fccff909e4d860ad85d7cd883d2",
+    "reason": "Reviewed upstream CSV date-order rejection and warnings at f2cf33939842db5d9e8206e922f2c8552da4cc38. Mixed date conventions also reject the complete file; storage.test.mjs covers this addition.",
+    "tests": "apps/parity/scripts/csv-test.mjs",
+    "review": "docs/PRODUCTION-GAP-REVIEW.md"
   }
 }

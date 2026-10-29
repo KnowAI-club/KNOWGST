@@ -101,3 +101,8 @@ test('partial staging copy failure leaves live data and the previous backup inta
   assert.equal(verifyBackup(backup).format,1);
  } finally {fs.cpSync=originalCopy;fs.rmSync(root,{recursive:true,force:true});}
 });
+
+test('secondary backup folder rejects another installation and unowned legacy dates',async()=>{
+ const {claimBackupFolder}=await import('../verified-backup.mjs');const dir=fs.mkdtempSync(path.join(os.tmpdir(),'knowgst-owner-'));
+ try{claimBackupFolder(dir,'first');claimBackupFolder(dir,'first');fs.mkdirSync(path.join(dir,'2026-10-29'));fs.writeFileSync(path.join(dir,'2026-10-29','sentinel'),'keep');assert.throws(()=>claimBackupFolder(dir,'second'),/another installation/);assert.equal(fs.readFileSync(path.join(dir,'2026-10-29','sentinel'),'utf8'),'keep');fs.unlinkSync(path.join(dir,'.knowgst-owner'));assert.throws(()=>claimBackupFolder(dir,'second'),/no recorded owner/);}finally{fs.rmSync(dir,{recursive:true,force:true});}
+});

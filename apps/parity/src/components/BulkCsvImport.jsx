@@ -87,16 +87,22 @@ export default function BulkCsvImport({ kind = 'sales', onDone }) {
     try {
       if (sales) {
         const stock = {};
-        for (const bill of plan.result.bills) {
-          try {
-            await saveBill(bill, { overwrite: false }); // never replaces an invoice
-            saved += 1;
-            for (const [id, d] of Object.entries(bill.data.stockApplied || {})) stock[id] = (stock[id] || 0) + d;
-          } catch (err) {
-            if (err.status === 409) taken += 1; else throw err;
+        // Stock for the bills already saved is applied even if a later one
+        // stops the import (it used to be skipped, leaving those bills with
+        // a stock record that never happened).
+        try {
+          for (const bill of plan.result.bills) {
+            try {
+              await saveBill(bill, { overwrite: false }); // never replaces an invoice
+              saved += 1;
+              for (const [id, d] of Object.entries(bill.data.stockApplied || {})) stock[id] = (stock[id] || 0) + d;
+            } catch (err) {
+              if (err.status === 409) taken += 1; else throw err;
+            }
           }
+        } finally {
+          if (Object.keys(stock).length) await applyStockChanges(stock);
         }
-        if (Object.keys(stock).length) await applyStockChanges(stock);
         if (addClients) for (const c of plan.result.newClients) await saveClient({ ...c }).catch(() => {});
       } else {
         // As when a bill is typed in: quantities go into product stock, and a
@@ -104,19 +110,22 @@ export default function BulkCsvImport({ kind = 'sales', onDone }) {
         const products = await getAllProducts().catch(() => []);
         const byName = new Map(products.map((p) => [String(p.name || '').trim().toLowerCase(), { ...p }]));
         const touched = new Set();
-        for (const purchase of plan.result.purchases) {
-          await savePurchase(purchase);
-          saved += 1;
-          for (const it of purchase.items) {
-            const key = it.name.trim().toLowerCase();
-            const prod = byName.get(key) || { name: it.name.trim(), hsn: it.hsn, sellingPrice: it.rate, rate: it.rate, taxPercent: it.taxPercent, cessPercent: it.cessPercent, unit: 'Nos', stock: 0, description: '' };
-            prod.stock = roundQty((Number(prod.stock) || 0) + it.quantity);
-            prod.purchasePrice = it.rate;
-            byName.set(key, prod);
-            touched.add(key);
+        // As for sales: the bills saved so far get their stock even if a later
+        // one fails.
+        try {
+          for (const purchase of plan.result.purchases) {
+            await savePurchase(purchase);
+            saved += 1;
+            for (const it of purchase.items) {
+              const key = it.name.trim().toLowerCase();
+              const prev = byName.get(key) || { name: it.name.trim(), hsn: it.hsn, sellingPrice: it.rate, rate: it.rate, taxPercent: it.taxPercent, cessPercent: it.cessPercent, unit: 'Nos', stock: 0, description: '' };
+              byName.set(key, { ...prev, stock: roundQty((Number(prev.stock) || 0) + it.quantity), purchasePrice: it.rate });
+              touched.add(key);
+            }
           }
+        } finally {
+          for (const key of touched) await saveProduct(byName.get(key));
         }
-        for (const key of touched) await saveProduct(byName.get(key));
       }
       const parts = [`${saved} ${sales ? 'invoice' : 'purchase bill'}${saved === 1 ? '' : 's'} imported`];
       if (plan.result.skipped.length + taken) parts.push(`${plan.result.skipped.length + taken} already there, skipped`);
@@ -174,6 +183,7 @@ export default function BulkCsvImport({ kind = 'sales', onDone }) {
                 <strong>{plan.fileName}</strong>: {ready} {sales ? 'invoice' : 'bill'}{ready === 1 ? '' : 's'} ready
                 {r.skipped.length > 0 && <> · {r.skipped.length} already there (skipped)</>}
                 {sales && r.newClients.length > 0 && <> · {r.newClients.length} new client{r.newClients.length === 1 ? '' : 's'}</>}
+                {(r.warnings || []).map((w) => <p key={w} style={{ color: 'var(--warning, #b45309)', margin: '0.5rem 0 0' }}>{w}</p>)}
                 {r.errors.length > 0 && (
                   <>
                     <p style={{ color: 'var(--danger)', margin: '0.5rem 0 0.25rem' }}>{r.errors.length} problem{r.errors.length === 1 ? '' : 's'} (these are not imported; fix the file and choose it again):</p>

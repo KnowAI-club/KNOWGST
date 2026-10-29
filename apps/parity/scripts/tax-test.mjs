@@ -63,9 +63,11 @@ import {
   parseLocalDate,
   formatDateGST,
 } from '../src/utils.js';
+import { splitPurchaseTax } from '../src/utils.js';
 import { buildXlsx, colName } from '../src/utils/xlsx.js';
 import { bulkRowToProduct, closingStock, stockValueOf } from '../src/utils/products.js';
 import { upiNote, parseSupporters, shouldShowSupportNudge } from '../src/utils/supporters.js';
+import { parseChangelog, inlineParts } from '../src/utils/changelog.js';
 import { unzipSync, strFromU8 } from 'fflate';
 import {
   compute44AE,
@@ -1030,6 +1032,43 @@ console.log('\n[V80] Support page: UPI payment note and the supporters tracker')
   eq([show(50, { snoozedUntil: day.getTime() + 1 }), show(50, { snoozedUntil: day.getTime() - 1 })], [false, true], '"Hide for 30 days" holds until the date passes');
   eq(show(500, { never: true }), false, 'The old "Don\'t show again" is still honoured');
   eq(show(50, { snoozedAt: day.getTime() }), true, 'The old 120-day snooze no longer hides it');
+}
+
+console.log('\n[V83] Supporters with their amounts');
+{
+  const t = parseSupporters({ totalReceived: 804, supporters: 2, thanks: ['A', 'B'], people: [
+    { name: 'Kuldeep Suthar', amount: 101, date: '2026-10-29' }, { name: '  Niraj  Kumar ', amount: 501.4 },
+    { name: '', amount: 5 }, { name: 'Bad', amount: -1 }, { name: 'Text', amount: 'lots' }, 'junk', null,
+  ] });
+  eq(t.people, [{ name: 'Kuldeep Suthar', amount: 101, date: '2026-10-29' }, { name: 'Niraj Kumar', amount: 501, date: '' }],
+    'Each supporter with amount and date; blank, negative and broken entries are left out');
+  eq(parseSupporters({ totalReceived: 10, thanks: ['A'] }).people, [], 'An older file (names only) still works: no amounts');
+}
+
+console.log('\n[V83] #117 Purchases: CGST + SGST, or IGST');
+{
+  const s = (tax, inter) => { const x = splitPurchaseTax(tax, inter); return [x.cgst, x.sgst, x.igst]; };
+  eq(s(180, false), [90, 90, 0], 'Intra-state 18% on ₹1,000: CGST ₹90 + SGST ₹90');
+  eq(s(180, true), [0, 0, 180], 'Inter-state: all IGST');
+  eq(s(10.01, false), [5.01, 5, 0], 'An odd paisa: CGST + SGST still add up to the tax exactly');
+  eq(s(0.03, false).reduce((a, b) => a + b, 0), 0.03, 'Tiny amounts add up too');
+  eq(s(undefined, false), [0, 0, 0], 'No tax: zeros, never NaN');
+}
+
+console.log('\n[V81] What\'s new: the changelog on the Support page');
+{
+  const md = `# Changelog\n\n---\n\n## [1.10.82] - unreleased\n\n**Not out yet.**\n\n## [1.10.81] - 2026-10-31\n\n**Checks your PC first.**\n\n### How to update\n\n1. Click Update.\n#### On 1.10.72 or older\nUse the launcher.\n\n### Fixed\n- **Old Node.js** (#109): fixed.\n  - Node.js 18 or newer,\n    with npm 7.\n  - Windows 10 or 11.\n- CSV dates\n  read day first.\n\n---\n\n## [1.10.80] - 2026-10-24\n\n**CSV import.**\n\n### Added\nSee the list.\n- Lock button.\n`;
+  const e = parseChangelog(md);
+  eq(e.map((x) => `${x.version} ${x.date}`), ['1.10.81 2026-10-31', '1.10.80 2026-10-24'], 'Released versions only, newest first (an unreleased entry is left out)');
+  eq([e[0].summary, e[0].sections.map((s) => s.title)], ['Checks your PC first.', ['Fixed']], 'The summary, and no "How to update" section');
+  eq(e[0].sections[0].blocks, [
+    { kind: 'item', text: '**Old Node.js** (#109): fixed.', children: ['Node.js 18 or newer, with npm 7.', 'Windows 10 or 11.'] },
+    { kind: 'item', text: 'CSV dates read day first.', children: [] },
+  ], 'Items, nested items and wrapped lines');
+  eq(e[1].sections[0].blocks.map((b) => b.kind), ['para', 'item'], 'A plain line is a paragraph');
+  eq(inlineParts('**B** *i* `c` [x](https://a.b) [y](docs/z.md) [j](javascript:alert(1))').map((p) => p.t),
+    ['b', 'text', 'i', 'text', 'code', 'text', 'link', 'text'], 'Bold, italic, code and http links; other links stay text');
+  eq(inlineParts('[j](javascript:alert(1))').some((p) => p.t === 'link'), false, 'A javascript: link is never a link');
 }
 
 console.log('\n────────────────────────────────────────');

@@ -1104,18 +1104,29 @@ export default function Dashboard({ onNew, onEdit, onPrint, onDuplicate, onConve
         else return;
       }
     }
-    // Fallback: text-only WhatsApp URL (existing behaviour).
-    // v1.10.24 — Explain WHY the PDF didn't attach the first time a
-    // desktop user hits this path. Once per session, then silent — no
-    // one wants a toast on every share. Framed as a browser limitation
-    // (which is what it is) so users don't blame the app.
+    // Fallback (desktop): WhatsApp Web cannot be handed a file by a web page
+    // (a browser security rule), so the PDF is downloaded and the client's
+    // chat opened with the message, ready to drag the file in.
+    // v1.10.81 (#117) - the client's saved number is used (it was only the
+    // number on the invoice record, which is rarely set), and the PDF is
+    // downloaded for them instead of "download it yourself".
+    const phone = getClientPhone(bill);
+    // Opened first, while it still counts as the click: opened after the PDF
+    // is made, browsers block it as a popup.
+    openWhatsAppShare(phone, msg);
+    let downloaded = false;
     try {
-      if (!sessionStorage.getItem('fgsb_whatsappDesktopExplained')) {
-        toast('Desktop browsers can\'t attach PDF to WhatsApp Web (a browser security rule). Sharing invoice details as text — download PDF and drop it into WhatsApp Web manually if you need the file. On phone the PDF attaches automatically.', 'info', 7000);
-        sessionStorage.setItem('fgsb_whatsappDesktopExplained', '1');
-      }
-    } catch { /* sessionStorage sandboxed — skip */ }
-    openWhatsAppShare(bill.clientPhone, msg);
+      const blob = await generateSingleBillPdfBlob(bill);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `${String(bill.invoiceNumber).replace(/[\\/:*?"<>|]+/g, '-')}.pdf`;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+      downloaded = true;
+    } catch { /* PDF failed: still open the chat with the text */ }
+    toast(downloaded
+      ? `PDF downloaded. Drag it into the WhatsApp chat${phone ? '' : ' (choose the contact there)'} — browsers can't attach it for you.`
+      : 'WhatsApp opened with the invoice details. Download the PDF from the invoice to send the file.', 'info', 7000);
   };
 
   const shareEmail = (bill) => {
@@ -1226,7 +1237,7 @@ export default function Dashboard({ onNew, onEdit, onPrint, onDuplicate, onConve
             <li><strong>New Invoice</strong> — start a fresh tax invoice / proforma / credit note / bill of supply / delivery challan.</li>
             <li><strong>Filter row</strong> — search by client name or invoice number; filter by financial year, type, status and date range. <strong>Columns</strong> picks what the list shows.</li>
             <li><strong>Row actions</strong> — 👁 View shows the invoice as it prints without opening the editor; Edit, ₹ Payment (records a payment and prints a receipt) and Convert sit beside it. The <strong>⋯</strong> menu has Duplicate, Print, WhatsApp, reminder, Email and Cancel. Cancelling keeps the invoice number but takes it out of totals and GST returns; undo it from the status dropdown.</li>
-            <li><strong>WhatsApp share — mobile vs. desktop:</strong> on Android / iPhone the PDF attaches automatically via the OS share sheet (works with WhatsApp, Signal, Telegram, anywhere). On desktop, browsers block sending files to WhatsApp Web for security — we fall back to a text-only message with all invoice details. To send the PDF from desktop: open the invoice, click Save &amp; Download, then drag the file into WhatsApp Web.</li>
+            <li><strong>WhatsApp share — mobile vs. desktop:</strong> on Android / iPhone the PDF attaches automatically via the OS share sheet (works with WhatsApp, Signal, Telegram, anywhere). On desktop, browsers block sending files to WhatsApp Web for security — the client chat opens and the PDF downloads. Drag the downloaded file into WhatsApp Web.</li>
             <li><strong>Bulk actions</strong> — tick rows to mark them paid / unpaid / overdue, export them, combine them into one PDF, or cancel them. <strong>Quick print</strong> combines the filtered list into one PDF.</li>
             <li><strong>Overdue banner</strong> — click it to jump to overdue invoices with one tap.</li>
             <li><strong>Low-stock alert</strong> — appears when any product is at or below your threshold (Settings → Stock alert).</li>
@@ -1663,7 +1674,7 @@ export default function Dashboard({ onNew, onEdit, onPrint, onDuplicate, onConve
                             { label: 'Duplicate', icon: Copy, onClick: () => onDuplicate(bill) },
                             { label: 'Print', icon: Printer, onClick: () => onPrint(bill), hidden: readOnly },
                             { label: 'WhatsApp', icon: MessageCircle, tone: 'green', onClick: () => shareWhatsApp(bill), hidden: readOnly,
-                              title: 'Share via WhatsApp — PDF attaches on mobile Chrome/Safari. On desktop it sends the invoice as text only (browser can\'t attach files to WhatsApp Web — security limitation, not our app).' },
+                              title: 'Share via WhatsApp — PDF attaches on mobile Chrome/Safari. On desktop the PDF downloads and the client chat opens; attach the downloaded file yourself.' },
                             // v1.10.12 — reminder for unpaid, partial and overdue bills.
                             { label: status === 'partial' ? 'Reminder (partial pending)' : 'Send reminder', icon: Send, onClick: () => sendReminder({ ...bill, clientPhone: getClientPhone(bill) }),
                               hidden: readOnly || isCancelledBill(bill) || !(isOverdue || status === 'overdue' || status === 'unpaid' || status === 'partial') || !(amountDue(bill) - (bill.paidAmount || 0) > 0.01) },

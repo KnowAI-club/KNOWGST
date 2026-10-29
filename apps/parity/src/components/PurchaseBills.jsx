@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, lazy, Suspense } from 'react';
 import { ShoppingCart, Plus, Edit3, Trash2, Search, X, Save, Download, Wand2, FileText, Eye } from 'lucide-react';
 import HelpButton from './HelpButton';
 import { getAllPurchases, savePurchase, deletePurchase, getAllProducts, saveProduct, getProfile } from '../store';
-import { formatCurrency, calculateRoundOff, getFYOptions, belongsToProfile, isUnassignedToBusiness, isInterstateSupply, localToday, roundQty } from '../utils';
+import { formatCurrency, calculateRoundOff, getFYOptions, belongsToProfile, isUnassignedToBusiness, isInterstateSupply, localToday, roundQty, splitPurchaseTax } from '../utils';
 import TableExport from './TableExport';
 import BulkCsvImport from './BulkCsvImport';
 import UnassignedBanner from './UnassignedBanner';
@@ -345,8 +345,9 @@ export default function PurchaseBills() {
       if (purchase.interstate) {
         doc.text('IGST', marginL + 100, y); doc.text(fmt(t.tax), marginR, y, { align: 'right' }); y += 5;
       } else {
-        doc.text('CGST', marginL + 100, y); doc.text(fmt(t.tax / 2), marginR, y, { align: 'right' }); y += 5;
-        doc.text('SGST', marginL + 100, y); doc.text(fmt(t.tax / 2), marginR, y, { align: 'right' }); y += 5;
+        const sp = splitPurchaseTax(t.tax, false);
+        doc.text('CGST', marginL + 100, y); doc.text(fmt(sp.cgst), marginR, y, { align: 'right' }); y += 5;
+        doc.text('SGST', marginL + 100, y); doc.text(fmt(sp.sgst), marginR, y, { align: 'right' }); y += 5;
       }
       if (t.cess > 0.005) { doc.text('Cess', marginL + 100, y); doc.text(fmt(t.cess), marginR, y, { align: 'right' }); y += 5; }
       if (Math.abs(t.roundOff) > 0.005) { doc.text('Round-off', marginL + 100, y); doc.text((t.roundOff > 0 ? '+' : '') + fmt(t.roundOff), marginR, y, { align: 'right' }); y += 5; }
@@ -516,7 +517,7 @@ export default function PurchaseBills() {
 
         // Apply deltas + write.
         const upserts = [];
-        for (const [key, prod] of productsToUpsert) {
+        for (const [, prod] of productsToUpsert) {
           if (prod._placeholderId) {
             const existing = byId.get(prod._placeholderId);
             const delta = stockDeltaById.get(prod._placeholderId) || 0;
@@ -811,14 +812,15 @@ export default function PurchaseBills() {
   const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
   const registerRows = (() => {
     if (!filtered.length) return [];
-    const sum = { taxable: 0, tax: 0, cess: 0, roundOff: 0, finalTotal: 0 };
+    const sum = { taxable: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, roundOff: 0, finalTotal: 0 };
     const rows = [...filtered].sort((x, y) => String(x.date || '').localeCompare(String(y.date || ''))).map(p => {
-      const t = calcPurchaseTotal(p.items, !!p.applyRoundOff);
+      const t = { ...calcPurchaseTotal(p.items, !!p.applyRoundOff) };
+      Object.assign(t, splitPurchaseTax(t.tax, !!p.interstate));
       for (const k of Object.keys(sum)) sum[k] += Number(t[k]) || 0;
-      return [p.date || '', p.supplierName || '', p.supplierGstin || '', p.invoiceNumber || '', r2(t.taxable), r2(t.tax), r2(t.cess),
+      return [p.date || '', p.supplierName || '', p.supplierGstin || '', p.invoiceNumber || '', r2(t.taxable), r2(t.cgst), r2(t.sgst), r2(t.igst), r2(t.cess),
         p.interstate ? 'Y' : 'N', r2(t.roundOff), r2(t.finalTotal), p.paymentStatus || '', p.note || ''];
     });
-    return [...rows, ['Total', '', '', '', r2(sum.taxable), r2(sum.tax), r2(sum.cess), '', r2(sum.roundOff), r2(sum.finalTotal), '', '']];
+    return [...rows, ['Total', '', '', '', r2(sum.taxable), r2(sum.cgst), r2(sum.sgst), r2(sum.igst), r2(sum.cess), '', r2(sum.roundOff), r2(sum.finalTotal), '', '']];
   })();
 
   const formTotals = calcPurchaseTotal(form.items, form.applyRoundOff);
@@ -920,8 +922,8 @@ export default function PurchaseBills() {
                   <><span style={{ color: 'var(--text-muted)' }}>IGST</span><span style={{ textAlign: 'right' }}>{formatCurrency(t.tax)}</span></>
                 ) : (
                   <>
-                    <span style={{ color: 'var(--text-muted)' }}>CGST</span><span style={{ textAlign: 'right' }}>{formatCurrency(t.tax / 2)}</span>
-                    <span style={{ color: 'var(--text-muted)' }}>SGST</span><span style={{ textAlign: 'right' }}>{formatCurrency(t.tax / 2)}</span>
+                    <span style={{ color: 'var(--text-muted)' }}>CGST</span><span style={{ textAlign: 'right' }}>{formatCurrency(splitPurchaseTax(t.tax, false).cgst)}</span>
+                    <span style={{ color: 'var(--text-muted)' }}>SGST</span><span style={{ textAlign: 'right' }}>{formatCurrency(splitPurchaseTax(t.tax, false).sgst)}</span>
                   </>
                 )}
                 {t.cess > 0.005 && <><span style={{ color: 'var(--text-muted)' }}>Cess</span><span style={{ textAlign: 'right' }}>{formatCurrency(t.cess)}</span></>}
@@ -1159,7 +1161,15 @@ export default function PurchaseBills() {
             <div style={{ marginTop: '1rem', padding: '0.75rem', background: 'var(--bg-secondary)', borderRadius: 8, fontSize: '0.85rem' }}>
               <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
                 <span>Taxable: <strong>{formatCurrency(formTotals.taxable)}</strong></span>
-                <span>Tax: <strong>{formatCurrency(formTotals.tax)}</strong></span>
+                {/* v1.10.83 (#117) - the split as filed, not one tax figure. */}
+                {form.interstate ? (
+                  <span>IGST: <strong>{formatCurrency(formTotals.tax)}</strong></span>
+                ) : (
+                  <>
+                    <span>CGST: <strong>{formatCurrency(splitPurchaseTax(formTotals.tax, false).cgst)}</strong></span>
+                    <span>SGST: <strong>{formatCurrency(splitPurchaseTax(formTotals.tax, false).sgst)}</strong></span>
+                  </>
+                )}
                 {formTotals.cess > 0 && (
                   <span>Cess: <strong>{formatCurrency(formTotals.cess)}</strong></span>
                 )}
@@ -1197,7 +1207,7 @@ export default function PurchaseBills() {
           <h3>Purchase Records</h3>
           <TableExport title="Purchase register" filename="Purchases" landscape
             subtitle={ownerProfile?.businessName || ''}
-            headers={['Date', 'Supplier', 'GSTIN', 'Invoice No', 'Taxable Amount', 'Tax (excl. cess)', 'Cess', 'Inter-state', 'Round-off', 'Total', 'Status', 'Note']}
+            headers={['Date', 'Supplier', 'GSTIN', 'Invoice No', 'Taxable Amount', 'CGST', 'SGST', 'IGST', 'Cess', 'Inter-state', 'Round-off', 'Total', 'Status', 'Note']}
             rows={registerRows} />
         </div>
         {filtered.length === 0 ? (

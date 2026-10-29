@@ -10,7 +10,7 @@
   },
   "scripts": {
     "build": "turbo run build",
-    "check": "turbo run check && tsc -p tsconfig.tools.json && node scripts/verify-upstream.mjs",
+    "check": "turbo run check && tsc -p tsconfig.tools.json && node scripts/verify-upstream.mjs && node scripts/audit-parity.mjs",
     "test:e2e": "playwright test",
     "dev": "pnpm --filter @know-gst/parity prepare:ocr && tsx scripts/parity-dev.ts",
     "dev:prototype": "tsx scripts/dev.ts",

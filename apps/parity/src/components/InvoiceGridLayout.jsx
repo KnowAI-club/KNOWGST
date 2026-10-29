@@ -15,6 +15,7 @@
 // page can end between rows or blocks but never cuts through one.
 import React from 'react';
 import { filledOrderDetails, getStateCode, printedSubtotal, roundQty } from '../utils';
+import SignatureImages from './SignatureImages';
 
 const LINE = '#1f2937';
 const B = `1px solid ${LINE}`;
@@ -42,9 +43,9 @@ function Signature({ ctx, align = 'right' }) {
     <div {...blockProps} data-pdf-signature="" style={{ textAlign: align, minHeight: 90, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
       <div style={{ fontWeight: 700 }}>for {ctx.profile?.businessName || 'Your Business'}</div>
       {sig.show && (
-        <div style={{ display: 'flex', gap: 6, justifyContent: align === 'right' ? 'flex-end' : 'center', alignItems: 'flex-end', margin: '4px 0' }}>
-          {sig.stampImg && <img src={sig.stampImg} alt="Stamp" style={{ maxHeight: `${sig.stampHeight}px`, maxWidth: 110, objectFit: 'contain' }} />}
-          {sig.sigImg && <img src={sig.sigImg} alt="Signature" style={{ maxHeight: `${sig.sigHeight}px`, maxWidth: 160, objectFit: 'contain' }} />}
+        <div style={{ margin: '4px 0' }}>
+          <SignatureImages sigImg={sig.sigImg} stampImg={sig.stampImg} sigHeight={sig.sigHeight} stampHeight={sig.stampHeight}
+            layout={sig.layout} align={align} gap={6} sigMaxWidth={160} stampMaxWidth={110} />
         </div>
       )}
       {ctx.showSignatoryText && <div>Authorised Signatory</div>}

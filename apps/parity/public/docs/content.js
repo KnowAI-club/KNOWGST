@@ -67,7 +67,7 @@ export const pages = [
       "Use print settings to adjust the available template, paper and display options.",
       "Save the PDF and inspect all pages, tax particulars and totals before sharing it."
     ],
-    "notes": "Printer output varies with device and browser settings. A generated PDF or GST export is not a government-issued IRN or a filed return.",
+    "notes": "When both images are present, Settings → Business Profile offers side-by-side, stacked or overlaid signature/stamp layouts. Printer output varies with device and browser settings. A generated PDF or GST export is not a government-issued IRN or a filed return.",
     "screen": "invoice",
     "view": "new"
   },
@@ -227,7 +227,7 @@ export const pages = [
       "To restore, select the required snapshot, read the confirmation and choose Restore.",
       "Reopen records and PDFs after restoration. Keep the pre-restore recovery copy until you have checked the result."
     ],
-    "notes": "New complete snapshots include application data, Saved Invoices and PDF trash, verified with SHA-256 manifests. Legacy snapshots restore data only and leave PDFs in place. JSON exports are records-only. Backups are not encrypted.",
+    "notes": "New complete snapshots include application data, Saved Invoices and PDF trash, verified with SHA-256 manifests. Legacy snapshots restore data only and leave PDFs in place. JSON exports are records-only. Backups are not encrypted. Use a separate secondary folder for each installation; a folder owned by another installation cannot be overwritten.",
     "screen": "control-panel",
     "view": "controlpanel"
   },
@@ -253,7 +253,7 @@ export const pages = [
     "steps": [
       "Use purchase OCR to extract a draft from an image, then correct and save it.",
       "Configure Google Drive only if you want to send backup data to that provider. Verify authorization and the uploaded result.",
-      "Review a WhatsApp draft and its recipient before sending it yourself."
+      "Review a WhatsApp draft and its saved-client recipient before sending it yourself. On desktop, the PDF downloads for you to attach manually."
     ],
     "notes": "Local OCR has automated extraction coverage. Live Drive authorization, real delivery and third-party account behavior remain unverified. AI and expanded messaging integrations are planned, not shipped.",
     "screen": "purchases",

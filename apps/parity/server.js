@@ -1,4 +1,5 @@
-import { createVerifiedBackup, verifyBackup, replaceDirectory, restoreVerifiedBackup, recoverInterruptedRestore } from './verified-backup.mjs';
+import { readRecord, durableWrite, commitJsonBatch, recoverJsonTransaction, validateObject, validateId, storageError } from './json-storage.mjs';
+import { createVerifiedBackup, verifyBackup, replaceDirectory, restoreVerifiedBackup, recoverInterruptedRestore, claimBackupFolder } from './verified-backup.mjs';
 import express from 'express';
 // v1.10.0 — `cors` package no longer imported. The CORS-lockdown
 // middleware below is intentionally custom + strict (localhost only)
@@ -20,6 +21,7 @@ const RUNTIME_DIR = path.resolve(process.env.KNOWGST_RUNTIME || path.join(__dirn
 fs.mkdirSync(RUNTIME_DIR, { recursive: true, mode: 0o700 });
 const DATA_DIR = path.join(RUNTIME_DIR, 'data');
 recoverInterruptedRestore(DATA_DIR);
+recoverJsonTransaction(DATA_DIR);
 
 // Port choice — we deliberately default to a high, unusual number rather than
 // the conventional 3001. The 3000-range is heavily used by every other Node /
@@ -128,6 +130,25 @@ for (const dir of DIRS) {
   if (!fs.existsSync(dirPath)) fs.mkdirSync(dirPath, { recursive: true });
 }
 
+// Reject malformed shapes and colliding storage identities before any write/delete.
+app.use((req,res,next)=>{
+  try {
+    const match=req.path.match(/^\/api\/(bills|clients|templates|products|expenses|recurring|receipts|profiles|purchases)(?:\/([^/]+))?$/);
+    if(req.method==='POST' && (match&&!match[2] || ['/api/profile','/api/import'].includes(req.path))){
+      validateObject(req.body);
+      if(match && req.body.id!==undefined)validateId(req.body.id);
+    }
+    if(match && ['POST','DELETE'].includes(req.method)){
+      const id=match[2]?decodeURIComponent(match[2]):req.body?.id;
+      if(id!==undefined){validateId(id);const existing=readJSON(path.join(DATA_DIR,match[1],safeFileName(id)+'.json'));
+        if(existing?.id!==undefined && existing.id!==id)throw storageError('Record ID collides with another filename','conflict',409);
+      }
+    }
+    if(req.path.startsWith('/api/meta/') && ['__proto__','constructor','prototype'].includes(decodeURIComponent(req.path.split('/')[3])))throw storageError('Reserved metadata key','bad-request',400);
+    next();
+  }catch(error){next(error);}
+});
+
 // Helper: safe filename from ID (replace slashes, etc.)
 function safeFileName(id) {
   return String(id).replace(/[/\\:*?"<>|]/g, '_');
@@ -167,6 +188,7 @@ function isPathInside(resolved, root) {
 // EACCES/EPERM strings that hint at server structure). Server-side
 // logs the full detail; client sees a stable code + generic phrase.
 function errRes(res, status, code, err) {
+  if(err?.code==='data-corrupt'){status=503;code='data-corrupt';}
   if (err) {
     try {
       const ts = new Date().toISOString();
@@ -175,6 +197,7 @@ function errRes(res, status, code, err) {
     } catch { /* ignore log failures */ }
   }
   const MESSAGES = {
+    'data-corrupt': 'Saved data could not be read. Restore a verified backup or repair the affected record before continuing.',
     'bad-request': 'Invalid request',
     'not-found': 'Not found',
     'conflict': 'Conflict with existing resource',
@@ -192,9 +215,7 @@ function errRes(res, status, code, err) {
 // invoice counter — a truncated meta.json read back as `{}` reissues
 // invoice numbers from zero.
 function writeFileAtomic(filePath, contents) {
-  const tmp = filePath + '.tmp';
-  fs.writeFileSync(tmp, contents, 'utf-8');
-  fs.renameSync(tmp, filePath);
+  durableWrite(filePath, contents);
 }
 
 // Errors log path — declared here so errRes() can find it. The actual
@@ -218,21 +239,15 @@ function readAllFromDir(dir) {
   if (!fs.existsSync(dirPath)) return [];
   const results = fs.readdirSync(dirPath)
     .filter(f => f.endsWith('.json'))
-    .map(f => {
-      try { return JSON.parse(fs.readFileSync(path.join(dirPath, f), 'utf-8')); }
-      catch { return null; }
-    })
-    .filter(Boolean);
+    .map(f => readJSON(path.join(dirPath, f)));
+
   dirCache[dir] = { at: Date.now(), value: results };
   return results;
 }
 
 // Helper: read a single JSON file
 function readJSON(filePath, fallback = null) {
-  try {
-    if (fs.existsSync(filePath)) return JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-  } catch { /* ignore */ }
-  return fallback;
+  return readRecord(filePath, fallback);
 }
 
 // Helper: write JSON file (with cache invalidation). v1.10.0 — writes
@@ -288,27 +303,11 @@ app.post('/api/bills', (req, res) => {
 // dual-entry integrity guaranteed by v1.10.24. Client can force-delete
 // by passing `?force=1` (they accept the ledger inconsistency).
 function findCreditDependents(billId) {
-  try {
-    const billsDir = path.join(DATA_DIR, 'bills');
-    const dependents = [];
-    for (const f of fs.readdirSync(billsDir).filter(n => n.endsWith('.json'))) {
-      let other;
-      try { other = readJSON(path.join(billsDir, f), null); } catch { continue; }
-      if (!other || other.id === billId) continue;
-      const payments = other.payments || other.data?.payments || [];
-      for (const p of payments) {
-        if (p?.mode !== 'credit-applied') continue;
-        const sources = p?.creditSourceBillIds || [];
-        if (sources.includes(billId)) {
-          dependents.push({ id: other.id, invoiceNumber: other.invoiceNumber, amount: p.amount });
-          break;
-        }
-      }
-    }
-    return dependents;
-  } catch {
-    return [];
-  }
+  return readAllFromDir('bills').flatMap(other=>{
+    if(other.id===billId)return [];
+    const payment=(other.payments||other.data?.payments||[]).find(p=>p?.mode==='credit-applied' && (p.creditSourceBillIds||[]).includes(billId));
+    return payment?[{id:other.id,invoiceNumber:other.invoiceNumber,amount:payment.amount}]:[];
+  });
 }
 
 app.delete('/api/bills/:id', (req, res) => {
@@ -380,7 +379,7 @@ app.get('/api/clients', (req, res) => {
 
 app.post('/api/clients', (req, res) => {
   const client = req.body;
-  if (!client.id) client.id = 'cli_' + Date.now();
+  if (!client.id) client.id = 'cli_' + crypto.randomUUID();
   const filePath = path.join(DATA_DIR, 'clients', safeFileName(client.id) + '.json');
   writeJSON(filePath, client);
   res.json({ success: true, id: client.id });
@@ -413,7 +412,7 @@ app.get('/api/templates', (req, res) => {
 
 app.post('/api/templates', (req, res) => {
   const tpl = req.body;
-  if (!tpl.id) tpl.id = 'tpl_' + Date.now();
+  if (!tpl.id) tpl.id = 'tpl_' + crypto.randomUUID();
   const filePath = path.join(DATA_DIR, 'templates', safeFileName(tpl.id) + '.json');
   writeJSON(filePath, tpl);
   res.json({ success: true, id: tpl.id });
@@ -436,7 +435,7 @@ app.get('/api/products', (req, res) => {
 
 app.post('/api/products', (req, res) => {
   const product = req.body;
-  if (!product.id) product.id = 'prod_' + Date.now();
+  if (!product.id) product.id = 'prod_' + crypto.randomUUID();
   const filePath = path.join(DATA_DIR, 'products', safeFileName(product.id) + '.json');
   writeJSON(filePath, product);
   res.json({ success: true, id: product.id });
@@ -459,7 +458,7 @@ app.get('/api/expenses', (req, res) => {
 
 app.post('/api/expenses', (req, res) => {
   const expense = req.body;
-  if (!expense.id) expense.id = 'exp_' + Date.now();
+  if (!expense.id) expense.id = 'exp_' + crypto.randomUUID();
   const filePath = path.join(DATA_DIR, 'expenses', safeFileName(expense.id) + '.json');
   writeJSON(filePath, expense);
   res.json({ success: true, id: expense.id });
@@ -482,7 +481,7 @@ app.get('/api/recurring', (req, res) => {
 
 app.post('/api/recurring', (req, res) => {
   const item = req.body;
-  if (!item.id) item.id = 'rec_' + Date.now();
+  if (!item.id) item.id = 'rec_' + crypto.randomUUID();
   const filePath = path.join(DATA_DIR, 'recurring', safeFileName(item.id) + '.json');
   writeJSON(filePath, item);
   res.json({ success: true, id: item.id });
@@ -528,7 +527,7 @@ app.get('/api/purchases', (req, res) => {
 
 app.post('/api/purchases', (req, res) => {
   const purchase = req.body;
-  if (!purchase.id) purchase.id = 'pur_' + Date.now();
+  if (!purchase.id) purchase.id = 'pur_' + crypto.randomUUID();
   const filePath = path.join(DATA_DIR, 'purchases', safeFileName(purchase.id) + '.json');
   writeJSON(filePath, purchase);
   res.json({ success: true, id: purchase.id });
@@ -551,7 +550,7 @@ app.get('/api/profiles', (req, res) => {
 
 app.post('/api/profiles', (req, res) => {
   const prof = req.body;
-  if (!prof.id) prof.id = 'biz_' + Date.now();
+  if (!prof.id) prof.id = 'biz_' + crypto.randomUUID();
   const filePath = path.join(DATA_DIR, 'profiles', safeFileName(prof.id) + '.json');
   writeJSON(filePath, prof);
   res.json({ success: true, id: prof.id });
@@ -733,7 +732,26 @@ app.post('/api/import', (req, res) => {
   // Also v1.10.31 — Data-F12.2: after any import, scan the imported bills
   // and reconcile the meta counter with each prefix's max existing suffix
   // so the next reservation doesn't collide.
+  requireSnapshotIdle();
   const data = req.body;
+  const collections={bills:'bills',clients:'clients',termsTemplates:'templates',products:'products',expenses:'expenses',recurring:'recurring',receipts:'receipts',profiles:'profiles',purchases:'purchases'};
+  for(const [key,dir] of Object.entries(collections)){
+    if(data[key]===undefined)continue;
+    if(!Array.isArray(data[key]))throw storageError('Collection must be an array','bad-request',400);
+    const seen=new Set();
+    for(const record of data[key]){
+      validateObject(record);validateId(record.id);
+      const file=path.join(DATA_DIR,dir,safeFileName(record.id)+'.json');
+      if(seen.has(file))throw storageError('Duplicate import identity','bad-request',400);seen.add(file);
+      const existing=readRecord(file);
+      if(existing?.id!==undefined&&existing.id!==record.id)throw storageError('Import ID collision','conflict',409);
+    }
+  }
+  if(data.profile!==undefined)validateObject(data.profile);
+  if(data.meta!==undefined)validateObject(data.meta);
+  const pending=new Map();
+  const writeJSON=(file,value)=>pending.set(file,value);
+  const readJSON=(file,fallback=null)=>pending.has(file)?pending.get(file):readRecord(file,fallback);
   const overwrite = req.query.overwrite === '1' || req.query.overwrite === 'true';
   const counts = {
     billCount: 0, billSkipped: 0,
@@ -798,12 +816,11 @@ app.post('/api/import', (req, res) => {
   // to at least max(existing) so the next reservation doesn't collide.
   try {
     const meta = readJSON(META_PATH, {});
-    const billFiles = fs.readdirSync(path.join(DATA_DIR, 'bills')).filter(f => f.endsWith('.json'));
+    const billFiles = [...new Set([...fs.readdirSync(path.join(DATA_DIR, 'bills')).filter(f => f.endsWith('.json')), ...[...pending.keys()].filter(f=>path.dirname(f)===path.join(DATA_DIR,'bills')).map(f=>path.basename(f))])];
     const maxByPrefix = {};
     const maxByKey = {};
     for (const f of billFiles) {
-      let bill;
-      try { bill = readJSON(path.join(DATA_DIR, 'bills', f), null); } catch { continue; }
+      const bill = readJSON(path.join(DATA_DIR, 'bills', f), null);
       const num = String(bill?.invoiceNumber || bill?.id || '');
       // Extract prefix + last numeric suffix (e.g. INV/2026-27/0007 → prefix INV, suffix 7)
       const m = num.match(/^([A-Z]+)[\W_].*?(\d+)\s*$/i);
@@ -839,9 +856,11 @@ app.post('/api/import', (req, res) => {
     }
     if (metaChanged) writeJSON(META_PATH, meta);
   } catch (err) {
-    console.error('Post-import counter reconciliation failed:', err);
+    throw err;
   }
 
+  commitJsonBatch(DATA_DIR,pending);
+  for(const dir of DIRS)invalidateCache(dir);
   res.json({ ...counts, hasProfile: !!data.profile });
 });
 
@@ -1067,6 +1086,8 @@ app.post('/api/trash-pdf', express.json(), (req, res) => {
 // Version check
 // ========================
 const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, 'package.json'), 'utf-8'));
+
+app.get('/api/changelog', (_req,res)=>res.json({text:fs.readFileSync(path.join(__dirname,'CHANGELOG.md'),'utf8').slice(0,400000)}));
 
 app.get('/api/version', (req, res) => {
   res.json({ current: pkg.version });
@@ -1336,6 +1357,9 @@ const extraBackupsDir = () => {
   return typeof folder === 'string' && folder.trim() && path.isAbsolute(folder.trim())
     ? path.join(folder.trim(), EXTRA_BACKUP_SUBDIR) : null;
 };
+const installationFile=path.join(RUNTIME_DIR,'installation-id');
+if(!fs.existsSync(installationFile))fs.writeFileSync(installationFile,crypto.randomUUID(),{flag:'wx',mode:0o600});
+const installationId=fs.readFileSync(installationFile,'utf8').trim();
 let lastExtraBackupError = '';
 function copyBackupToExtraFolder(date) {
   const dir = extraBackupsDir();
@@ -1345,7 +1369,7 @@ function copyBackupToExtraFolder(date) {
     const dst = path.join(dir, date);
     if (!fs.existsSync(src)) throw new Error('Source backup is missing');
     verifyBackup(src);
-    ensureDir(dir);
+    claimBackupFolder(dir,installationId);
     // Copied under a temporary name and renamed, so a half-copied folder (disk
     // removed mid-copy) never looks like a complete backup.
     const tmp = `${dst}.partial`;
@@ -1662,6 +1686,7 @@ app.use((err, req, res, next) => {
   if (status === 413) code = 'payload-too-large';
   else if (status === 400) code = 'bad-request';
   else if (status === 404) code = 'not-found';
+  else if (status === 409) code = 'conflict';
   errRes(res, status, code, err);
 });
 

@@ -1843,7 +1843,7 @@ export const setDefaultAccount = (accounts, accountId) => {
 // Soft UPI VPA format check (warning-only). Allows alphanumerics, dot, hyphen,
 // underscore on either side of the @ — covers Indian VPAs like
 // "9999999999@upi", "acme.corp@hdfcbank", "merchant-1@paytm".
-export const isValidUpiId = (s) => /^[\w.\-]+@[\w.\-]+$/.test(String(s || '').trim());
+export const isValidUpiId = (s) => /^[\w.-]+@[\w.-]+$/.test(String(s || '').trim());
 
 // ========== Feature modules ==========
 // Each module can be turned off by the user in Settings → Modules. Modules in
@@ -2307,7 +2307,7 @@ export const GST_DOC_NUMBER = /^[A-Za-z0-9\-/]{1,16}$/;
 const GST_NUMBERED_TYPES = ['tax-invoice', 'credit-note'];
 export const numberFormatProblem = (settings, { nextInvoice = 1, own = false, customPrefixes = {}, fyLabel = '' } = {}) => {
   const s = { ...DEFAULT_NUMBER_SETTINGS, ...(settings || {}) };
-  if (s.format !== 'random' && !/^[\-/]$/.test(s.separator || '/')) return `The GST portal does not accept "${s.separator}" in invoice numbers. Use / or -.`;
+  if (s.format !== 'random' && !/^[-/]$/.test(s.separator || '/')) return `The GST portal does not accept "${s.separator}" in invoice numbers. Use / or -.`;
   for (const type of GST_NUMBERED_TYPES) {
     const override = own ? '' : String(customPrefixes?.[type] || '').trim();
     const sample = formatDocNumber({
@@ -2362,3 +2362,13 @@ export const paymentStatusFor = (bill, paid) => {
   if (due > 0 && paid >= due - 0.005) return 'paid';
   return paid > 0.005 ? 'partial' : 'unpaid';
 };
+
+// v1.10.83 (#117) - the purchase tax as the bill shows it: IGST between
+// states, otherwise CGST + SGST, half each. SGST takes the odd paisa, so the
+// two always add up to the tax exactly (filing needs the heads separately).
+export function splitPurchaseTax(tax, interstate) {
+  const t = Math.round((Number(tax) || 0) * 100) / 100;
+  if (interstate) return { cgst: 0, sgst: 0, igst: t };
+  const cgst = Math.round(t * 50) / 100;
+  return { cgst, sgst: Math.round((t - cgst) * 100) / 100, igst: 0 };
+}

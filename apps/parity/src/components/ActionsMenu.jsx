@@ -27,7 +27,10 @@ export default function ActionsMenu({ items, label = 'More actions' }) {
       if (e.type === 'keydown' && e.key !== 'Escape') return;
       if (e.type === 'mousedown' && (menu.current?.contains(e.target) || btn.current?.contains(e.target))) return;
       setPos(null);
+      if (e.type === 'keydown') btn.current?.focus(); // back where the keyboard was
     };
+    // Keyboard users land on the first item, as in any menu.
+    menu.current?.querySelector('[role="menuitem"]')?.focus({ preventScroll: true });
     // The menu follows its button while the page scrolls, and closes once the
     // button has left the screen.
     const follow = () => {
@@ -50,6 +53,14 @@ export default function ActionsMenu({ items, label = 'More actions' }) {
 
   if (!visible.length) return null;
   const toggle = () => setPos(pos ? null : placeFor(btn.current.getBoundingClientRect(), visible.length));
+  // Arrow keys, Home and End move between the items; Tab leaves the menu.
+  const onMenuKey = (e) => {
+    const all = [...menu.current.querySelectorAll('[role="menuitem"]')];
+    const i = all.indexOf(document.activeElement);
+    const go = { ArrowDown: (i + 1) % all.length, ArrowUp: (i - 1 + all.length) % all.length, Home: 0, End: all.length - 1 }[e.key];
+    if (go !== undefined) { e.preventDefault(); all[go]?.focus(); }
+    else if (e.key === 'Tab') setPos(null);
+  };
 
   return (
     <>
@@ -58,7 +69,7 @@ export default function ActionsMenu({ items, label = 'More actions' }) {
         <MoreHorizontal size={15} />
       </button>
       {pos && (
-        <div ref={menu} role="menu" className="actions-menu" style={{
+        <div ref={menu} role="menu" className="actions-menu" aria-label={label} onKeyDown={onMenuKey} style={{
           position: 'fixed', zIndex: 1000, ...pos, minWidth: 190,
           background: 'var(--card, #fff)', border: '1px solid var(--border)', borderRadius: 8,
           boxShadow: '0 10px 30px rgba(0,0,0,0.18)', padding: 4,
@@ -68,7 +79,9 @@ export default function ActionsMenu({ items, label = 'More actions' }) {
             const color = item.tone === 'danger' ? 'var(--danger, #dc2626)' : item.tone === 'green' ? '#059669' : 'var(--text)';
             return (
               <button key={item.label} type="button" role="menuitem" title={item.title || item.label}
-                onClick={() => { setPos(null); item.onClick(); }}
+                onClick={() => { setPos(null); btn.current?.focus(); item.onClick(); }}
+                onFocus={(e) => { e.currentTarget.style.background = 'var(--bg-secondary)'; }}
+                onBlur={(e) => { e.currentTarget.style.background = 'transparent'; }}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left',
                   padding: '0.45rem 0.6rem', border: 'none', background: 'transparent', borderRadius: 6,

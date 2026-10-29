@@ -69,6 +69,25 @@ test('compatibility service: module persistence, isolation and recovery', async 
       const results=await Promise.all(Array.from({length:20},()=>call('/meta/testCounter/increment','POST',{})));
       assert.equal(new Set(results.map(r=>r.body.value)).size,20);
     });
+    await t.test('invalid imports and colliding IDs cannot partially overwrite records',async()=>{
+      const before=(await call('/profile')).body;
+      const bad=await call('/import?overwrite=1','POST',{profile:{businessName:'Should not persist'},clients:[{id:'new-valid',name:'Should not persist'},null]});
+      assert.equal(bad.status,400);assert.deepEqual((await call('/profile')).body,before);
+      assert.equal((await call('/clients')).body.some(x=>x.id==='new-valid'),false);
+      assert.equal((await call('/import','POST',{clients:{id:'invalid'}})).status,400);
+      assert.equal((await call('/clients','POST',[])).status,400);
+      assert.equal((await call('/clients','POST',{id:{bad:'id'}})).status,400);
+      assert.equal((await call('/clients','POST',{id:'collision/a',name:'Original'})).status,200);
+      assert.equal((await call('/clients','POST',{id:'collision_a',name:'Replacement'})).status,409);
+      assert.equal((await call('/clients/collision_a','DELETE')).status,409);
+      assert.equal((await call('/meta/__proto__','POST',{value:{bad:true}})).status,400);
+    });
+    await t.test('corrupt metadata blocks counter resets and remains unchanged',async()=>{
+      const file=join(runtime,'data','meta.json');const previous=await readFile(file,'utf8');
+      try{await writeFile(file,'{"broken":');const response=await call('/meta/counter_INV/increment','POST',{});
+        assert.equal(response.status,503);assert.equal(response.body.code,'data-corrupt');assert.equal(await readFile(file,'utf8'),'{"broken":');
+      }finally{await writeFile(file,previous);}
+    });
     await t.test('selective export/import does not erase unrelated modules', async () => {
       const exported=(await call('/export')).body;
       assert.equal(exported.bills.length,1);
