@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
 import { ArrowLeft, Plus, Trash2, Download, UserPlus, Pencil, Settings, ChevronUp, ChevronDown, MessageCircle, Check, Loader, Truck, Printer, Eye, EyeOff } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
-import { saveBill, deleteBill, applyStockChanges, getNextInvoiceNumber, getTermsTemplates, getAllClients, saveClient, getProfile, getAllProducts, getInvoiceDisplayOptions, saveInvoiceDisplayOptions, getAllProfiles, getRegionMode, saveRecurring, getAllRecurring, getAllBills } from '../store';
+import { saveInvoiceTransaction, saveBill, getNextInvoiceNumber, getTermsTemplates, getAllClients, saveClient, getProfile, getAllProducts, getInvoiceDisplayOptions, saveInvoiceDisplayOptions, getAllProfiles, getRegionMode, saveRecurring, getAllRecurring, getAllBills } from '../store';
 import { INVOICE_TYPES, businessKeyOf, GST_DOC_NUMBER, COUNTRIES, printedSubtotal, deliveryChargeLine, stockEffect, appliedStock, stockDelta, generateEWayBillJSON, formatCurrency, getCountryConfig, getStatesForCountry, getAllUnits, addCustomUnit, removeCustomUnit, getCountriesForRegion, TDS_SECTIONS, TCS_SECTIONS, REMOVED_TCS_SECTIONS, TERMS_PRESETS, getActiveAccounts, getDefaultAccount, getAccountById, getDefaultUnitForMode, filterUnitsByMode, PAPER_SIZES, getPaperSize, computeInvoiceTotals, clientYearToDate, htmlHasText, ORDER_DETAIL_FIELDS, invoiceOptionOn, DEFAULT_DECLARATION, decodeGstin, safePageBoundaries, localToday, toLocalIsoDate, parseLocalDate, paymentStatusFor } from '../utils';
 import { getPrintSettings, savePrintSettings } from '../utils/printSettings';
 import { openWhatsAppShare } from '../utils/share';
@@ -1731,27 +1731,9 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
         return null;
       }
     }
-    const seedPayments = ownBill && editingBill.payments ? [...editingBill.payments] : [];
-    // Also for a NEW bill once it is saved: its stored copy holds the client
-    // credit applied on the first save (and any payment recorded since). A
-    // later save started from no payments and wiped them.
-    if (priorId) {
-      try {
-        const serverBills = await getAllBills();
-        const fresh = serverBills.find(b => b.id === priorId);
-        const freshPayments = Array.isArray(fresh?.payments) ? fresh.payments : [];
-        for (const fp of freshPayments) {
-          const dup = seedPayments.some(p =>
-            (fp.receiptNo && p.receiptNo === fp.receiptNo)
-            || (fp.id && p.id === fp.id)
-            || (Math.abs((Number(p.amount) || 0) - (Number(fp.amount) || 0)) < 0.005
-                && p.date === fp.date
-                && (p.mode || '') === (fp.mode || ''))
-          );
-          if (!dup) seedPayments.push(fp);
-        }
-      } catch { /* non-fatal — reconciliation pass will catch it */ }
-    }
+    const latestBills = await getAllBills();
+    const latestOwn = priorId ? latestBills.find(b => b.id === priorId) : null;
+    const seedPayments = latestOwn ? [...(latestOwn.payments || [])] : ownBill ? [...(editingBill.payments || [])] : [];
     if (creditPlan?.targetEntry) seedPayments.push(creditPlan.targetEntry);
     const seedPaidAmount = seedPayments.reduce((s, p) => s + (Number(p.amount) || 0), 0);
     // v1.10.41 — Recompute status from the merged paid amount rather
@@ -1763,10 +1745,8 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
     // is ours: its stock record is what has really been moved, even if this
     // editor was opened from an older copy (a page refresh, another tab).
     const isIssued = !!editingBill && !editingBill._isDuplicate;
-    let serverCopy = null;
-    if (isIssued || hasBeenSaved.current) {
-      try { serverCopy = (await getAllBills()).find((b) => b.id === (renameFrom || finalInvoiceNumber)) || null; } catch { /* treated as not saved yet */ }
-    }
+    const serverCopy = (isIssued || hasBeenSaved.current)
+      ? latestBills.find(b => b.id === (renameFrom || finalInvoiceNumber)) || null : null;
     const stockFrom = serverCopy ? appliedStock(serverCopy) : stockStart.current;
     // v1.10.76 - editing a cancelled invoice keeps it cancelled. It used to come
     // back as Unpaid: into totals and GST returns again, and now stock too.
@@ -1817,30 +1797,29 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
     // The number this bill actually ended up under: the 409 retry below can
     // move it, and the recurring template + callers must use the real one.
     let savedNumber = bill.id;
+    const conversionSource = editingBill?._convertToType && !conversionMarked.current
+      ? latestBills.find(b => b.id === editingBill.id) : null;
+    if (editingBill?._convertToType && !conversionMarked.current && (!conversionSource || conversionSource.convertedTo)) {
+      toast('The source document was removed or already converted. Reload before continuing.', 'error');
+      return null;
+    }
+    let transactionProducts = [];
+    const persistInvoice = async (value, overwrite) => {
+      if ((overwrite || renameFrom) && serverCopy) value._revision = savedRevision.current || serverCopy._revision;
+      const result = await saveInvoiceTransaction([
+        { bill: value, overwrite, ...(renameFrom ? { renameFrom } : {}) },
+        ...(conversionSource ? [{ bill: { ...conversionSource, convertedTo: value.id }, overwrite: true }] : []),
+        ...(creditPlan?.sourcePatches || []).map(({ updatedBill }) => ({ bill: updatedBill, overwrite: true, stock: false })),
+      ]);
+      transactionProducts = result.products;
+      savedRevision.current = result.bills[0]._revision;
+    };
     try {
-      await saveBill(bill, { overwrite: shouldOverwrite });
-      // v1.10.24 — Follow-up: write the `credit-transferred-out` entries
-      // to each source overpaid bill. Sequential so a failure on any one
-      // stops the chain (rare — same origin, same server, right after we
-      // just succeeded on the primary save). If any patch does fail, the
-      // primary bill still has the credit-applied entry; the source
-      // bill's overpayment display just remains stale until it's edited.
-      // Toast lets the user know.
+      await persistInvoice(bill, shouldOverwrite);
       if (creditPlan?.sourcePatches?.length) {
-        try {
-          for (const { updatedBill } of creditPlan.sourcePatches) {
-            await saveBill(updatedBill, { overwrite: true });
-          }
-          const applied = creditPlan.amountApplied;
-          const from = creditPlan.consumedFrom.map(c => c.invoiceNumber).join(', ');
-          toast(`${formatCurrency(applied, invoiceOptions.currency || 'INR')} credit applied from ${from}`, 'success');
-          // Refresh local bills list so the credit banner drops for next time.
-          getAllBills().then(setAllBillsForCredit).catch(() => {});
-          setCreditToApply(0);
-        } catch (creditErr) {
-          console.error('Source-bill credit patch failed:', creditErr);
-          toast('Credit applied on this bill, but source bill update failed. Please review Client ledger.', 'warning');
-        }
+        toast(`${formatCurrency(creditPlan.amountApplied, invoiceOptions.currency || 'INR')} credit applied`, 'success');
+        getAllBills().then(setAllBillsForCredit).catch(() => {});
+        setCreditToApply(0);
       }
       // v1.10.35 — Reported: "if user has selected thermal or any paper
       // size according to client it should always show that same auto or
@@ -1895,8 +1874,16 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
       hasBeenSaved.current = true;
       isDirty.current = false; // v1.10.22 — successful save clears dirty flag
     } catch (err) {
+      if (err?.body?.code === 'stale-invoice' || err?.body?.code === 'missing-product') {
+        toast(err.message, 'error', 8000);
+        return null;
+      }
       if (err?.status === 409 && renameFrom) {
         toast(`Invoice number ${bill.id} is already used by another invoice. This invoice is still saved as ${renameFrom}.`, 'error');
+        return null;
+      }
+      if (err?.status === 409 && err?.body?.code !== 'duplicate-invoice') {
+        toast(err.message, 'error', 8000);
         return null;
       }
       if (err?.status === 409) {
@@ -1924,7 +1911,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
               nextNum = await getNextInvoiceNumber(prefix, { explicitPrefix: !!overridePrefix, invoiceType, businessKey: businessKeyOf(profile), invoiceDate: details.invoiceDate });
               const retryBill = { ...bill, id: nextNum, invoiceNumber: nextNum };
               retryBill.data = { ...retryBill.data, details: { ...retryBill.data.details, invoiceNumber: nextNum } };
-              await saveBill(retryBill, { overwrite: false });
+              await persistInvoice(retryBill, false);
               success = true;
               savedNumber = nextNum;
               // Push the new number back into the form so the preview + any
@@ -1955,18 +1942,6 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
     }
 
     savedId.current = savedNumber;
-    // A rename: the bill now lives under its new number, so the old file goes
-    // (to the Trash, from where it can be restored).
-    if (renameFrom && renameFrom !== savedNumber) {
-      // The old copy's stock moved to the new number (stockFrom above), so
-      // the trashed copy records none: restoring it must not move it again.
-      try {
-        if (serverCopy?.data) await saveBill({ ...serverCopy, data: { ...serverCopy.data, stockApplied: {} } }, { overwrite: true });
-        await deleteBill(renameFrom);
-      }
-      catch { toast(`Saved as ${savedNumber}, but the old copy ${renameFrom} could not be removed. Delete it from the Dashboard.`, 'warning', 8000); }
-    }
-
     // If the user ticked "Make this recurring", create/update the recurring
     // template alongside the invoice. We store enough on the template to
     // regenerate identical future invoices: client snapshot + items +
@@ -2040,21 +2015,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
       }
     }
 
-    // v1.10.76 (#83) - converting a quotation / proforma / challan: once the new
-    // invoice is saved, mark the original so its Convert button goes away and
-    // it cannot be converted into a second invoice by mistake.
-    // Written to a fresh copy of the original, not the one cloned when Convert
-    // was clicked, so nothing done to it since is undone. Its stock record went
-    // to the new invoice (stockStart), so its own is now empty.
-    if (editingBill?._convertToType && !conversionMarked.current && savedNumber) {
-      conversionMarked.current = true;
-      try {
-        const source = (await getAllBills()).find((b) => b.id === editingBill.id);
-        if (source) {
-          await saveBill({ ...source, convertedTo: savedNumber, ...(source.data ? { data: { ...source.data, stockApplied: {} } } : {}) }, { overwrite: true });
-        }
-      } catch { /* the invoice itself is saved */ }
-    }
+    if (conversionSource) conversionMarked.current = true;
 
     // v1.10.76 (#80) - every save, auto-saves included, moves stock by the
     // difference between what this bill should do now and what it has done
@@ -2063,7 +2024,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
     // nothing. Saves run one at a time (saveInvoiceToDB), so two can never
     // start from the same record.
     const changes = stockDelta(stockFrom, bill.data.stockApplied);
-    const moved = await applyStockChanges(changes);
+    const moved = transactionProducts;
     if (moved.length) {
       setProducts(await getAllProducts());
       if (!skipStockDeduction) {
@@ -2086,6 +2047,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
   // v1.10.76 - one save at a time. An auto-save landing in the middle of a
   // manual save could otherwise start from the same stock record and move
   // the stock twice, or leave an older record on the server.
+  const savedRevision = useRef(editingBill?._isDuplicate || editingBill?._convertToType ? null : editingBill?._revision || null);
   const saveQueue = useRef(Promise.resolve());
   const saveInvoiceToDB = (...args) => {
     const run = saveQueue.current.then(() => saveInvoiceToDBNow(...args));

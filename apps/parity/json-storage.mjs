@@ -80,7 +80,7 @@ export function commitJsonBatch(root, writes, { beforeInstall } = {}) {
         target = targetPath(root, relative),
         index = entries.length;
       const existed = fs.existsSync(target);
-      entries.push({ relative, existed });
+      entries.push({ relative, existed, deleted: value === null });
       if (existed)
         durableWrite(path.join(dir, `old-${index}`), fs.readFileSync(target));
       durableWrite(
@@ -95,7 +95,8 @@ export function commitJsonBatch(root, writes, { beforeInstall } = {}) {
     for (const [index, entry] of entries.entries()) {
       beforeInstall?.(index);
       const target = targetPath(root, entry.relative);
-      fs.renameSync(path.join(dir, `new-${index}`), target);
+      if (entry.deleted) fs.rmSync(target, { force: true });
+      else fs.renameSync(path.join(dir, `new-${index}`), target);
     }
     durableWrite(
       path.join(dir, "journal.json"),

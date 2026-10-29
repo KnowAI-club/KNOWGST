@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { FileText, Trash2, Plus, IndianRupee, Receipt, Edit3, TrendingUp, Search, Copy, X, CheckCircle, Clock, AlertTriangle, MessageCircle, Mail, StickyNote, Send, Package, Download, Printer, Ban, Undo2, Eye } from 'lucide-react';
 import HelpButton from './HelpButton';
-import { getAllBills, saveBill, getAllProducts, applyStockChanges, getProfile, getAllClients, getStockAlertSettings, saveReceipt, deleteReceipt, getAllReceipts, markSavedPdfCancelled } from '../store';
+import { getAllBills, saveTransactionalBill as saveBill, getAllProducts, getProfile, getAllClients, getStockAlertSettings, getAllReceipts, markSavedPdfCancelled } from '../store';
 import { formatCurrency, INVOICE_TYPES, getFYOptions, numberToWords, belongsToProfile, salesSign, isCancelledBill, markPaidPatch, markUnpaidPatch, stockEffect, appliedStock, stockDelta, SALES_INVOICE_TYPES, localToday, amountDue, paymentStatusFor } from '../utils';
 import { openWhatsAppShare } from '../utils/share';
 import PageHeader from './PageHeader';
@@ -486,17 +486,8 @@ export default function Dashboard({ onNew, onEdit, onPrint, onDuplicate, onConve
     const next = stockEffect(b.data.items, b.invoiceType || b.data.invoiceType, newStatus);
     return { bill: { ...b, data: { ...b.data, stockApplied: next } }, changes: stockDelta(appliedStock(b), next) };
   };
-  const moveStock = (plans) => {
-    const total = {};
-    for (const p of plans) for (const [id, d] of Object.entries(p.changes)) total[id] = (total[id] || 0) + d;
-    return applyStockChanges(total);
-  };
-  // Saves each planned bill with its new status; moves the stock of those that saved.
-  const saveWithStock = async (plans, patchFor) => {
-    const results = await Promise.allSettled(plans.map((p) => saveBill(patchFor(p.bill), { overwrite: true })));
-    await moveStock(plans.filter((_, i) => results[i].status === 'fulfilled'));
-    return results;
-  };
+  const saveWithStock = async (plans, patchFor) =>
+    Promise.allSettled(plans.map((p) => saveBill(patchFor(p.bill), { overwrite: true })));
 
   // v1.10.79 (#94) - the PDF in Saved Invoices follows: stamped CANCELLED, or
   // back to the original on Undo. A save problem here never undoes the cancel.
@@ -619,32 +610,6 @@ export default function Dashboard({ onNew, onEdit, onPrint, onDuplicate, onConve
       status: paymentStatusFor(bill, totalPaid),
     };
     await saveBill(updatedBill, { overwrite: true });
-    // v1.10.10 — Also persist a Receipt record so this payment shows up
-    // in the Receipts view. Prior code only appended to bill.payments —
-    // the standalone Receipts page saw "No receipts generated yet"
-    // even after multiple payments were recorded, which was the user's
-    // exact complaint. `saveReceipt` writes to data/receipts/*.json.
-    try {
-      await saveReceipt({
-        id: paymentEntry.id,
-        date: paymentEntry.date,
-        receiptNo: `RCPT-${paymentEntry.id.replace('pay_', '').toUpperCase().slice(0, 10)}`,
-        clientName: bill.data?.client?.name || bill.clientName || '',
-        clientAddress: bill.data?.client?.address || '',
-        amount: paymentEntry.amount,
-        paymentMode: paymentEntry.mode,
-        referenceNo: paymentEntry.note || '',
-        againstInvoice: bill.invoiceNumber || bill.id || '',
-        note: paymentEntry.note || '',
-        currency: bill.currency || bill.data?.invoiceOptions?.currency || 'INR',
-        source: 'auto-from-payment',
-        billId: bill.id,
-        // The business that raised the invoice: without it the receipt was
-        // listed under every business on the Receipts page.
-        ownerGstin: bill.data?.profile?.gstin || bill.ownerGstin || '',
-        ownerName: bill.data?.profile?.businessName || bill.ownerName || '',
-      });
-    } catch { /* non-fatal — receipt is still viewable from the invoice's Payment History */ }
     toast(`Payment of ${formatCurrency(amount, bill.currency)} recorded`, 'success');
     setPaymentModal(null);
     // v1.10.22 — reported: "Balance should be 1 but calculating zero" —
@@ -676,17 +641,10 @@ export default function Dashboard({ onNew, onEdit, onPrint, onDuplicate, onConve
       confirmLabel: 'Delete payment',
       tone: 'danger',
     })) return;
-    const target = (bill.payments || [])[idx];
     const payments = (bill.payments || []).filter((_, i) => i !== idx);
     const totalPaid = payments.reduce((s, p) => s + (Number(p.amount) || 0), 0);
     const updated = { ...bill, payments, paidAmount: totalPaid, status: paymentStatusFor(bill, totalPaid) };
     await saveBill(updated, { overwrite: true });
-    // v1.10.10 — Also remove the linked Receipt record so the Receipts
-    // page stays in sync. Silently skips if this was a legacy payment
-    // that never had a receipt written (pre-v1.10.10 recordings).
-    if (target?.id) {
-      try { await deleteReceipt(target.id); } catch { /* ignore */ }
-    }
     toast('Payment deleted', 'success');
     setPaymentModal(updated);
     loadBills();
@@ -744,29 +702,6 @@ export default function Dashboard({ onNew, onEdit, onPrint, onDuplicate, onConve
     const status = paymentStatusFor(bill, totalPaid);
     const updated = { ...bill, payments, paidAmount: totalPaid, status };
     await saveBill(updated, { overwrite: true });
-    // Also update the linked Receipt record so the Receipts page reflects the edit.
-    try {
-      await saveReceipt({
-        id: withId,
-        date: form.date,
-        // A receipt made on the Receipts page keeps its own number (RCP/...).
-        receiptNo: target.receiptNo || `RCPT-${withId.replace('pay_', '').toUpperCase().slice(0, 10)}`,
-        clientName: bill.data?.client?.name || bill.clientName || '',
-        clientAddress: bill.data?.client?.address || '',
-        amount: newAmount,
-        paymentMode: form.mode,
-        referenceNo: form.note || '',
-        againstInvoice: bill.invoiceNumber || bill.id || '',
-        note: form.note || '',
-        currency: bill.currency || bill.data?.invoiceOptions?.currency || 'INR',
-        source: 'auto-from-payment',
-        billId: bill.id,
-        // The business that raised the invoice: without it the receipt was
-        // listed under every business on the Receipts page.
-        ownerGstin: bill.data?.profile?.gstin || bill.ownerGstin || '',
-        ownerName: bill.data?.profile?.businessName || bill.ownerName || '',
-      });
-    } catch { /* non-fatal */ }
     toast('Payment updated', 'success');
     setPaymentModal(updated);
     setEditPaymentModal(null);
@@ -1777,7 +1712,7 @@ export default function Dashboard({ onNew, onEdit, onPrint, onDuplicate, onConve
                           onClick={() => editPaymentAt(paymentModal, i)}
                           title="Edit amount / date / mode / note"><Edit3 size={12} /></button>
                         <button className="btn btn-secondary" style={{ fontSize: '0.7rem', padding: '0.2rem 0.5rem', color: 'var(--danger)', borderColor: 'var(--danger)' }}
-                          onClick={() => deletePaymentAt(paymentModal, i)}
+                          onClick={() => deletePaymentAt(paymentModal, i).catch(error => toast(error.message || 'Payment was not deleted. Please retry.', 'error', 8000))}
                           title="Delete this payment"><Trash2 size={12} /></button>
                       </div>
                     </div>
@@ -1787,7 +1722,7 @@ export default function Dashboard({ onNew, onEdit, onPrint, onDuplicate, onConve
             )}
             <div className="flex gap-2 justify-end mt-4">
               <button className="btn btn-secondary" onClick={() => setPaymentModal(null)}>Cancel</button>
-              <button className="btn btn-primary" onClick={recordPayment}>Record Payment</button>
+              <button className="btn btn-primary" onClick={() => recordPayment().catch(error => toast(error.message || 'Payment was not saved. Please retry.', 'error', 8000))}>Record Payment</button>
             </div>
           </div>
         </div>
@@ -1840,7 +1775,7 @@ export default function Dashboard({ onNew, onEdit, onPrint, onDuplicate, onConve
             </div>
             <div className="flex gap-2 justify-end mt-4">
               <button className="btn btn-secondary" onClick={() => setEditPaymentModal(null)}>Cancel</button>
-              <button className="btn btn-primary" onClick={saveEditedPayment}>Save changes</button>
+              <button className="btn btn-primary" onClick={() => saveEditedPayment().catch(error => toast(error.message || 'Payment was not saved. Please retry.', 'error', 8000))}>Save changes</button>
             </div>
           </div>
         </div>

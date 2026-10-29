@@ -1,3 +1,4 @@
+import { commitInvoices, versionedInvoice } from './invoice-transactions.mjs';
 import { readRecord, durableWrite, commitJsonBatch, recoverJsonTransaction, validateObject, validateId, storageError } from './json-storage.mjs';
 import { createVerifiedBackup, verifyBackup, replaceDirectory, restoreVerifiedBackup, recoverInterruptedRestore, claimBackupFolder } from './verified-backup.mjs';
 import express from 'express';
@@ -271,9 +272,22 @@ function deleteFile(filePath) {
 // BILLS
 // ========================
 app.get('/api/bills', (req, res) => {
-  const bills = readAllFromDir('bills');
+  const bills = readAllFromDir('bills').map(versionedInvoice);
   bills.sort((a, b) => new Date(b.invoiceDate) - new Date(a.invoiceDate));
   res.json(bills);
+});
+
+app.post('/api/invoice-transactions', (req, res) => {
+  requireSnapshotIdle();
+  try {
+    const result = commitInvoices(DATA_DIR, req.body?.operations);
+    for (const dir of ['bills', 'products', 'receipts', 'trash']) invalidateCache(dir);
+    res.json(result);
+  } catch (error) {
+    if (error.status === 409 || error.status === 400)
+      return res.status(error.status).json({ error: error.message, code: error.code });
+    throw error;
+  }
 });
 
 app.post('/api/bills', (req, res) => {

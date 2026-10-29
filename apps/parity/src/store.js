@@ -198,6 +198,15 @@ export const getNextInvoiceNumber = async (prefix = 'INV', { peek = false, expli
 // bill (edit flow, bulk-status change, auto-fire re-process). Default is
 // to refuse silent overwrites — server returns 409 with an actionable
 // message that the UI can show as "Invoice number already exists".
+// Invoice, linked receipts and stock are committed together by the local service.
+export const saveInvoiceTransaction = async (operations) => {
+  const result = await apiFetch(`${API}/invoice-transactions`, { method: 'POST', body: JSON.stringify({ operations }) });
+  operations.forEach((operation, index) => Object.assign(operation.bill, result.bills[index]));
+  return result;
+};
+export const saveTransactionalBill = (bill, { overwrite = false, stock = true } = {}) =>
+  saveInvoiceTransaction([{ bill, overwrite, stock }]);
+
 export const saveBill = async (bill, { overwrite = false } = {}) => {
   const qs = overwrite ? '?overwrite=1' : '';
   return apiFetch(`${API}/bills${qs}`, { method: 'POST', body: JSON.stringify(bill) });

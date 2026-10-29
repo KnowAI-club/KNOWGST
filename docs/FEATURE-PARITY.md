@@ -15,11 +15,11 @@ The source surface audit covers every file under upstream `src/` plus server.js 
 | Invoice templates, print layouts, multi-copy, paper sizes | Retained | Source comparison and all document PDFs; not every printer or layout combination |
 | Signature/stamp layout | Ported from current-main unreleased change | Side-by-side, stacked, overlaid component shared by templates; Settings persistence and stacked preview tested |
 | Clients and credit/outstanding helpers | Retained | CRUD, reload, report fixtures; corrupt credit dependency reads now stop deletion |
-| Products, units and stock | Retained | CRUD/defaults, stock export value and upstream stock arithmetic regressions; separate sales/stock writes still need transaction migration |
+| Products, units and stock | Retained | CRUD/defaults, stock export value and upstream stock arithmetic regressions; editor/Dashboard sales and stock commit together; purchase, CSV, recurring and deletion paths remain to migrate |
 | Sales and purchase CSV import/export | Retained; date-order and partial-import stock fixes ported | Upstream CSV suite, mixed-date rejection; stock-provider write failure is not fully atomic |
 | Purchases | Retained; explicit tax-head display/export ported | Form persistence, interstate arithmetic fixtures, CSV CGST/SGST/IGST, odd-paisa sum |
 | Expenses | Retained | Browser persistence, API CRUD and ex-GST report fixture |
-| Receipts/payments | Retained | Standalone receipt persistence, source allocation controls; exhaustive allocation reversals pending |
+| Receipts/payments | Retained | Dashboard payment/receipt transaction and stale-window browser tests; standalone receipt allocation/reversal migration pending |
 | Recurring documents | Retained | Seven types, start/end/count/month-end, paused state, startup/restart deduplication |
 | P&L, aging, party/client/product/stock reports | Retained | Fixtures reconcile signed documents, cancellation exclusions, currencies, CSV and Excel outputs |
 | GSTR-1 and GSTR-3B | Retained | JSON fixture reconciliation; no live submission or acceptance certification |

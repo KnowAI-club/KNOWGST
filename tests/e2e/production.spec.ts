@@ -179,13 +179,11 @@ test("a stopped purchase CSV import applies stock only for the bills already sav
     .getByRole("button", { name: "CSV import / export", exact: true })
     .click();
   const csv = `Invoice Number,Invoice Date,Supplier Name,Item Name,Quantity,Rate,GST %\nCSV-OK,2026-10-29,CSV Supplier,${name},2,100,18\nCSV-FAIL,2026-10-29,CSV Supplier,${name},3,100,18`;
-  await page
-    .locator('input[type=file][accept=".csv,text/csv"]')
-    .setInputFiles({
-      name: "partial.csv",
-      mimeType: "text/csv",
-      buffer: Buffer.from(csv),
-    });
+  await page.locator('input[type=file][accept=".csv,text/csv"]').setInputFiles({
+    name: "partial.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from(csv),
+  });
   await expect(page.locator(".modal-content")).toContainText("2 bills ready");
   await page.getByRole("button", { name: /Import 2/ }).click();
   await expect(page.getByText(/Import stopped after 1:/)).toBeVisible();
@@ -196,4 +194,139 @@ test("a stopped purchase CSV import applies stock only for the bills already sav
   expect(purchases.some((p: any) => p.invoiceNumber === "CSV-FAIL")).toBe(
     false,
   );
+});
+
+test("dashboard payment commits its receipt without moving stock again", async ({
+  page,
+  request,
+}) => {
+  const product = {
+    id: "atomic-product",
+    name: "Atomic product",
+    stock: 10,
+    sellingPrice: 100,
+  };
+  await request.post("/api/products", { data: product });
+  const bill = {
+    id: "ATOMIC-1",
+    invoiceNumber: "ATOMIC-1",
+    invoiceDate: new Date().toISOString().slice(0, 10),
+    invoiceType: "tax-invoice",
+    clientName: "Atomic client",
+    totalAmount: 200,
+    paidAmount: 0,
+    payments: [],
+    status: "unpaid",
+    data: {
+      profile,
+      client: { name: "Atomic client" },
+      items: [
+        {
+          productId: product.id,
+          name: product.name,
+          quantity: 2,
+          rate: 100,
+          taxPercent: 0,
+        },
+      ],
+      totals: { total: 200 },
+    },
+  };
+  const created = await request.post("/api/invoice-transactions", {
+    data: { operations: [{ bill }] },
+  });
+  expect(created.ok()).toBeTruthy();
+  await page.goto("/");
+  const row = page.getByRole("row").filter({ hasText: "ATOMIC-1" });
+  await row.getByTitle("Payment", { exact: true }).click();
+  const modal = page
+    .locator(".modal-content")
+    .filter({ has: page.getByRole("heading", { name: "Record Payment" }) });
+  await modal.locator('input[type="number"]').fill("50");
+  await modal
+    .getByRole("button", { name: "Record Payment", exact: true })
+    .click();
+  await expect(
+    page.getByText("Payment of ₹50.00 recorded", { exact: true }),
+  ).toBeVisible();
+  const saved = (await (await request.get("/api/bills")).json()).find(
+    (b: any) => b.id === bill.id,
+  );
+  const receipt = (await (await request.get("/api/receipts")).json()).find(
+    (r: any) => r.billId === bill.id,
+  );
+  expect(saved.paidAmount).toBe(50);
+  expect(saved.payments).toHaveLength(1);
+  expect(receipt.amount).toBe(50);
+  expect(receipt.id).toBe(saved.payments[0].id);
+  expect(
+    (await (await request.get("/api/products")).json()).find(
+      (p: any) => p.id === product.id,
+    ).stock,
+  ).toBe(8);
+});
+
+test("stale payment window shows a conflict and preserves the newer payment", async ({
+  page,
+  request,
+}) => {
+  const bill = {
+    id: "STALE-1",
+    invoiceNumber: "STALE-1",
+    invoiceDate: new Date().toISOString().slice(0, 10),
+    invoiceType: "tax-invoice",
+    clientName: "Stale client",
+    totalAmount: 200,
+    status: "unpaid",
+    paidAmount: 0,
+    payments: [],
+    data: {
+      profile,
+      client: { name: "Stale client" },
+      items: [],
+      totals: { total: 200 },
+    },
+  };
+  const created = await (
+    await request.post("/api/invoice-transactions", {
+      data: { operations: [{ bill }] },
+    })
+  ).json();
+  await page.goto("/");
+  await page
+    .getByRole("row")
+    .filter({ hasText: "STALE-1" })
+    .getByTitle("Payment", { exact: true })
+    .click();
+  const fresh = {
+    ...created.bills[0],
+    payments: [{ id: "pay_other", amount: 75, mode: "cash" }],
+    paidAmount: 75,
+    status: "partial",
+  };
+  expect(
+    (
+      await request.post("/api/invoice-transactions", {
+        data: { operations: [{ bill: fresh, overwrite: true }] },
+      })
+    ).ok(),
+  ).toBeTruthy();
+  const modal = page
+    .locator(".modal-content")
+    .filter({ has: page.getByRole("heading", { name: "Record Payment" }) });
+  await modal.locator('input[type="number"]').fill("25");
+  await modal
+    .getByRole("button", { name: "Record Payment", exact: true })
+    .click();
+  await expect(
+    page.getByText(
+      "This invoice changed in another window. Reload before saving.",
+      { exact: true },
+    ),
+  ).toBeVisible();
+  expect(
+    (await (await request.get("/api/bills")).json()).find(
+      (b: any) => b.id === bill.id,
+    ).paidAmount,
+  ).toBe(75);
 });
