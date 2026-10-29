@@ -1,21 +1,25 @@
 # KNOWGST
 
-Open-source invoicing and bookkeeping for web and macOS. GPL-3.0-only.
+Open-source invoicing and bookkeeping. New KNOWGST code is GPL-3.0-only; reused Free GST code retains its MIT notices.
 
-**Early development — use test data only.** The first local invoice workflow works; GST compliance, full feature parity, hosted operation and the macOS package are not complete.
+**Local development preview: use test data.** The original product modules are integrated. This is not yet a certified GST, hosted, or packaged macOS release.
 
-## Run locally
+## Run
 
-Use Node.js 22.22 or newer and pnpm 9.15.9.
+Node.js 22.22+ and pnpm 9.15.9:
 
 ```sh
 pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-Open http://127.0.0.1:4173. The command starts both the web interface and local API. SQLite data is stored in `.local/knowgst.sqlite`, excluded from Git. `KNOWGST_DB` can select a separate test database. No online account or provider key is needed. Keep the development server bound to loopback; it is not a hosted deployment.
+Open http://127.0.0.1:4173. Both interface and protected local service start together. OCR assets are prepared from locked dependencies. Records are isolated in `.local/parity/data`; generated PDFs live under `.local/parity/Saved Invoices`. `KNOWGST_RUNTIME` selects another runtime directory. Keep this development service on loopback.
 
-Create a test business, add an invoice, review totals, issue a test number, and record a payment. Refresh to see persisted records. Print preview uses the browser print dialog and clearly marks the output as a development document.
+## Included modules
+
+Dashboard, seven invoice/document types and PDF output, clients, inventory, purchases, expenses, receipts, recurring invoices, reports, GST returns, income-tax calculations, settings, print settings, backups, control panel, onboarding and local app lock. These reuse the audited upstream implementation; importing a module does not establish complete end-to-end parity or current tax compliance.
+
+The approved minimal interface uses neutral surfaces, Inter, restrained blue accents and light/dark themes. See [implementation status](docs/IMPLEMENTATION-STATUS.md) for test coverage and remaining boundaries.
 
 ## Validate
 
@@ -23,19 +27,17 @@ Create a test business, add an invoice, review totals, issue a test number, and 
 pnpm check
 pnpm test
 pnpm build
+pnpm exec playwright install chromium
+pnpm test:e2e
 ```
+
+Browser tests create a separate temporary runtime. Never point tests at real books.
 
 ## Architecture
 
-- `apps/web`: React interface with semantic light/dark tokens and locally bundled Inter.
-- `apps/api`: local Fastify service and transactional SQLite development adapter.
-- `packages/domain/src/invoicing.ts`: runtime schemas and deterministic decimal calculations.
-- `scripts/dev.ts`: local service lifecycle and protected development proxy.
+- `apps/parity`: active React interface and protected Express compatibility service, preserving original financial helpers.
+- `scripts/parity-dev.ts`: local lifecycle, server-only secret and same-origin proxy.
+- `apps/api`, `apps/web`, `packages/domain`: earlier transactional SQLite prototype, retained for incremental architectural migration. Run separately with `pnpm dev:prototype`; its `.local/knowgst.sqlite` data is not shared with the compatibility app.
+- `docs/UPSTREAM-MANIFEST.json`: original source hashes; financial helper drift is checked automatically.
 
-Self-hosted PostgreSQL and Tauri packaging are planned. No Neon dependency. Each workspace will have one database authority; offline multi-writer sync is not part of the first release.
-
-## Scope and roadmap
-
-Feature parity with the audited source product comes first. AI, bank feeds and expanded messaging integrations follow only after parity. See [technical proposal](docs/TECHNICAL-PROPOSAL.md), [current implementation boundaries](docs/IMPLEMENTATION-STATUS.md), and [provenance notices](THIRD-PARTY-NOTICES.md).
-
-The source product continues unchanged. This repository is not yet a production replacement. Do not import real financial records until migrations, financial regression coverage and restore verification pass.
+Compatibility storage remains JSON. Self-hosted PostgreSQL, normalized migrations, hosted authentication and Tauri packaging remain future stages. AI and expanded integrations follow feature parity. See [proposal](docs/TECHNICAL-PROPOSAL.md) and [provenance](THIRD-PARTY-NOTICES.md).

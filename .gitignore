@@ -19,3 +19,7 @@ src-tauri/target/
 *.sqlite-shm
 playwright-report/
 test-results/
+apps/parity/public/tesseract/
+apps/parity/data/
+apps/parity/Saved Invoices/
+apps/parity/Trash/

@@ -1,3 +1,5 @@
+> Current delivery status: see [Implementation status](IMPLEMENTATION-STATUS.md). The default app now reuses the upstream modules through a local compatibility adapter; the normalized architecture below remains the target, not a claim that migration is finished.
+
 # Know GST — product and technical proposal
 
 Decision baseline: 29 October 2026. Status: proposed implementation specification, not a claim of completed software or statutory certification.

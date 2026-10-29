@@ -10,13 +10,16 @@
   },
   "scripts": {
     "build": "turbo run build",
-    "check": "turbo run check && tsc -p tsconfig.tools.json",
-    "dev": "tsx scripts/dev.ts",
+    "check": "turbo run check && tsc -p tsconfig.tools.json && node scripts/verify-upstream.mjs",
+    "test:e2e": "playwright test",
+    "dev": "pnpm --filter @know-gst/parity prepare:ocr && tsx scripts/parity-dev.ts",
+    "dev:prototype": "tsx scripts/dev.ts",
     "format": "prettier --write .",
     "lint": "turbo run lint",
     "test": "turbo run test --concurrency=1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.1",
     "@types/node": "^26.6.6",
     "prettier": "^3.6.2",
     "tsx": "^4.23.15",

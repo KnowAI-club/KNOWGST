@@ -1,0 +1,30 @@
+@import '@fontsource/inter/400.css';
+@import '@fontsource/inter/500.css';
+@import '@fontsource/inter/600.css';
+/* KNOWGST interface tokens. Printed templates retain upstream styling. */
+:root{--primary:#3158e8;--primary-rgb:49,88,232;--primary-hover:#284bd0;--primary-light:#eef2ff;--bg:#fcfcfd;--bg-primary:#fcfcfd;--bg-secondary:#f7f8fa;--bg-tertiary:#eef1f5;--card-bg:#fff;--text:#070d15;--text-primary:#070d15;--text-secondary:#576475;--text-muted:#667181;--border:#e3e7ed;--border-color:#e3e7ed;--glass-shadow:none;--radius:6px;--radius-lg:8px}
+[data-theme=dark]{--primary:#91a7ff;--primary-rgb:145,167,255;--primary-hover:#b4c3ff;--primary-light:#253151;--bg:#10151d;--bg-primary:#10151d;--bg-secondary:#1b2330;--bg-tertiary:#253151;--card-bg:#151b25;--text:#f3f5f8;--text-primary:#f3f5f8;--text-secondary:#c3ccda;--text-muted:#a7b2c3;--border:#303a48;--border-color:#303a48;--glass-shadow:none}
+body{font-family:Inter,system-ui,sans-serif;background:var(--bg);color:var(--text)}
+.sidebar{background:var(--card-bg);border-right:1px solid var(--border);box-shadow:none;color:var(--text)}
+.sidebar-title{color:var(--text);font-size:17px;letter-spacing:-.4px;font-weight:600}.sidebar-subtitle{color:var(--text-muted);font-size:11px}.sidebar-logo{background:#3158e8;border-radius:7px;box-shadow:none;color:white}
+.sidebar .nav-btn{color:var(--text-secondary);font-size:12px;font-weight:500;border-radius:6px;border-color:transparent;box-shadow:none;min-height:38px}
+.sidebar .nav-btn:hover{background:var(--bg-secondary);color:var(--text)}.sidebar .nav-btn-active,.sidebar .nav-btn-active:hover{background:var(--primary-light);color:var(--primary);box-shadow:none}
+.sidebar .nav-btn-support,.sidebar .nav-btn-support:hover,.sidebar .nav-btn-support-active{background:transparent;color:var(--text-secondary);border-color:transparent;box-shadow:none}.sidebar .nav-btn-support svg{color:var(--text-muted);fill:none}
+.profile-switcher-btn,.profile-switcher-edit,.sidebar-autohide-toggle{background:var(--bg-secondary);color:var(--text-secondary);border-color:var(--border)}
+.main-content{background:var(--bg);padding:28px 32px;gap:20px}.main-content h1{font-size:27px;letter-spacing:-.7px;font-weight:600}.main-content h2{font-weight:600;letter-spacing:-.2px}
+.glass-panel,.stat-card{background:var(--card-bg);border:1px solid var(--border);border-radius:8px;box-shadow:none;backdrop-filter:none}.stat-card{padding:22px}.stat-value{font-size:27px;font-weight:500;letter-spacing:-.6px;font-variant-numeric:tabular-nums}.stat-value-green,.stat-value-purple{color:var(--text)}
+.btn{border-radius:6px;font-weight:500;box-shadow:none;min-height:38px}.btn-primary{background:#3158e8;color:white;border-color:#3158e8;box-shadow:none}.btn-primary:hover:not(:disabled){background:#284bd0;box-shadow:none;transform:none}.btn-secondary{background:var(--card-bg);border:1px solid var(--border);color:var(--text-secondary)}
+.form-input,.form-select,.form-textarea{border-radius:6px;background:var(--card-bg);border:1px solid var(--border);box-shadow:none}.form-label{color:var(--text-secondary);font-size:12px;font-weight:500}
+.data-table th{font-size:11px;color:var(--text-muted);font-weight:500;background:var(--bg-secondary)}.data-table td{font-size:12px}.data-table tr{border-color:var(--border)}
+.knowgst-development{font-size:11px;color:var(--text-muted);border-bottom:1px solid var(--border);padding:0 0 12px;margin-bottom:8px;line-height:1.5}
+.mobile-topbar{background:var(--card-bg);color:var(--text);border-bottom:1px solid var(--border)}.mobile-topbar-title,.mobile-topbar-btn,.mobile-topbar-business{color:var(--text)}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid var(--primary);outline-offset:3px}
+.knowgst-about{max-width:760px}.knowgst-about p{line-height:1.7;color:var(--text-secondary)}.knowgst-about a{color:var(--primary)}
+@media(max-width:768px){.main-content{padding:18px 16px}.main-content h1{font-size:24px}.sidebar .nav-btn{min-height:44px}.knowgst-development{font-size:10px}}
+@media print{.knowgst-development{display:none!important}}
+/* Override inherited navigation accents consistently in both themes. */
+html .sidebar .nav-btn{color:var(--text-secondary)}
+html .sidebar .nav-btn-active{background:#3158e8!important;color:#fff!important;box-shadow:none}
+html .sidebar .nav-btn-support,html .sidebar .nav-btn-support:hover{background:transparent!important;border-color:transparent!important;color:var(--text-secondary)!important}
+html[data-theme=dark] .sidebar .nav-btn:not(.nav-btn-active){color:#c3ccda!important}
+html[data-theme=dark] .form-input{background:var(--card-bg);color:var(--text);border-color:var(--border)}

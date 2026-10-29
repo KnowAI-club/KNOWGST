@@ -1,0 +1,33 @@
+{
+  "name": "@know-gst/parity",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "GPL-3.0-only",
+  "scripts": {
+    "build": "node scripts/bundle-ocr.mjs && vite build",
+    "prepare:ocr": "node scripts/bundle-ocr.mjs",
+    "test": "node scripts/tax-test.mjs && node scripts/discount-modes-test.mjs && node scripts/csv-test.mjs && node --test tests/*.test.mjs",
+    "check": "node --check server.js",
+    "lint": "node --check server.js"
+  },
+  "dependencies": {
+    "@fontsource/inter": "^5.3.0",
+    "@tesseract.js-data/eng": "1.0.0",
+    "dompurify": "^3.4.17",
+    "express": "^5.2.1",
+    "fflate": "^0.8.3",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^4.2.1",
+    "lucide-react": "^0.577.0",
+    "pdf-lib": "^1.17.1",
+    "qrcode": "^1.5.4",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "tesseract.js": "^7.0.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "vite": "^7.0.0"
+  }
+}
