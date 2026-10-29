@@ -812,18 +812,16 @@ function App() {
           aria-label="Open menu" aria-expanded={navOpen}>
           <Menu size={22} />
         </button>
-        <span className="mobile-topbar-title">KNOWGST</span>
+        <span className="mobile-topbar-title knowgst-mobile-brand"><span className="knowai-symbol" aria-hidden="true" />KNOWGST</span>
         <span className="mobile-topbar-business">{profile?.businessName || ''}</span>
       </div>
       {navOpen && <div className="sidebar-backdrop" onClick={() => setNavOpen(false)} aria-hidden="true" />}
       <div className={`sidebar${navOpen ? ' sidebar-open' : ''}`} onClick={closeNavAfterPick}>
         <div className="sidebar-brand">
-          <div className="sidebar-logo">
-            <FileText size={22} />
-          </div>
+          <div className="sidebar-logo knowgst-brand-symbol" aria-hidden="true"><span className="knowai-symbol" /></div>
           <div>
             <h2 className="sidebar-title">KNOWGST</h2>
-            <p className="sidebar-subtitle">Local workspace</p>
+            
           </div>
           {/* Auto-hide as a ☰ button (was a text checkbox): pressed = the menu
               shrinks to icons and opens when pointed at. */}
