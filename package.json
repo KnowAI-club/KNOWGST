@@ -1,0 +1,28 @@
+{
+  "name": "know-gst",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "GPL-3.0-only",
+  "packageManager": "pnpm@9.15.9",
+  "engines": {
+    "node": ">=22.22.0"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "check": "turbo run check && tsc -p tsconfig.tools.json",
+    "dev": "tsx scripts/dev.ts",
+    "format": "prettier --write .",
+    "lint": "turbo run lint",
+    "test": "turbo run test --concurrency=1"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "prettier": "^3.6.2",
+    "tsx": "^4.23.15",
+    "turbo": "^2.6.1",
+    "typescript": "^5.9.3",
+    "vite": "^7.0.0",
+    "vitest": "^5.0.5"
+  }
+}
