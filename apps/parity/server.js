@@ -1,4 +1,4 @@
-import { createVerifiedBackup, verifyBackup, replaceDirectory } from './verified-backup.mjs';
+import { createVerifiedBackup, verifyBackup, replaceDirectory, restoreVerifiedBackup, recoverInterruptedRestore } from './verified-backup.mjs';
 import express from 'express';
 // v1.10.0 — `cors` package no longer imported. The CORS-lockdown
 // middleware below is intentionally custom + strict (localhost only)
@@ -19,6 +19,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const RUNTIME_DIR = path.resolve(process.env.KNOWGST_RUNTIME || path.join(__dirname, '../../.local/parity'));
 fs.mkdirSync(RUNTIME_DIR, { recursive: true, mode: 0o700 });
 const DATA_DIR = path.join(RUNTIME_DIR, 'data');
+recoverInterruptedRestore(DATA_DIR);
 
 // Port choice — we deliberately default to a high, unusual number rather than
 // the conventional 3001. The 3000-range is heavily used by every other Node /
@@ -60,6 +61,19 @@ app.use((req, res, next) => {
   if (req.path === '/api/health') return res.json({ ok: true, version: '0.1.0', mode: 'compatibility', uptimeSec: Math.round(process.uptime()) });
   next();
 });
+
+// Snapshot/restore must not race an async PDF mutation already in flight.
+let pendingMutations = 0;
+app.use((req,res,next)=>{
+  if(!['POST','PUT','PATCH','DELETE'].includes(req.method)) return next();
+  pendingMutations++;
+  let settled=false;
+  const finish=()=>{if(!settled){settled=true;pendingMutations--;}};
+  res.once('finish',finish);res.once('close',finish);next();
+});
+function requireSnapshotIdle() {
+  if(pendingMutations>1) throw new Error('Another change is in progress. Wait for it to finish, then try again.');
+}
 
 // v1.10.0 — CORS lockdown. Previously `app.use(cors())` echoed
 // Access-Control-Allow-Origin: *, which meant any site the user visited
@@ -1223,7 +1237,7 @@ app.get('/api/control-panel/status', (req, res) => {
     platform: process.platform,
     node: process.version,
     controlScriptsAvailable: !!controlScriptDir,
-    actions: controlActions(),
+    actions: {backup:true, 'open-data-folder':true, 'open-backups-folder':true},
     dataFolder: DATA_DIR,
     dataSizeBytes: dataSize,
     port: activePort,
@@ -1231,10 +1245,9 @@ app.get('/api/control-panel/status', (req, res) => {
   });
 });
 
-app.post('/api/control-panel/backup', async (req, res) => {
-  const script = pickScript('backup');
-  const result = await runControlScript(script);
-  res.json(result);
+app.post('/api/control-panel/backup', (req, res) => {
+  try { const result=runDailyBackup(true);res.status(result.success?200:500).json({...result,ok:result.success}); }
+  catch(error) {res.status(500).json({ok:false,error:error.message});}
 });
 
 app.post('/api/control-panel/open-data-folder', (req, res) => {
@@ -1247,7 +1260,7 @@ app.post('/api/control-panel/open-data-folder', (req, res) => {
 });
 
 app.post('/api/control-panel/open-backups-folder', (req, res) => {
-  const backupsHome = path.join(process.env.USERPROFILE || process.env.HOME || '', 'Documents', 'FreeGSTBill Backups');
+  const backupsHome = BACKUPS_DIR;
   try {
     if (!fs.existsSync(backupsHome)) fs.mkdirSync(backupsHome, { recursive: true });
     if (isWindows) spawn('explorer.exe', [backupsHome], { detached: true }).unref();
@@ -1360,17 +1373,18 @@ function backupSourceDir(date) {
 }
 
 function runDailyBackup(force = false) {
+  requireSnapshotIdle();
   ensureDir(BACKUPS_DIR);
   const today = todayLocalIso();
   const target = path.join(BACKUPS_DIR, today);
-  if (!fs.existsSync(target) || force === true) createVerifiedBackup(DATA_DIR, target);
+  if (!fs.existsSync(target) || force === true) createVerifiedBackup(DATA_DIR, target, {pdfDir:INVOICES_DIR,trashDir:TRASH_DIR});
   else verifyBackup(target);
   copyBackupToExtraFolder(today);
   const all = fs.readdirSync(BACKUPS_DIR).filter(n => /^\d{4}-\d{2}-\d{2}$/.test(n)).sort();
   while (all.length > 30) fs.rmSync(path.join(BACKUPS_DIR, all.shift()), { recursive:true, force:true });
-  return { success: !lastExtraBackupError, date: today, scope: 'application-data', error: lastExtraBackupError || undefined };
+  return { success: !lastExtraBackupError, date: today, scope: verifyBackup(target).scope, error: lastExtraBackupError || undefined };
 }
-function scheduledBackup() { try { runDailyBackup(); } catch(error) { logFatal(error, 'backup'); } }
+function scheduledBackup() { if(pendingMutations) return; try { runDailyBackup(); } catch(error) { logFatal(error, 'backup'); } }
 
 setTimeout(scheduledBackup, 5000);
 // Checked every hour (it does nothing once today's backup exists), so a PC
@@ -1418,101 +1432,34 @@ app.delete('/api/backups/:date', (req, res) => {
 });
 
 app.post('/api/backups/:date/restore', (req, res) => {
-  // v1.10.0 — Transactional restore. Prior implementation
-  // `fs.rmSync(dst)` -> `copyDirRecursive(src, dst)`. If copy threw
-  // partway (ENOSPC, EACCES, half-corrupted backup), the user's live
-  // data was already gone and only a partial restore existed. Now: we
-  // rename the current directories to a "pre-restore-<timestamp>"
-  // snapshot inside BACKUPS_DIR, do the copy, and only rmSync the
-  // snapshot on success. If anything throws, we rename the snapshot
-  // back — user is back where they started.
-  let snapshotDir = null;
-  const restoredDirs = [];
   try {
-    const date = req.params.date;
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return errRes(res, 400, 'bad-request');
-    const backupDir = backupSourceDir(date);
-    if (!isPathInside(path.join(BACKUPS_DIR, date), BACKUPS_DIR)) return errRes(res, 400, 'invalid-path');
-    if (!fs.existsSync(backupDir)) return errRes(res, 404, 'not-found');
-    verifyBackup(backupDir);
-
-    // Additional date sanity — a directory can exist with an unrealistic
-    // date planted before hardening. Reject impossible calendar dates.
-    const [y, m, d] = date.split('-').map(Number);
-    if (m < 1 || m > 12 || d < 1 || d > 31 || y < 2000 || y > 2100) {
-      return errRes(res, 400, 'bad-request');
-    }
-
-    // The PIN on this PC survives the restore (see withLock), and so does the
-    // backup folder setting (the backup may be older than it).
-    const lockBefore = readJSON(META_PATH, {})[LOCK_KEY];
-    const backupFolderBefore = readJSON(META_PATH, {})[BACKUP_FOLDER_KEY];
-
-    // Make a snapshot of live data before touching anything.
-    snapshotDir = path.join(BACKUPS_DIR, `pre-restore-${Date.now()}`);
-    ensureDir(snapshotDir);
-    const liveEntries = fs.readdirSync(DATA_DIR, { withFileTypes: true });
-    for (const entry of liveEntries) {
-      if (entry.name === 'backups' || entry.name === 'errors.log' || entry.name === 'port.txt') continue;
-      const src = path.join(DATA_DIR, entry.name);
-      const dst = path.join(snapshotDir, entry.name);
-      if (entry.isDirectory()) copyDirRecursive(src, dst);
-      else fs.copyFileSync(src, dst);
-    }
-
-    // Now do the restore. Track what we replaced so rollback knows
-    // which dirs to nuke first.
-    const backupEntries = fs.readdirSync(backupDir, { withFileTypes: true });
-    for (const entry of backupEntries) {
-      if (entry.name === 'knowgst-backup-manifest.json') continue;
-      const src = path.join(backupDir, entry.name);
-      const dst = path.join(DATA_DIR, entry.name);
-      if (!isPathInside(dst, DATA_DIR)) continue;
-      if (entry.isDirectory()) {
-        if (fs.existsSync(dst)) fs.rmSync(dst, { recursive: true, force: true });
-        copyDirRecursive(src, dst);
-      } else {
-        fs.copyFileSync(src, dst);
-      }
-      restoredDirs.push(entry.name);
-    }
-    {
-      const restoredMeta = withLock(readJSON(META_PATH, {}), lockBefore);
-      if (backupFolderBefore) restoredMeta[BACKUP_FOLDER_KEY] = backupFolderBefore;
-      else delete restoredMeta[BACKUP_FOLDER_KEY];
-      writeJSON(META_PATH, restoredMeta);
-    }
-    for (const dir of DIRS) invalidateCache(dir);
-
-    // Success. The pre-restore snapshot is KEPT: it is the only copy of the
-    // data as it was a moment ago (today's daily backup was taken at
-    // start-up, before today's work), and the app promises it can be rolled
-    // back. Only the 5 newest snapshots are kept.
+    requireSnapshotIdle();
+    const date=req.params.date;
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(date)) return errRes(res,400,'bad-request');
+    const source=backupSourceDir(date);
+    if(!fs.existsSync(source)) return errRes(res,404,'not-found');
+    const manifest=verifyBackup(source);
+    const metaBefore=readJSON(META_PATH,{});
+    const snapshotDir=path.join(BACKUPS_DIR,`pre-restore-${Date.now()}`);
+    createVerifiedBackup(DATA_DIR,snapshotDir,{pdfDir:INVOICES_DIR,trashDir:TRASH_DIR});
+    restoreVerifiedBackup(DATA_DIR,source,{pdfDir:INVOICES_DIR,trashDir:TRASH_DIR,prepare(entries,staged){
+      const entry=entries.find(e=>e.target===META_PATH);
+      if(!entry) return;
+      const file=path.join(staged,String(entry.index));
+      const restored=withLock(readJSON(file,{}),metaBefore[LOCK_KEY]);
+      if(metaBefore[BACKUP_FOLDER_KEY]) restored[BACKUP_FOLDER_KEY]=metaBefore[BACKUP_FOLDER_KEY];
+      else delete restored[BACKUP_FOLDER_KEY];
+      writeJSON(file,restored);
+    }});
+    for(const dir of DIRS) invalidateCache(dir);
     try {
-      const snaps = fs.readdirSync(BACKUPS_DIR).filter(n => /^pre-restore-\d+$/.test(n)).sort((x, y) => Number(x.slice(12)) - Number(y.slice(12)));
-      while (snaps.length > 5) fs.rmSync(path.join(BACKUPS_DIR, snaps.shift()), { recursive: true, force: true });
-    } catch { /* pruning is best-effort */ }
-    res.json({ success: true, restored: date, snapshot: path.basename(snapshotDir) });
-  } catch (err) {
-    // Rollback: put the snapshot back over whatever the restore
-    // half-did. This preserves user data at the cost of losing the
-    // partial restore (which was probably corrupt anyway).
-    if (snapshotDir && fs.existsSync(snapshotDir)) {
-      try {
-        for (const name of restoredDirs) {
-          const dst = path.join(DATA_DIR, name);
-          if (!isPathInside(dst, DATA_DIR)) continue;
-          if (fs.existsSync(dst)) fs.rmSync(dst, { recursive: true, force: true });
-          const snap = path.join(snapshotDir, name);
-          if (fs.existsSync(snap)) {
-            if (fs.statSync(snap).isDirectory()) copyDirRecursive(snap, dst);
-            else fs.copyFileSync(snap, dst);
-          }
-        }
-      } catch { /* if rollback fails, snapshot stays on disk for manual recovery */ }
-    }
-    for (const dir of DIRS) invalidateCache(dir);
-    errRes(res, 500, 'server-error', err);
+      const snapshots=fs.readdirSync(BACKUPS_DIR).filter(n=>/^pre-restore-\d+$/.test(n)).sort();
+      while(snapshots.length>5) fs.rmSync(path.join(BACKUPS_DIR,snapshots.shift()),{recursive:true,force:true});
+    } catch {}
+    res.json({success:true,restored:date,snapshot:path.basename(snapshotDir),scope:manifest.scope});
+  } catch(error) {
+    for(const dir of DIRS) invalidateCache(dir);
+    errRes(res,500,'server-error',error);
   }
 });
 

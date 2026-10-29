@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { HelpCircle, X, BookOpen } from 'lucide-react';
-import { docsLink } from '../utils';
+import { docsLink } from '../utils/documentation';
 
 /*
  * v1.10.22 — Per-view help button.

@@ -1,6 +1,6 @@
 # Parity verification — 29 October 2026
 
-Scope: compare the integrated Free GST implementation at upstream commit `07502f3cad1634a5e7b47a631968152e0bc7e34f` against exercised source workflows. All records are synthetic and test services use isolated runtime directories. This pass does not update tax legislation or certify statutory exports.
+Scope: compare the integrated Free GST implementation at upstream commit `07502f3cad1634a5e7b47a631968152e0bc7e34f` against exercised source workflows. All records are synthetic and test services use isolated runtime directories. The initial parity pass did not update tax rules; the subsequent bounded review is documented in TAX-RULE-REVIEW.md. Statutory exports are not certified.
 
 ## Document and scheduling evidence
 
@@ -31,4 +31,12 @@ OCR runs the real Tesseract worker/core/language bundle in Chromium against a ge
 
 ## Boundaries preserved
 
-Minimal UI and financial calculation helpers are unchanged. Six helpers still match the upstream hashes. New provider tests cover adapters; they do not certify external services. Full production parity still requires broader edge cases, print-device coverage, backup PDF inclusion, hosted controls and current-rule review. New AI, email-provider and messaging-API features remain outside this parity pass.
+Minimal UI is retained. Five helpers still match upstream hashes; the filing-year helper has a separately recorded unsupported-year guard with historical arithmetic preserved. New provider tests cover adapters; they do not certify external services. Full production parity still requires broader edge cases, print-device coverage, hosted controls and exhaustive current-rule/filing validation. New AI, email-provider and messaging-API features remain outside this parity pass.
+
+## Complete backups, tax safety and user guide
+
+New snapshots include data, Saved Invoices and PDF trash. Restore verifies byte hashes, stages replacements, retains a pre-restore copy and rolls back interrupted transactions at startup. Tests exercise data added after backup, damaged PDF bytes, partial-copy failure, install failure and process exit. Settings no longer refreshes a selected same-day snapshot before restoring it. Control Panel invokes the working backup service. See BACKUP-RESTORE.md for the power-loss and encryption boundaries.
+
+Current-year ordinary-income estimates, historical filing-year separation and HSN rate preservation have regression tests. TAX-RULE-REVIEW.md records official sources, scope and remaining statutory review.
+
+The local `/docs/` guide covers 20 topics. Fourteen actual app captures use isolated fictional records. Browser checks cover guide links, image availability, TOC targets, contextual help, mobile layout and persistent theme; capture regeneration is an explicit opt-in test.

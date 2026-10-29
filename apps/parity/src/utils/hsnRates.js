@@ -8,9 +8,9 @@
  * GST % when the user types a matching HSN.
  *
  * Sources: CBIC's HSN/SAC master (https://cbic-gst.gov.in/gst-goods-services-rates.html)
- * and Notification 01/2017 (Central Tax Rate) as amended. Rates verified
- * as of the FY 2025-26 rate structure. Users can always override the
- * suggested % — this is a hint, not a lock.
+ * Historical upstream table; NOT verified against September 2025 / February
+ * 2026 notifications. Retained for descriptions and provenance only. KNOWGST
+ * does not auto-apply these rates. Classification and time of supply matter.
  *
  * Structure: exact 4-digit or 6-digit HSN keys, or 4-digit prefix keys.
  * Lookup order: 6-digit exact → 4-digit exact → 4-digit prefix.

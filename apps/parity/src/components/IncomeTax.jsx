@@ -1,3 +1,4 @@
+import CurrentTaxYear from './CurrentTaxYear';
 import { useState, useEffect, useMemo } from 'react';
 import { Calculator, Landmark, FileText, TrendingUp, Upload, Info, Check, X, ChevronRight, Briefcase, Clock, Download } from 'lucide-react';
 import { getAllBills, getAllExpenses, getAllPurchases, getProfile } from '../store';
@@ -231,6 +232,8 @@ export default function IncomeTax() {
         </div>
       </div>
 
+      <CurrentTaxYear />
+
       {/* v1.10.53 — The slab tables in utils/itr.js only go up to the FY
           named by CURRENT_FY. When the real financial year has moved past
           that, everything on this screen still computes against the older
@@ -252,13 +255,9 @@ export default function IncomeTax() {
             <div style={{ fontSize: '0.88rem', lineHeight: 1.5 }}>
               <strong>These figures are for FY {CURRENT_FY}, not the current FY {getFinancialYearLabel()}.</strong>
               <div style={{ marginTop: '0.35rem', color: 'var(--text-muted)' }}>
-                The tax slabs, rebate limits and capital-gains rates built into this
-                app go up to FY {CURRENT_FY}. Rates for FY {getFinancialYearLabel()} are
-                not included yet, so nothing here is calculated against them.
-                Invoices dated in FY {getFinancialYearLabel()} are also excluded from the
-                business-income figure below — enter that income manually, and
-                treat every number on this page as an estimate to check with your
-                CA before filing.
+                This filing workspace covers income earned in FY {CURRENT_FY} (AY {CURRENT_AY}).
+                Income earned from April 2026 belongs to Tax Year 2026–27 under the Income-tax Act, 2025.
+                Do not mix current-year income into this filing estimate. The separate current-year estimate covers ordinary resident-individual income only.
               </div>
             </div>
           </div>
@@ -1077,8 +1076,7 @@ function SummaryTab({ bills, expenses, purchases, profile, comparison, inputs, p
                 <br /><br />
               </>
             )}
-            Filing due date: <strong>31 July {parseInt(fy.split('-')[1], 10) + 2000}</strong> (non-audit) ·
-            <strong> 31 October {parseInt(fy.split('-')[1], 10) + 2000}</strong> (audit / §44AB).
+            {fy === '2025-26' ? <>AY 2026–27: non-business, non-audit returns — <strong>31 July 2026</strong>; non-audit business/profession — <strong>31 August 2026</strong>; audit cases covered by CBDT Circular 7/2026 — <strong>21 November 2026</strong>. Transfer-pricing and other special cases differ. Verified 29 October 2026; check later extensions on the income-tax portal.</> : <>Check the notified return due date for your assessment year and filing category.</>}
             Advance tax installments: 15 Jun · 15 Sep · 15 Dec · 15 Mar.
           </div>
         </div>

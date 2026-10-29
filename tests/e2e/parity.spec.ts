@@ -130,3 +130,38 @@ test('recurring UI creates, pauses and generates a persisted invoice',async({pag
  const bills=await (await request.get('/api/bills')).json();expect(bills.find((b:any)=>b.clientName==='Browser recurring client').totalAmount).toBe(118);
  await page.reload();await expect(page.locator('tbody tr').filter({hasText:'Browser recurring client'})).toContainText('Paused');
 });
+
+test('complete backup restore uses the selected snapshot without overwriting it first',async({page,request})=>{
+ await request.post('/api/profile',{data:{...profile,businessName:'Before restore'}});
+ await page.goto('/?view=controlpanel');
+ await page.getByRole('button',{name:'Create Backup',exact:true}).click();
+ await expect(page.getByRole('status')).toContainText('Completed successfully');
+ await request.post('/api/profile',{data:{...profile,businessName:'After backup'}});
+ const calls:string[]=[];page.on('request',r=>{if(r.method()==='POST')calls.push(r.url());});
+ await page.getByRole('button',{name:'Restore',exact:true}).first().click();
+ await page.getByRole('button',{name:'Restore backup',exact:true}).click();
+ await expect(page.getByRole('status')).toContainText('Backup restored');
+ expect((await (await request.get('/api/profile')).json()).businessName).toBe('Before restore');
+ expect(calls.some(url=>url.endsWith('/backups/now')||url.endsWith('/control-panel/backup'))).toBe(false);
+});
+
+test('current-year ordinary-income estimator is separate from historical filing inputs',async({page})=>{
+ await page.goto('/?view=incometax');
+ await page.getByText('Tax Year 2026-27 · New-regime estimate',{exact:true}).click();
+ await page.getByLabel('Ordinary income before standard deduction',{exact:true}).fill('2400000');
+ await expect(page.getByRole('status')).toContainText('3,12,000.00');
+ await page.getByLabel('Ordinary income before standard deduction',{exact:true}).fill('1275000');
+ await page.getByLabel('All income entered is salary or pension eligible for standard deduction',{exact:true}).check();
+ await expect(page.getByRole('status')).toContainText('₹0.00');
+ await expect(page.locator('.main-content')).toContainText('FY 2025-26');
+});
+
+test('HSN entry does not overwrite the selected GST rate with a historical catalog rate',async({page})=>{
+ await page.goto('/?view=new');
+ const rate=page.locator('.line-item-field').filter({has:page.locator('label').filter({hasText:/^GST %$/})}).locator('select');
+ await rate.selectOption('40');
+ const hsn=page.locator('.line-item-field').filter({has:page.locator('label').filter({hasText:/^HSN\/SAC$/})}).locator('input');
+ await hsn.fill('2202');await expect(rate).toHaveValue('40');
+ await rate.selectOption('18');await hsn.fill('3004');await expect(rate).toHaveValue('18');
+ await expect(page.getByText(/Check rate · Medicaments/)).toBeVisible();
+});

@@ -26,6 +26,11 @@
  */
 export const CURRENT_FY = '2025-26';
 
+// Unknown years must never silently fall back to FY 2024-25 rates.
+export function assertSupportedFilingYear(fy) {
+  if (!['2024-25', '2025-26'].includes(fy)) throw new Error(`Unsupported filing year: ${fy}. Use a separately verified tax-year calculator.`);
+}
+
 // ----------------------------- Regimes ---------------------------------------
 
 /**
@@ -139,6 +144,7 @@ export const NEW_REGIME_SLABS = CURRENT_FY === '2025-26'
  * to a new FY = add a new SLABS constant + a case here.
  */
 export function getNewRegimeSlabs(fy = CURRENT_FY) {
+  assertSupportedFilingYear(fy);
   if (fy === '2025-26') return NEW_REGIME_SLABS_FY_2025_26;
   return NEW_REGIME_SLABS_FY_2024_25; // FY 24-25 and earlier
 }
@@ -149,6 +155,7 @@ export function getNewRegimeSlabs(fy = CURRENT_FY) {
  * ₹25,000 → ₹60,000 (Budget 2025).
  */
 export function get87AConfig(regime, fy = CURRENT_FY) {
+  assertSupportedFilingYear(fy);
   if (regime === 'old') {
     return { threshold: 500_000, cap: 12_500 };
   }
@@ -169,6 +176,7 @@ export function get87AConfig(regime, fy = CURRENT_FY) {
  * FY 2025-26 and later: always new rates.
  */
 export function getCapitalGainsConfig(fy = CURRENT_FY) {
+  assertSupportedFilingYear(fy);
   if (fy === '2024-25') {
     // Transitional year — new rates apply to gains on/after 23-Jul-2024.
     // Since the app can't reliably split, default to the newer regime
@@ -456,6 +464,7 @@ export function computeAllowedDeductions(userDeductions = {}, regime = 'old', ct
  * @returns {object} breakdown
  */
 export function computeTax(inputs) {
+  assertSupportedFilingYear(inputs.fy ?? CURRENT_FY);
   const {
     salary = 0,
     businessIncome = 0,

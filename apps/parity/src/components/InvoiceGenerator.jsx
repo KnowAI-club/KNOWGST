@@ -325,13 +325,8 @@ const LineItem = memo(function LineItem({
             onChange={(e) => {
               const val = e.target.value;
               onFieldChange(item.id, 'hsn', val);
-              // v1.10.22 — Suggest GST rate from a curated HSN/SAC table.
-              // Only overwrites the tax rate when the user has NOT already
-              // typed a custom rate (default 18 is treated as "unset").
-              const suggested = suggestGstRate(val);
-              if (suggested && (item.taxPercent === undefined || item.taxPercent === 18 || item.taxPercent === 0)) {
-                onFieldChange(item.id, 'taxPercent', suggested.rate);
-              }
+              // The legacy HSN table is not effective-dated or classification-complete.
+              // Changing a code must not silently change a user's chosen tax rate.
             }} />
           {/* Show the label of the matched HSN inline so the user can
               confirm the code is right. Hidden until at least 4 chars. */}
@@ -340,8 +335,8 @@ const LineItem = memo(function LineItem({
             if (!s || !item.hsn || String(item.hsn).length < 4) return null;
             return (
               <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 2, padding: '3px 6px', fontSize: '0.68rem', color: '#059669', background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', zIndex: 1 }}
-                title={`${s.label} — suggested ${s.rate}% GST`}>
-                → {s.rate}% · {s.label}
+                title={`${s.label} — verify the applicable rate and time of supply`}>
+                Check rate · {s.label}
               </div>
             );
           })()}

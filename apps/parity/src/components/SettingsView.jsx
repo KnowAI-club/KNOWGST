@@ -1956,12 +1956,11 @@ function BackupAndTrashPanel() {
   const handleRestoreBackup = async (date) => {
     if (!await confirmAction({
       title: `Restore all data from backup ${date}?`,
-      message: 'This OVERWRITES your current data. A copy of your data as it is now is kept first, in data/backups/pre-restore-…, so you can go back to it if the restore looks wrong.',
+      message: 'This replaces records and, for complete backups, saved and trashed PDFs. A recovery copy is kept first, in data/backups/pre-restore-…, so you can go back to it if the restore looks wrong.',
       confirmLabel: 'Restore backup',
       tone: 'warning',
     })) return;
     try {
-      await triggerBackup().catch(() => {}); // today's daily backup, if not made yet
       const res = await restoreBackup(date);
       toast(`Backup restored — please reload the page to see the data.${res?.snapshot ? ` Your data from before is in data/backups/${res.snapshot}.` : ''}`, 'success', 10000);
     } catch (err) {
@@ -2073,7 +2072,7 @@ function BackupAndTrashPanel() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1rem', marginTop: '1rem' }}>
         {/* Backups list */}
         <div style={{ padding: '0.85rem', background: 'var(--bg-secondary)', borderRadius: 8 }}>
-          <h4 style={{ margin: '0 0 0.5rem', fontSize: '0.9rem' }}>📅 Daily backups ({backups.length})</h4>
+          <h4 style={{ margin: '0 0 0.5rem', fontSize: '0.9rem' }}>Daily backups ({backups.length})</h4><p className="text-muted">New snapshots include records, settings, saved PDFs and PDF trash. Older data-only snapshots leave existing PDFs unchanged. JSON exports are records-only.</p>
           {loading && backups.length === 0 && <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>Loading…</p>}
           {!loading && backups.length === 0 && <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>No backups yet — the first will be created at midnight or click "Backup now" above.</p>}
           <div style={{ maxHeight: 260, overflowY: 'auto' }}>

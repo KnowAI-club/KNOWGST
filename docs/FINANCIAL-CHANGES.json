@@ -1,0 +1,8 @@
+{
+  "src/utils/itr.js": {
+    "sha256": "ed20d450c49dd97f59182b56f85277e541cb59e114b2244b4520f5230a930175",
+    "reason": "Reject unimplemented filing years instead of silently falling back to FY 2024-25. Existing year arithmetic unchanged.",
+    "tests": "apps/parity/tests/tax-review.test.mjs",
+    "review": "docs/TAX-RULE-REVIEW.md"
+  }
+}

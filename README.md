@@ -21,6 +21,10 @@ Dashboard, seven invoice/document types and PDF output, clients, inventory, purc
 
 The approved minimal interface uses neutral surfaces, Inter, restrained blue accents and light/dark themes. See [implementation status](docs/IMPLEMENTATION-STATUS.md) for test coverage and remaining boundaries.
 
+## User guide
+
+Open **User Guide** in the app, or visit http://127.0.0.1:4173/docs/. The guide includes 20 topics and actual screenshots of the implemented interface using sample records. [Guide maintenance](docs/USER-GUIDE.md) · [Complete backup and restore](docs/BACKUP-RESTORE.md) · [Tax-rule review](docs/TAX-RULE-REVIEW.md).
+
 ## Validate
 
 ```sh

@@ -85,12 +85,17 @@ test('compatibility service: module persistence, isolation and recovery', async 
       assert.equal((await call('/meta/appLock')).status,403);
     });
     await t.test('verified snapshot restores records and rejects damaged snapshots without changing live data', async () => {
-      assert.equal((await call('/backups/now','POST',{})).status,200);
+      const pdfResponse=await fetch(`http://127.0.0.1:${port}/api/save-pdf?name=roundtrip.pdf&client=Test&month=October`,{method:'POST',headers:{'x-knowgst-key':secret,'Content-Type':'application/pdf'},body:'%PDF-1.7 original bytes'});
+      assert.equal(pdfResponse.status,200);
+      const pdfPath=join(runtime,(await pdfResponse.json()).relPath);
+      assert.equal((await call('/backups/now','POST',{})).body.scope,'application-data-and-pdfs');
+      await writeFile(pdfPath,'%PDF-1.7 changed bytes');
       const snapshots=(await call('/backups')).body;
       const date=snapshots[0].date;
       await call('/profile','POST',{...profile,businessName:'Changed after backup'});
       assert.equal((await call(`/backups/${date}/restore`,'POST',{})).status,200);
       assert.equal((await call('/profile')).body.businessName,'Test Studio');
+      assert.equal(await readFile(pdfPath,'utf8'),'%PDF-1.7 original bytes');
       const manifestPath=join(runtime,'data','backups',date,'knowgst-backup-manifest.json');
       const manifest=JSON.parse(await readFile(manifestPath,'utf8'));
       const file=Object.keys(manifest.files)[0];
