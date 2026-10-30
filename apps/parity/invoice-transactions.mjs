@@ -26,7 +26,7 @@ const fail = (message, code = "conflict", status = 409) => {
 const safe = (id) => id.replace(/[/\\:*?"<>|]/g, "_");
 
 // One synchronous writer: validate and stage every affected record before publishing.
-export function commitInvoices(root, operations, options = {}) {
+export function planInvoices(root, operations) {
   if (
     !Array.isArray(operations) ||
     !operations.length ||
@@ -198,6 +198,11 @@ export function commitInvoices(root, operations, options = {}) {
     writes.set(file, updated);
     products.push(updated);
   }
+  return { writes, result: { success: true, bills: results, products } };
+}
+
+export function commitInvoices(root, operations, options = {}) {
+  const { writes, result } = planInvoices(root, operations);
   commitJsonBatch(root, writes, options);
-  return { success: true, bills: results, products };
+  return result;
 }

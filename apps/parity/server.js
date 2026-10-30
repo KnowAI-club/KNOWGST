@@ -1,4 +1,6 @@
-import { commitInvoices, versionedInvoice } from './invoice-transactions.mjs';
+import { planReceipt, planPurchase, planInvoiceTrash, planRecurringTemplate, commitWorkflow, recordPath, cleanRecord } from './workflow-transactions.mjs';
+import { commitFileBatch, recoverFileTransaction } from './file-transactions.mjs';
+import { commitInvoices, planInvoices, invoiceRevision, versionedInvoice } from './invoice-transactions.mjs';
 import { readRecord, durableWrite, commitJsonBatch, recoverJsonTransaction, validateObject, validateId, storageError } from './json-storage.mjs';
 import { createVerifiedBackup, verifyBackup, replaceDirectory, restoreVerifiedBackup, recoverInterruptedRestore, claimBackupFolder } from './verified-backup.mjs';
 import express from 'express';
@@ -15,12 +17,13 @@ import { fileURLToPath } from 'url';
 // invoice-level discount, and round-off. Previously the recurring auto-fire
 // re-implemented totals inline and silently reintroduced every bug the
 // v1.10.1 extraction fixed. Same source of truth now.
-import { templateTotals, clientYearToDate, nextCounterValue, startFor, numberSeriesFor, counterKeyFor, formatDocNumber, businessKeyOf, getFinancialYearLabel, INVOICE_TYPES } from './src/utils.js';
+import { templateTotals, clientYearToDate, nextCounterValue, startFor, numberSeriesFor, counterKeyFor, formatDocNumber, businessKeyOf, getFinancialYearLabel, INVOICE_TYPES, savedPdfNameFor } from './src/utils.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const RUNTIME_DIR = path.resolve(process.env.KNOWGST_RUNTIME || path.join(__dirname, '../../.local/parity'));
 fs.mkdirSync(RUNTIME_DIR, { recursive: true, mode: 0o700 });
 const DATA_DIR = path.join(RUNTIME_DIR, 'data');
+recoverFileTransaction(RUNTIME_DIR);
 recoverInterruptedRestore(DATA_DIR);
 recoverJsonTransaction(DATA_DIR);
 
@@ -325,42 +328,9 @@ function findCreditDependents(billId) {
 }
 
 app.delete('/api/bills/:id', (req, res) => {
-  // v1.9.5 — soft delete: move to data/trash/ instead of unlinking so
-  // users can restore within 30 days. Query ?permanent=1 skips trash and
-  // deletes forever (used by the Trash bin UI's "Delete forever" action).
-  const fname = safeFileName(req.params.id) + '.json';
-  const filePath = path.join(DATA_DIR, 'bills', fname);
-  if (!fs.existsSync(filePath)) return res.json({ success: true });
-
-  // v1.10.31 — Data-F9.1: client-credit dependency check. Blocks silent
-  // deletion of a credit source that would leave a paid-via-credit target
-  // bill dangling. Force override via ?force=1.
-  const force = req.query.force === '1' || req.query.force === 'true';
-  if (!force) {
-    const dependents = findCreditDependents(req.params.id);
-    if (dependents.length > 0) {
-      return res.status(409).json({
-        error: 'client-credit-dependency',
-        message: 'This bill was used as a client-credit source on another invoice. Deleting it would leave that invoice paid via credit that no longer has a real source.',
-        dependents,
-      });
-    }
-  }
-  if (req.query.permanent === '1') {
-    try { fs.unlinkSync(filePath); } catch { /* ignore */ }
-    invalidateCache('bills');
-    return res.json({ success: true, permanent: true });
-  }
-  try {
-    const trashDir = path.join(DATA_DIR, 'trash');
-    if (!fs.existsSync(trashDir)) fs.mkdirSync(trashDir, { recursive: true });
-    fs.renameSync(filePath, path.join(trashDir, fname));
-    // The list must not serve the moved bill from cache for 5 more seconds.
-    invalidateCache('bills');
-    res.json({ success: true, trashed: true });
-  } catch (err) {
-    errRes(res, 500, 'server-error', err);
-  }
+  requireSnapshotIdle();
+  if (req.query.permanent === '1') return res.status(409).json({error:'Move the invoice to Trash before deleting it permanently.'});
+  res.json(commitInvoiceTrash(req.params.id, false, req.headers['if-match']));
 });
 
 // ========================
@@ -488,69 +458,67 @@ app.delete('/api/expenses/:id', (req, res) => {
 // RECURRING INVOICES
 // ========================
 app.get('/api/recurring', (req, res) => {
-  const items = readAllFromDir('recurring');
+  const items = readAllFromDir('recurring').map(versionedInvoice);
   items.sort((a, b) => (a.clientName || '').localeCompare(b.clientName || ''));
   res.json(items);
 });
 
-app.post('/api/recurring', (req, res) => {
-  const item = req.body;
-  if (!item.id) item.id = 'rec_' + crypto.randomUUID();
-  const filePath = path.join(DATA_DIR, 'recurring', safeFileName(item.id) + '.json');
-  writeJSON(filePath, item);
-  res.json({ success: true, id: item.id });
+app.post('/api/recurring', (req,res) => {
+  requireSnapshotIdle();
+  res.json(runRecordTransaction(planRecurringTemplate(DATA_DIR,{...req.body,id:req.body.id || 'rec_'+crypto.randomUUID()})));
 });
-
-app.delete('/api/recurring/:id', (req, res) => {
-  const filePath = path.join(DATA_DIR, 'recurring', safeFileName(req.params.id) + '.json');
-  deleteFile(filePath);
-  res.json({ success: true });
+app.delete('/api/recurring/:id', (req,res) => {
+  requireSnapshotIdle();
+  const old = readJSON(recordPath(DATA_DIR,'recurring',req.params.id));
+  if(!old)return res.json({success:true});
+  res.json(runRecordTransaction(planRecurringTemplate(DATA_DIR,{...old,_revision:req.headers['if-match']},{remove:true})));
 });
 
 // ========================
 // RECEIPTS / PAYMENT VOUCHERS
 // ========================
+function runRecordTransaction(plan) {
+  try { return commitWorkflow(plan, DATA_DIR); }
+  finally { for (const dir of ['bills','receipts','purchases','products','recurring','trash']) invalidateCache(dir); }
+}
+
 app.get('/api/receipts', (req, res) => {
-  const receipts = readAllFromDir('receipts');
+  const receipts = readAllFromDir('receipts').map(versionedInvoice);
   receipts.sort((a, b) => new Date(b.date) - new Date(a.date));
   res.json(receipts);
 });
 
 app.post('/api/receipts', (req, res) => {
-  const receipt = req.body;
-  if (!receipt.id) receipt.id = 'rcp_' + Date.now();
-  const filePath = path.join(DATA_DIR, 'receipts', safeFileName(receipt.id) + '.json');
-  writeJSON(filePath, receipt);
-  res.json({ success: true, id: receipt.id });
+  requireSnapshotIdle();
+  const receipt = { ...req.body, id: req.body.id || 'rcp_' + crypto.randomUUID() };
+  res.json(runRecordTransaction(planReceipt(DATA_DIR, receipt)));
 });
-
 app.delete('/api/receipts/:id', (req, res) => {
-  const filePath = path.join(DATA_DIR, 'receipts', safeFileName(req.params.id) + '.json');
-  deleteFile(filePath);
-  res.json({ success: true });
+  requireSnapshotIdle();
+  const old = readJSON(recordPath(DATA_DIR,'receipts',req.params.id));
+  if (!old) return res.json({success:true});
+  res.json(runRecordTransaction(planReceipt(DATA_DIR, { ...old, _revision: req.headers['if-match'] }, {remove:true})));
 });
 
 // ========================
 // PURCHASES (Purchase Bills for ITC)
 // ========================
 app.get('/api/purchases', (req, res) => {
-  const purchases = readAllFromDir('purchases');
+  const purchases = readAllFromDir('purchases').map(versionedInvoice);
   purchases.sort((a, b) => new Date(b.date) - new Date(a.date));
   res.json(purchases);
 });
 
 app.post('/api/purchases', (req, res) => {
-  const purchase = req.body;
-  if (!purchase.id) purchase.id = 'pur_' + crypto.randomUUID();
-  const filePath = path.join(DATA_DIR, 'purchases', safeFileName(purchase.id) + '.json');
-  writeJSON(filePath, purchase);
-  res.json({ success: true, id: purchase.id });
+  requireSnapshotIdle();
+  const purchase = { ...req.body, id: req.body.id || 'pur_' + crypto.randomUUID() };
+  res.json(runRecordTransaction(planPurchase(DATA_DIR, purchase)));
 });
-
 app.delete('/api/purchases/:id', (req, res) => {
-  const filePath = path.join(DATA_DIR, 'purchases', safeFileName(req.params.id) + '.json');
-  deleteFile(filePath);
-  res.json({ success: true });
+  requireSnapshotIdle();
+  const old = readJSON(recordPath(DATA_DIR,'purchases',req.params.id));
+  if (!old) return res.json({success:true});
+  res.json(runRecordTransaction(planPurchase(DATA_DIR, { ...old, _revision: req.headers['if-match'] }, {remove:true})));
 });
 
 // ========================
@@ -955,20 +923,22 @@ const PDF_ORIGINALS_DIR = path.join(DATA_DIR, 'cancelled-pdf-originals');
 
 // The copies of one invoice's PDF in Saved Invoices: <client>/<month>/<name>,
 // or loose in the folder. Same lookup as Move saved PDF to Trash below.
-function findSavedPdfs(fileName, clientName) {
+function findSavedPdfs(fileName, clientName, root = INVOICES_DIR) {
   const safeClient = safePathSegment(clientName, 'General');
   const safeName = safePathSegment(fileName, 'Untitled.pdf');
   const out = [];
-  const clientDir = path.join(INVOICES_DIR, safeClient);
-  if (isPathInside(clientDir, INVOICES_DIR) && fs.existsSync(clientDir)) {
+  const clientDir = path.join(root, safeClient);
+  if (isPathInside(clientDir, root) && fs.existsSync(clientDir)) {
     for (const month of fs.readdirSync(clientDir)) {
       const file = path.join(clientDir, month, safeName);
-      if (isPathInside(file, INVOICES_DIR) && fs.existsSync(file)) out.push(file);
+      if (isPathInside(file, root) && fs.existsSync(file)) out.push(file);
     }
   }
-  const flat = path.join(INVOICES_DIR, safeName);
-  if (isPathInside(flat, INVOICES_DIR) && fs.existsSync(flat)) out.push(flat);
-  return out;
+  const flat = path.join(root, safeName);
+  if (isPathInside(flat, root) && fs.existsSync(flat)) out.push(flat);
+  const legacy = path.join(clientDir,safeName);
+  if(fs.existsSync(legacy)&&fs.statSync(legacy).isFile())out.push(legacy);
+  return [...new Set(out)];
 }
 
 async function stampCancelled(bytes) {
@@ -1571,18 +1541,25 @@ app.get('/api/trash', (req, res) => {
   } catch (err) { errRes(res, 500, 'server-error', err); }
 });
 
+function commitInvoiceTrash(id, restore, revision) {
+  const plan = planInvoiceTrash(DATA_DIR,id,{restore,revision});
+  if (!plan.bill) return plan.result;
+  const bytes = new Map([...plan.writes].map(([file,value])=>[file,value===null?null:Buffer.from(JSON.stringify(value,null,2))]));
+  const name = savedPdfNameFor(plan.bill);
+  const source = restore ? TRASH_DIR : INVOICES_DIR, destination = restore ? INVOICES_DIR : TRASH_DIR;
+  const candidates = findSavedPdfs(name.fileName,name.clientName,source);
+  for (const file of candidates) {
+    const target = path.join(destination,path.relative(source,file));
+    if(fs.existsSync(target)) throw storageError('A PDF already exists at the destination. Resolve the duplicate before continuing.','conflict',409);
+    bytes.set(target,fs.readFileSync(file));bytes.set(file,null);
+  }
+  try { commitFileBatch(RUNTIME_DIR,bytes); }
+  finally { for(const dir of ['bills','products','receipts','trash'])invalidateCache(dir); }
+  return {...plan.result,pdfsMoved:candidates.length};
+}
 app.post('/api/trash/:id/restore', (req, res) => {
-  try {
-    const fname = safeFileName(req.params.id) + '.json';
-    const trashPath = path.join(BILL_TRASH_DIR, fname);
-    const billsPath = path.join(DATA_DIR, 'bills', fname);
-    if (!fs.existsSync(trashPath)) return res.status(404).json({ error: 'Not in trash' });
-    // A new bill may have taken this number since: never replace it.
-    if (fs.existsSync(billsPath)) return res.status(409).json({ error: 'An invoice with this number exists again. Rename or delete it first.' });
-    fs.renameSync(trashPath, billsPath);
-    invalidateCache('bills');
-    res.json({ success: true });
-  } catch (err) { errRes(res, 500, 'server-error', err); }
+  requireSnapshotIdle();
+  res.json(commitInvoiceTrash(req.params.id,true));
 });
 
 app.delete('/api/trash/:id', (req, res) => {
@@ -1701,6 +1678,7 @@ app.use((err, req, res, next) => {
   else if (status === 400) code = 'bad-request';
   else if (status === 404) code = 'not-found';
   else if (status === 409) code = 'conflict';
+  if (status === 409 || status === 400) return res.status(status).json({error:err.message,code:err.code || code});
   errRes(res, status, code, err);
 });
 
@@ -1859,16 +1837,14 @@ function advanceDate(dateStr, frequency, interval, anchorDay) {
   return isoDay(target);
 }
 
-function nextInvoiceNumber(prefix, invoiceType = 'tax-invoice', businessKey = '') {
+function nextInvoiceNumber(meta, prefix, invoiceType = 'tax-invoice', businessKey = '') {
   // The same rules as the app's getNextInvoiceNumber (src/utils.js): the
   // business's own series when it has one (v1.10.79, #95), else the shared
   // one; atomic counter in meta; brand-TYPE prefixes; India's FY label.
-  const meta = readJSON(META_PATH, {});
   const series = numberSeriesFor(meta.invoiceNumberSettings, meta.invoiceNumberSeries, businessKey);
   const key = counterKeyFor(prefix, series, businessKey);
   const next = nextCounterValue(meta[key], startFor(invoiceType, series));
   meta[key] = next;
-  writeJSON(META_PATH, meta);
   return formatDocNumber({ settings: series, typePrefix: prefix, next, fyLabel: getFinancialYearLabel() });
 }
 
@@ -1896,7 +1872,9 @@ const templateHasEnded = (tpl, today) =>
 // daily auto-fire and by the app's "Generate Now", so both produce the same
 // invoice (Generate Now used to do its own simplified maths in the browser:
 // no CGST/SGST/IGST split, no end conditions, interval ignored).
-function generateFromTemplate(tpl, today) {
+function generateFromTemplate(tpl, today, requestId) {
+      tpl = { ...cleanRecord(tpl) };
+      const meta = readJSON(META_PATH, {});
       // The business this template bills for: the one it was assigned to
       // (ownerGstin), else its saved profile id / name, else the active one.
       const profiles = readAllFromDir('profiles');
@@ -1915,10 +1893,11 @@ function generateFromTemplate(tpl, today) {
       // Never overwrite an existing invoice: if the counter lags behind the
       // bills on disk (restored backup, hand-typed numbers), take the next one.
       const bizKey = businessKeyOf(profile);
-      let invoiceNumber = nextInvoiceNumber(prefix, tpl.invoiceType, bizKey);
+      let invoiceNumber = nextInvoiceNumber(meta, prefix, tpl.invoiceType, bizKey);
       for (let i = 0; i < 50 && fs.existsSync(path.join(DATA_DIR, 'bills', safeFileName(invoiceNumber) + '.json')); i++) {
-        invoiceNumber = nextInvoiceNumber(prefix, tpl.invoiceType, bizKey);
+        invoiceNumber = nextInvoiceNumber(meta, prefix, tpl.invoiceType, bizKey);
       }
+      if(fs.existsSync(recordPath(DATA_DIR,'bills',invoiceNumber)))throw storageError('No unused invoice number found','conflict',409);
       const invoiceDate = today;
 
       // v1.10.31 — Data-F3.1: use shared computeInvoiceTotals so every math
@@ -1984,7 +1963,7 @@ function generateFromTemplate(tpl, today) {
         },
       };
 
-      writeJSON(path.join(DATA_DIR, 'bills', safeFileName(invoiceNumber) + '.json'), bill);
+      const plan = planInvoices(DATA_DIR,[{bill}]);
 
       // Advance the template. The day of month it started on is remembered,
       // so a schedule on the 31st comes back to the 31st after February.
@@ -1993,7 +1972,10 @@ function generateFromTemplate(tpl, today) {
       tpl.nextDate = advanceDate(from, tpl.frequency, tpl.interval, tpl.anchorDay);
       tpl.lastGenerated = today;
       tpl.occurrencesCreated = (tpl.occurrencesCreated || 0) + 1;
-      writeJSON(path.join(DATA_DIR, 'recurring', safeFileName(tpl.id) + '.json'), tpl);
+      if(requestId)tpl.lastGenerationRequest={id:requestId,invoiceNumber};
+      plan.writes.set(META_PATH,meta);
+      plan.writes.set(recordPath(DATA_DIR,'recurring',tpl.id),tpl);
+      runRecordTransaction(plan);
       return invoiceNumber;
 }
 
@@ -2002,8 +1984,9 @@ async function processDueRecurring() {
   const templates = readAllFromDir('recurring');
   let fired = 0;
   const yieldToLoop = () => new Promise(r => setImmediate(r));
-  for (const tpl of templates) {
+  for (const snapshot of templates) {
     await yieldToLoop();
+    const tpl = readJSON(recordPath(DATA_DIR,'recurring',snapshot.id));
     if (!tpl || !templateIsActive(tpl)) continue;
     if (!tpl.nextDate || tpl.nextDate > today) continue;
     if (templateHasEnded(tpl, today)) continue;
@@ -2028,17 +2011,22 @@ async function processDueRecurring() {
 // the template has ended.
 app.post('/api/recurring/:id/generate', (req, res) => {
   try {
-    const tpl = readAllFromDir('recurring').find(t => t && t.id === req.params.id);
-    if (!tpl) return res.status(404).json({ error: 'Recurring template not found' });
+    requireSnapshotIdle();
+    const tpl = readJSON(recordPath(DATA_DIR,'recurring',req.params.id));
+    if (!tpl || tpl.id !== req.params.id) return res.status(404).json({ error: 'Recurring template not found' });
+    const requestId = req.body?.requestId;
+    if(requestId !== undefined)validateId(requestId);
+    if(requestId && tpl.lastGenerationRequest?.id === requestId)return res.json({success:true,invoiceNumber:tpl.lastGenerationRequest.invoiceNumber});
+    if(req.body?.revision && req.body.revision !== invoiceRevision(tpl))return res.status(409).json({error:'This schedule changed. Reload before generating another invoice.'});
     const today = localToday();
     if (templateHasEnded(tpl, today)) {
       return res.status(409).json({ error: 'This template has reached its end date or number of invoices' });
     }
-    const invoiceNumber = generateFromTemplate(tpl, today);
+    const invoiceNumber = generateFromTemplate(tpl, today, requestId);
     res.json({ success: true, invoiceNumber });
   } catch (err) {
     logFatal(err, 'recurring-generate');
-    res.status(500).json({ error: err.message || 'Could not generate the invoice' });
+    errRes(res,err.status || 500,err.code || 'server-error',err);
   }
 });
 

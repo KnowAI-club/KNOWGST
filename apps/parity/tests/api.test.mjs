@@ -21,8 +21,8 @@ test('compatibility service: module persistence, isolation and recovery', async 
   }
   async function stop() { const exited = new Promise(done => child.once('exit', done)); child.kill('SIGTERM'); await exited; }
   let port = await start();
-  async function call(path, method = 'GET', body) {
-    const response = await fetch(`http://127.0.0.1:${port}/api${path}`, { method, headers: { 'x-knowgst-key': secret, 'Content-Type': 'application/json' }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
+  async function call(path, method = 'GET', body, extraHeaders = {}) {
+    const response = await fetch(`http://127.0.0.1:${port}/api${path}`, { method, headers: { 'x-knowgst-key': secret, 'Content-Type': 'application/json', ...extraHeaders }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
     return { status: response.status, body: await response.json() };
   }
   try {
@@ -51,10 +51,12 @@ test('compatibility service: module persistence, isolation and recovery', async 
     };
     for (const [module, record] of Object.entries(records)) await t.test(`${module}: create, update and list preserve fields`, async () => {
       assert.equal((await call(`/${module}`,'POST',record)).status,200);
-      assert.deepEqual((await call(`/${module}`)).body.find(x=>x.id===record.id),record);
-      const updated={...record, note:'Updated in KNOWGST'};
+      const saved=(await call(`/${module}`)).body.find(x=>x.id===record.id);
+      for(const key of Object.keys(record))assert.deepEqual(saved[key],record[key]);
+      const updated={...saved, note:'Updated in KNOWGST'};
       assert.equal((await call(`/${module}`,'POST',updated)).status,200);
-      assert.deepEqual((await call(`/${module}`)).body.find(x=>x.id===record.id),updated);
+      const after=(await call(`/${module}`)).body.find(x=>x.id===record.id);
+      for(const key of Object.keys(updated).filter(k=>k!=='_revision'))assert.deepEqual(after[key],updated[key]);
     });
     const bill = { id:'INV-TEST-1', invoiceNumber:'INV-TEST-1', invoiceDate:'2026-10-29', clientName:'Example Client', totalAmount:118, totalTaxAmount:18, status:'unpaid', paidAmount:0, payments:[], data:{profile, client:records.clients, details:{invoiceNumber:'INV-TEST-1',invoiceDate:'2026-10-29'},items:[{name:'Service',quantity:1,rate:100,taxPercent:18}],totals:{total:118,totalTaxAmount:18},invoiceType:'tax-invoice'} };
     await t.test('sales duplicate protection, trash and restore', async () => {
@@ -131,7 +133,8 @@ test('compatibility service: module persistence, isolation and recovery', async 
     });
     await t.test('all module records can be removed without touching unrelated records', async () => {
       for (const [module, record] of Object.entries(records)) {
-        assert.equal((await call(`/${module}/${record.id}`,'DELETE')).status,200);
+        const saved=(await call(`/${module}`)).body.find(x=>x.id===record.id);
+        assert.equal((await call(`/${module}/${record.id}`,'DELETE',undefined, saved?._revision ? {'If-Match':saved._revision} : {})).status,200);
         assert.equal((await call(`/${module}`)).body.some(x=>x.id===record.id),false);
       }
       assert.equal((await call('/bills')).body.length,1);
@@ -155,6 +158,46 @@ test('compatibility service: module persistence, isolation and recovery', async 
         assert.equal((await call(`/recurring/${tpl.id}/generate`,'POST',{})).status,409);
       }
       assert.equal((await call('/recurring/unknown/generate','POST',{})).status,404);
+    });
+    await t.test('transactional receipt edits and purchase quantities update linked records through the API',async()=>{
+      await call('/products','POST',{id:'flow-product',name:'Flow product',stock:10,rate:100});
+      let response=await call('/purchases','POST',{id:'flow-purchase',items:[{productId:'flow-product',name:'Flow product',quantity:3,rate:80}]});
+      assert.equal(response.status,200);let purchase=response.body.purchase;
+      const stock=async()=>(await call('/products')).body.find(p=>p.id==='flow-product').stock;
+      assert.equal(await stock(),13);
+      response=await call('/purchases','POST',{...purchase,items:[{...purchase.items[0],quantity:5}]});
+      assert.equal(response.status,200);assert.equal(await stock(),15);
+      assert.equal((await call('/purchases','POST',{...purchase,items:[]})).status,409);
+      assert.equal((await call('/purchases/flow-purchase','DELETE',undefined,{'if-match':response.body.purchase._revision})).status,200);
+      assert.equal(await stock(),10);
+      let receipt=(await call('/receipts','POST',{id:'flow-receipt',amount:40,againstInvoice:bill.id,clientName:bill.clientName,ownerName:profile.businessName})).body.receipt;
+      assert.equal((await call('/bills')).body.find(b=>b.id===bill.id).paidAmount,40);
+      response=await call('/receipts','POST',{...receipt,amount:60});assert.equal(response.status,200);
+      assert.equal((await call('/receipts','POST',{...receipt,amount:30})).status,409);
+      assert.equal((await call('/receipts/flow-receipt','DELETE',undefined,{'if-match':response.body.receipt._revision})).status,200);
+      assert.equal((await call('/bills')).body.find(b=>b.id===bill.id).paidAmount,0);
+    });
+    await t.test('recurring retry returns one invoice and only one stock deduction',async()=>{
+      const tpl={id:'flow-recurring',clientName:'Flow client',profileId:profile.id,invoiceType:'tax-invoice',active:false,frequency:'monthly',nextDate:'2099-01-01',items:[{productId:'flow-product',name:'Flow product',quantity:2,rate:100,taxPercent:18}]};
+      const saved=(await call('/recurring','POST',tpl)).body.item;
+      const request={requestId:'retry-flow',revision:saved._revision};
+      const first=await call('/recurring/flow-recurring/generate','POST',request);
+      assert.equal(first.status,200);
+      const again=await call('/recurring/flow-recurring/generate','POST',request);
+      assert.equal(again.status,200);assert.equal(again.body.invoiceNumber,first.body.invoiceNumber);
+      assert.equal((await call('/products')).body.find(p=>p.id==='flow-product').stock,8);
+      assert.equal((await call('/recurring')).body.find(p=>p.id===tpl.id).occurrencesCreated,1);
+      assert.equal((await call('/recurring/flow-recurring/generate','POST',{...request,requestId:'second-stale'})).status,409);
+      const id=first.body.invoiceNumber,name=`INV_${id.replaceAll('/','-')}.pdf`;
+      const pdf=await fetch(`http://127.0.0.1:${port}/api/save-pdf?name=${encodeURIComponent(name)}&client=Flow%20client&month=October`,{method:'POST',headers:{'x-knowgst-key':secret,'Content-Type':'application/pdf'},body:'%PDF-1.7 workflow bytes'});
+      assert.equal(pdf.status,200);
+      const original=join(runtime,(await pdf.json()).relPath);
+      assert.equal((await call(`/bills/${encodeURIComponent(id)}`,'DELETE')).body.pdfsMoved,1);
+      assert.equal((await call('/products')).body.find(p=>p.id==='flow-product').stock,10);
+      await assert.rejects(readFile(original));
+      assert.equal((await call(`/trash/${encodeURIComponent(id)}/restore`,'POST',{})).body.pdfsMoved,1);
+      assert.equal(await readFile(original,'utf8'),'%PDF-1.7 workflow bytes');
+      assert.equal((await call('/products')).body.find(p=>p.id==='flow-product').stock,8);
     });
     await t.test('startup scheduler generates due templates once and skips paused or ended templates', async () => {
       const now=new Date();const today=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;

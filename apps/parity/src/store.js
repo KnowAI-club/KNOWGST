@@ -216,8 +216,8 @@ export const getAllBills = async () => {
   return apiFetch(`${API}/bills`);
 };
 
-export const deleteBill = async (id) => {
-  return apiFetch(`${API}/bills/${encodeURIComponent(id)}`, { method: 'DELETE' });
+export const deleteBill = async (id, revision) => {
+  return apiFetch(`${API}/bills/${encodeURIComponent(id)}`, { method: 'DELETE', ...(revision ? {headers:{'If-Match':revision}} : {}) });
 };
 
 // v1.9.5 — Automatic backups + trash bin
@@ -310,13 +310,15 @@ export const getAllPurchases = async () => {
 };
 
 export const savePurchase = async (purchase) => {
+  purchase.id ||= 'pur_' + crypto.randomUUID();
   const res = await apiFetch(`${API}/purchases`, { method: 'POST', body: JSON.stringify(purchase) });
-  if (res.id) purchase.id = res.id;
+  if (res.purchase) Object.assign(purchase,res.purchase);
+  else if (res.id) purchase.id = res.id;
   return purchase;
 };
 
-export const deletePurchase = async (id) => {
-  return apiFetch(`${API}/purchases/${encodeURIComponent(id)}`, { method: 'DELETE' });
+export const deletePurchase = async (id, revision) => {
+  return apiFetch(`${API}/purchases/${encodeURIComponent(id)}`, { method: 'DELETE', headers:{'If-Match':revision || ''} });
 };
 
 // ---- Recurring Invoices ----
@@ -325,19 +327,26 @@ export const getAllRecurring = async () => {
 };
 
 export const saveRecurring = async (item) => {
+  item.id ||= 'rec_'+crypto.randomUUID();
   const res = await apiFetch(`${API}/recurring`, { method: 'POST', body: JSON.stringify(item) });
-  if (res.id) item.id = res.id;
+  if (res.item)Object.assign(item,res.item);
+  else if (res.id) item.id = res.id;
   return item;
 };
 
 // "Generate Now": the server makes the invoice with the same code as the daily
 // auto-fire, so both give identical invoices. Resolves to { invoiceNumber }.
-export const generateRecurringNow = async (id) => {
-  return apiFetch(`${API}/recurring/${encodeURIComponent(id)}/generate`, { method: 'POST', body: JSON.stringify({}) });
+const pendingGenerations = new Map();
+export const generateRecurringNow = async (id, revision) => {
+  const pending = pendingGenerations.get(id) || {requestId:crypto.randomUUID(),revision};
+  pendingGenerations.set(id,pending);
+  try { const result=await apiFetch(`${API}/recurring/${encodeURIComponent(id)}/generate`, { method: 'POST', body: JSON.stringify(pending) });
+    pendingGenerations.delete(id);return result;
+  } catch(error) { if(error.status && error.status < 500)pendingGenerations.delete(id);throw error; }
 };
 
-export const deleteRecurring = async (id) => {
-  return apiFetch(`${API}/recurring/${encodeURIComponent(id)}`, { method: 'DELETE' });
+export const deleteRecurring = async (id, revision) => {
+  return apiFetch(`${API}/recurring/${encodeURIComponent(id)}`, { method: 'DELETE',headers:{'If-Match':revision || ''} });
 };
 
 // ---- Receipts / Payment Vouchers ----
@@ -346,8 +355,10 @@ export const getAllReceipts = async () => {
 };
 
 export const saveReceipt = async (receipt) => {
+  receipt.id ||= 'rcp_' + crypto.randomUUID();
   const res = await apiFetch(`${API}/receipts`, { method: 'POST', body: JSON.stringify(receipt) });
-  if (res.id) receipt.id = res.id;
+  if (res.receipt) Object.assign(receipt,res.receipt);
+  else if (res.id) receipt.id = res.id;
   return receipt;
 };
 
@@ -363,8 +374,8 @@ export const trashSavedPdf = (bill) => apiFetch(`${API}/trash-pdf`, {
   method: 'POST', body: JSON.stringify(savedPdfNameFor(bill)),
 });
 
-export const deleteReceipt = async (id) => {
-  return apiFetch(`${API}/receipts/${encodeURIComponent(id)}`, { method: 'DELETE' });
+export const deleteReceipt = async (id, revision) => {
+  return apiFetch(`${API}/receipts/${encodeURIComponent(id)}`, { method: 'DELETE', headers:{'If-Match':revision || ''} });
 };
 
 // ---- Business Profiles (multi-business) ----

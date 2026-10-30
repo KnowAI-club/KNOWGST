@@ -191,7 +191,7 @@ export default function RecurringInvoices() {
       confirmLabel: 'Delete template',
       tone: 'danger',
     })) {
-      try { await deleteRecurring(id); toast('Deleted', 'success'); load(); }
+      try { await deleteRecurring(id, templates.find(t=>t.id===id)?._revision); toast('Deleted', 'success'); load(); }
       catch { toast('Failed to delete', 'error'); }
     }
   };
@@ -205,7 +205,7 @@ export default function RecurringInvoices() {
 
   const generateNow = async (tpl) => {
     try {
-      const { invoiceNumber } = await generateRecurringNow(tpl.id);
+      const { invoiceNumber } = await generateRecurringNow(tpl.id, tpl._revision);
       toast(`Invoice ${invoiceNumber} generated for ${tpl.clientName}`, 'success');
       load();
     } catch (err) {

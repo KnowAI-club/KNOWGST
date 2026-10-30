@@ -330,3 +330,36 @@ test("stale payment window shows a conflict and preserves the newer payment", as
     ).paidAmount,
   ).toBe(75);
 });
+
+test('purchase edit switches the linked product and moves stock once', async ({page,request}) => {
+  for(const [id,name] of [['purchase-a','Purchase item A'],['purchase-b','Purchase item B']])
+    expect((await request.post('/api/products',{data:{id,name,stock:10,rate:100,purchasePrice:80}})).ok()).toBeTruthy();
+  expect((await request.post('/api/purchases',{data:{id:'switch-purchase',invoiceNumber:'SWITCH-1',supplierName:'Switch supplier',date:new Date().toISOString().slice(0,10),ownerName:profile.businessName,items:[{productId:'purchase-a',name:'Purchase item A',quantity:2,rate:80,taxPercent:0}]}})).ok()).toBeTruthy();
+  await page.goto('/?view=purchases');
+  await page.locator('tr').filter({hasText:'SWITCH-1'}).getByTitle('Edit').click();
+  await page.getByPlaceholder(/^(Item name|Type or pick a previous item)$/).fill('Purchase item B');
+  await page.getByRole('button',{name:'Update',exact:true}).click();
+  await expect(page.locator('.modal-overlay')).toHaveCount(0);
+  const products=await (await request.get('/api/products')).json();
+  expect(products.find((p:{id:string})=>p.id==='purchase-a').stock).toBe(10);
+  expect(products.find((p:{id:string})=>p.id==='purchase-b').stock).toBe(12);
+});
+
+test('receipt edit and delete update the linked invoice balance', async ({page,request}) => {
+  const bill={id:'RECEIPT-UI',invoiceNumber:'RECEIPT-UI',clientName:'Receipt linked client',totalAmount:100,paidAmount:0,payments:[],status:'unpaid',data:{profile,client:{name:'Receipt linked client'},items:[]}};
+  expect((await request.post('/api/invoice-transactions',{data:{operations:[{bill}]}})).ok()).toBeTruthy();
+  expect((await request.post('/api/receipts',{data:{id:'receipt-ui',receiptNo:'R-UI',ownerName:profile.businessName,clientName:bill.clientName,againstInvoice:bill.id,amount:40,date:new Date().toISOString().slice(0,10)}})).ok()).toBeTruthy();
+  await page.goto('/?view=receipts');
+  const row=page.locator('tr').filter({hasText:'R-UI'});
+  await row.getByTitle('Edit').click();
+  await page.locator('.form-group').filter({has:page.locator('label').filter({hasText:/^Amount/})}).locator('input').fill('60');
+  await page.getByRole('button',{name:'Save Receipt',exact:true}).click();
+  await expect(page.locator('.modal-overlay')).toHaveCount(0);
+  let bills=await (await request.get('/api/bills')).json();
+  expect(bills.find((b:{id:string})=>b.id===bill.id).paidAmount).toBe(60);
+  await row.getByTitle('Delete').click();
+  await page.locator('.confirm-modal-primary').click();
+  await expect(row).toHaveCount(0);
+  bills=await (await request.get('/api/bills')).json();
+  expect(bills.find((b:{id:string})=>b.id===bill.id).paidAmount).toBe(0);
+});

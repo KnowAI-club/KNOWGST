@@ -2,8 +2,8 @@ import PageHeader from './PageHeader';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { Users, Search, FileText, ChevronDown, ChevronUp, Trash2, X, MessageCircle, Mail, Plus, Edit3, Copy, Upload, Download } from 'lucide-react';
 import HelpButton from './HelpButton';
-import { getAllClients, getAllBills, deleteClient, saveClient, deleteBill, saveBill, getProfile, deleteReceipt, applyStockChanges, trashSavedPdf } from '../store';
-import { formatCurrency, INVOICE_TYPES, markPaidPatch, markUnpaidPatch, salesSign, countsAsSales, isCancelledBill, amountDue, localToday, parseLocalDate, appliedStock, stockDelta } from '../utils';
+import { getAllClients, getAllBills, deleteClient, saveClient, deleteBill, saveTransactionalBill as saveBill, getProfile } from '../store';
+import { formatCurrency, INVOICE_TYPES, markPaidPatch, markUnpaidPatch, salesSign, countsAsSales, isCancelledBill, amountDue, localToday, parseLocalDate } from '../utils';
 import { getPrintSettings } from '../utils/printSettings';
 import { openWhatsAppShare } from '../utils/share';
 import { confirmAction } from './ConfirmModal';
@@ -625,17 +625,9 @@ export default function ClientsView({ onEdit, onDuplicate, onNew }) {
       confirmLabel: 'Delete',
       tone: 'danger',
     })) {
-      // Its stock goes back, as when an invoice is cancelled. The trashed copy
-      // records what was put back, so restoring it takes exactly that out again.
       const bill = bills.find((b) => b.id === id);
-      const returned = bill?.data ? appliedStock(bill) : {};
-      const moves = Object.keys(returned).length > 0;
       try {
-        if (moves) await saveBill({ ...bill, data: { ...bill.data, stockApplied: {}, stockReturnedOnDelete: returned } }, { overwrite: true });
-        try { await deleteBill(id); }
-        catch (err) { if (moves) await saveBill(bill, { overwrite: true }).catch(() => {}); throw err; }
-        if (moves) await applyStockChanges(stockDelta(returned, {})).catch(() => toast('Invoice deleted, but its stock could not be put back. Check Products.', 'warning'));
-        if (bill) trashSavedPdf(bill).catch(() => {});
+        await deleteBill(id, bill?._revision);
         toast('Invoice deleted', 'success'); loadData();
       }
       catch { toast('Failed to delete', 'error'); }
@@ -648,9 +640,6 @@ export default function ClientsView({ onEdit, onDuplicate, onNew }) {
     // v1.10.77 (#86) - Unpaid takes back the "Marked paid" payment, as on the Dashboard.
     if (newStatus === 'unpaid') Object.assign(updated, markUnpaidPatch(bill));
     await saveBill(updated, { overwrite: true });
-    for (const p of (bill.payments || []).filter((x) => !(updated.payments || []).includes(x))) {
-      if (p.id) deleteReceipt(p.id).catch(() => {});
-    }
     toast(`Marked as ${STATUS_COLORS[updated.status]?.label || updated.status}`, 'info');
     loadData();
   };

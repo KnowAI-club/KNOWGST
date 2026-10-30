@@ -2,8 +2,8 @@ import PageHeader from './PageHeader';
 import { useState, useEffect, useMemo, lazy, Suspense } from 'react';
 import { ShoppingCart, Plus, Edit3, Trash2, Search, X, Save, Download, Wand2, FileText, Eye } from 'lucide-react';
 import HelpButton from './HelpButton';
-import { getAllPurchases, savePurchase, deletePurchase, getAllProducts, saveProduct, getProfile } from '../store';
-import { formatCurrency, calculateRoundOff, getFYOptions, belongsToProfile, isUnassignedToBusiness, isInterstateSupply, localToday, roundQty, splitPurchaseTax } from '../utils';
+import { getAllPurchases, savePurchase, deletePurchase, getAllProducts, getProfile } from '../store';
+import { formatCurrency, calculateRoundOff, getFYOptions, belongsToProfile, isUnassignedToBusiness, isInterstateSupply, localToday, splitPurchaseTax } from '../utils';
 import TableExport from './TableExport';
 import BulkCsvImport from './BulkCsvImport';
 import UnassignedBanner from './UnassignedBanner';
@@ -139,6 +139,7 @@ export default function PurchaseBills() {
     const tb = extracted.taxBreakdown || {};
     setForm({
       ...emptyForm,
+      id:'pur_'+crypto.randomUUID(),
       date: extracted.date || localToday(),
       supplierName: extracted.supplierName || '',
       supplierGstin: extracted.supplierGstin || '',
@@ -228,13 +229,14 @@ export default function PurchaseBills() {
   }, { taxable: 0, tax: 0, total: 0 });
 
   const openAdd = () => {
-    setForm({ ...emptyForm, date: localToday(), items: [{ ...emptyItem }] });
+    setForm({ ...emptyForm, id:'pur_'+crypto.randomUUID(), date: localToday(), items: [{ ...emptyItem }] });
     setEditingId(null);
     setShowForm(true);
   };
 
   const openEdit = (purchase) => {
     setForm({
+      _revision: purchase._revision,
       date: purchase.date || '',
       supplierName: purchase.supplierName || '',
       supplierAddress: purchase.supplierAddress || '',
@@ -388,7 +390,7 @@ export default function PurchaseBills() {
     try {
       const totals = calcPurchaseTotal(form.items, form.applyRoundOff);
       const purchase = {
-        ...(editingId ? { id: editingId } : {}),
+        ...(editingId ? { id: editingId, _revision: form._revision } : {id:form.id}),
         date: form.date,
         supplierName: form.supplierName.trim(),
         supplierAddress: (form.supplierAddress || '').trim(),
@@ -399,6 +401,7 @@ export default function PurchaseBills() {
         ownerGstin: ownerProfile?.gstin || '',
         ownerName: ownerProfile?.businessName || '',
         items: form.items.map(i => ({
+          ...(i.productId ? {productId:i.productId} : {}),
           name: (i.name || '').trim(),
           hsn: (i.hsn || '').trim(),
           quantity: parseFloat(i.quantity) || 0,
@@ -420,123 +423,7 @@ export default function PurchaseBills() {
       };
       await savePurchase(purchase);
 
-      // v1.10.29 — reported: "items added in purchase bill also available
-      // for sale means automatically added to the product page too".
-      // On save, upsert each line item into Products. Match by trimmed
-      // lowercase name to avoid duplicates. For existing products we
-      // update purchasePrice (latest cost) but leave sellingPrice alone
-      // so we don't accidentally overwrite the user's margin. For new
-      // products we seed sellingPrice = purchasePrice as a starting
-      // point (user can raise it in Inventory later). Runs in parallel
-      // and non-fatal — a single-item failure doesn't block the
-      // purchase-bill save.
-      // v1.10.31 — Data-F10.1-3: delta-based stock sync. Previously stock
-      // was incremented only on FIRST save (create). If the user edited the
-      // purchase later — changing qty from 10 → 20, or removing a line, or
-      // renaming a line — the product's stock stayed at 10 (F10.1) or a
-      // duplicate product was created (F10.3). Now:
-      //   • Save (edit path): compute per-line delta from the pre-edit
-      //     snapshot; apply that delta to each existing product's stock.
-      //   • Save (create path): increment stock by full quantity.
-      //   • Rename detection: match by productId first (persisted below),
-      //     then by name — a rename with productId keeps the same product.
-      try {
-        const existingProducts = await getAllProducts();
-        const byName = new Map(existingProducts.map(p => [(p.name || '').trim().toLowerCase(), p]));
-        const byId = new Map(existingProducts.map(p => [p.id, p]));
-
-        // Pre-edit snapshot: on edit, compute deltas per productId/name.
-        const priorLines = editingId
-          ? (purchases.find(p => p.id === editingId)?.items || [])
-          : [];
-        const priorQtyByKey = new Map();
-        for (const p of priorLines) {
-          const key = p.productId || `name:${(p.name || '').trim().toLowerCase()}`;
-          priorQtyByKey.set(key, (priorQtyByKey.get(key) || 0) + (Number(p.quantity) || 0));
-        }
-
-        // Batch stock adjustments per product so we don't race on parallel saves.
-        const stockDeltaById = new Map();
-        const productsToUpsert = new Map();
-        const seenPriorKeys = new Set();
-
-        for (const it of purchase.items.filter(x => x.name)) {
-          const qty = Number(it.quantity) || 0;
-          // Match order: productId (persisted below) → name (case-insensitive).
-          let existing = it.productId ? byId.get(it.productId) : null;
-          if (!existing) {
-            const key = it.name.trim().toLowerCase();
-            existing = byName.get(key);
-          }
-          if (existing) {
-            // Delta = current qty − prior qty (for this product).
-            const priorKey = it.productId
-              ? it.productId
-              : `name:${(it.name || '').trim().toLowerCase()}`;
-            const priorQty = priorQtyByKey.get(priorKey) || 0;
-            seenPriorKeys.add(priorKey);
-            const delta = qty - priorQty; // may be negative (line reduced) or zero (unchanged)
-            stockDeltaById.set(existing.id, (stockDeltaById.get(existing.id) || 0) + delta);
-            productsToUpsert.set(existing.id, {
-              ...existing,
-              purchasePrice: it.rate,
-              hsn: existing.hsn || it.hsn,
-              taxPercent: existing.taxPercent || it.taxPercent,
-              cessPercent: existing.cessPercent || it.cessPercent || 0,
-              // stock filled after we sum all deltas for this product.
-              _placeholderId: existing.id,
-            });
-          } else {
-            // New product — seed stock with the line qty (all its lines: two
-            // lines of the same new item used to keep only the last one's).
-            const newKey = `__new__::${it.name.trim().toLowerCase()}`;
-            const seeded = Number(productsToUpsert.get(newKey)?.stock) || 0;
-            productsToUpsert.set(newKey, {
-              name: it.name.trim(),
-              hsn: it.hsn || '',
-              purchasePrice: it.rate,
-              sellingPrice: it.rate,
-              rate: it.rate,
-              taxPercent: it.taxPercent || 0,
-              cessPercent: it.cessPercent || 0,
-              unit: 'Nos',
-              stock: roundQty(seeded + qty),
-              description: '',
-            });
-          }
-        }
-
-        // Rows removed while editing: their stock was added when the bill was
-        // first saved, so take it back out (it used to stay in stock forever).
-        for (const [key, priorQty] of priorQtyByKey) {
-          if (seenPriorKeys.has(key)) continue;
-          const gone = key.startsWith('name:') ? byName.get(key.slice(5)) : byId.get(key);
-          if (!gone) continue;
-          stockDeltaById.set(gone.id, (stockDeltaById.get(gone.id) || 0) - priorQty);
-          if (!productsToUpsert.has(gone.id)) productsToUpsert.set(gone.id, { ...gone, _placeholderId: gone.id });
-        }
-
-        // Apply deltas + write.
-        const upserts = [];
-        for (const [, prod] of productsToUpsert) {
-          if (prod._placeholderId) {
-            const existing = byId.get(prod._placeholderId);
-            const delta = stockDeltaById.get(prod._placeholderId) || 0;
-            // Not clamped at 0: sales may take stock below zero, and clamping
-            // here made a purchase edit and its undo leave different stock
-            // (stock 2, reduce a purchase by 5 -> 0, put it back -> 5).
-            const newStock = roundQty((Number(existing.stock) || 0) + delta);
-            upserts.push(saveProduct({ ...prod, stock: newStock, _placeholderId: undefined }));
-          } else {
-            upserts.push(saveProduct(prod));
-          }
-        }
-        await Promise.all(upserts);
-        toast(editingId ? 'Purchase updated' : 'Purchase added — items synced to Products', 'success');
-      } catch (e) {
-        console.warn('Products auto-sync from purchase failed (non-fatal):', e);
-        toast('Purchase saved, but updating stock in Products failed - check them there', 'warning');
-      }
+      toast(editingId ? 'Purchase updated' : 'Purchase added — items synced to Products', 'success');
 
       closeForm();
       loadPurchases();
@@ -545,8 +432,8 @@ export default function PurchaseBills() {
       // refresh it too. Otherwise a brand-new item would not appear in the
       // suggestions until the page was reloaded.
       loadProducts();
-    } catch {
-      toast('Failed to save purchase', 'error');
+    } catch (error) {
+      toast(error.message || 'Failed to save purchase', 'error');
     }
   };
 
@@ -564,25 +451,6 @@ export default function PurchaseBills() {
     }
   };
 
-  // Take a deleted bill's quantities back out of product stock.
-  // Matches products the same way saving does: productId, then name.
-  const revertPurchaseStock = async (bill) => {
-    const lines = (bill?.items || []).filter(it => it.name && Number(it.quantity) > 0);
-    if (!lines.length) return;
-    const products = await getAllProducts();
-    const byName = new Map(products.map(p => [(p.name || '').trim().toLowerCase(), p]));
-    const byId = new Map(products.map(p => [p.id, p]));
-    const minus = new Map();
-    for (const it of lines) {
-      const prod = (it.productId && byId.get(it.productId)) || byName.get(it.name.trim().toLowerCase());
-      if (prod) minus.set(prod.id, (minus.get(prod.id) || 0) + Number(it.quantity));
-    }
-    await Promise.all([...minus].map(([pid, qty]) => {
-      const prod = byId.get(pid);
-      return saveProduct({ ...prod, stock: roundQty((Number(prod.stock) || 0) - qty) });
-    }));
-  };
-
   const handleDelete = async (id) => {
     if (await confirmAction({
       title: 'Delete this purchase bill?',
@@ -592,12 +460,8 @@ export default function PurchaseBills() {
     })) {
       try {
         const bill = purchases.find(p => p.id === id);
-        await deletePurchase(id);
-        // The confirm above promises this: the bill's quantities were added to
-        // stock when it was saved, so deleting it takes them back out.
-        let stockOk = true;
-        try { await revertPurchaseStock(bill); } catch (e) { stockOk = false; console.warn('Stock revert failed', e); }
-        toast(stockOk ? 'Purchase deleted' : 'Purchase deleted, but its stock could not be taken out of Products', stockOk ? 'success' : 'warning');
+        await deletePurchase(id, bill?._revision);
+        toast('Purchase deleted', 'success');
         loadPurchases();
       } catch {
         toast('Failed to delete', 'error');
@@ -660,6 +524,7 @@ export default function PurchaseBills() {
       const name = (pr.name || '').trim();
       if (!name) continue;
       seen.set(name.toLowerCase(), {
+        productId: pr.id,
         name,
         hsn: (pr.hsn || '').trim(),
         // purchasePrice is what we PAY a supplier; `rate`/sellingPrice is
@@ -678,6 +543,7 @@ export default function PurchaseBills() {
         const key = name.toLowerCase();
         if (!seen.has(key)) {
           seen.set(key, {
+            productId: it.productId,
             name,
             hsn: (it.hsn || '').trim(),
             rate: Number(it.rate) || 0,
@@ -761,7 +627,7 @@ export default function PurchaseBills() {
     const match = itemHistory.find(i => i.name.toLowerCase() === value.trim().toLowerCase());
     setForm(prev => {
       const items = [...prev.items];
-      const cur = { ...items[index], name: value };
+      const cur = { ...items[index], name: value, productId: match?.productId };
       if (match) {
         const last = cur._auto || {};
         if (isOursToReplace(cur.hsn, last.hsn)) cur.hsn = match.hsn;

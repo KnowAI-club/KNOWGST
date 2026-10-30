@@ -15,12 +15,12 @@ The source surface audit covers every file under upstream `src/` plus server.js 
 | Invoice templates, print layouts, multi-copy, paper sizes | Retained | Source comparison and all document PDFs; not every printer or layout combination |
 | Signature/stamp layout | Ported from current-main unreleased change | Side-by-side, stacked, overlaid component shared by templates; Settings persistence and stacked preview tested |
 | Clients and credit/outstanding helpers | Retained | CRUD, reload, report fixtures; corrupt credit dependency reads now stop deletion |
-| Products, units and stock | Retained | CRUD/defaults, stock export value and upstream stock arithmetic regressions; editor/Dashboard sales and stock commit together; purchase, CSV, recurring and deletion paths remain to migrate |
-| Sales and purchase CSV import/export | Retained; date-order and partial-import stock fixes ported | Upstream CSV suite, mixed-date rejection; stock-provider write failure is not fully atomic |
+| Products, units and stock | Retained | CRUD/defaults, stock export value and upstream stock arithmetic regressions; sales, purchase/CSV, recurring generation and invoice trash/restore now commit linked stock changes together; direct catalog edits still lack a movement ledger |
+| Sales and purchase CSV import/export | Retained; date-order and partial-import stock fixes ported | Upstream CSV suite, mixed-date rejection; each imported bill commits its stock with the record; an entire CSV is not all-or-nothing |
 | Purchases | Retained; explicit tax-head display/export ported | Form persistence, interstate arithmetic fixtures, CSV CGST/SGST/IGST, odd-paisa sum |
 | Expenses | Retained | Browser persistence, API CRUD and ex-GST report fixture |
-| Receipts/payments | Retained | Dashboard payment/receipt transaction and stale-window browser tests; standalone receipt allocation/reversal migration pending |
-| Recurring documents | Retained | Seven types, start/end/count/month-end, paused state, startup/restart deduplication |
+| Receipts/payments | Retained | Dashboard payment/receipt transaction and stale-window browser tests; standalone allocation/edit/reassignment/deletion now commit with invoice balances and reject stale edits |
+| Recurring documents | Retained | Seven types, start/end/count/month-end, paused state, startup/restart deduplication; generation includes stock/counter/schedule and request replay |
 | P&L, aging, party/client/product/stock reports | Retained | Fixtures reconcile signed documents, cancellation exclusions, currencies, CSV and Excel outputs |
 | GSTR-1 and GSTR-3B | Retained | JSON fixture reconciliation; no live submission or acceptance certification |
 | GSTR-2B | Retained | Matched, mismatch, books-only, portal-only imports |
@@ -31,7 +31,7 @@ The source surface audit covers every file under upstream `src/` plus server.js 
 | Google Drive | Retained with prior error-handling fixes | Provider contract tests only; live authorization/delivery unverified |
 | Local lock | Retained | PIN-secret export restrictions and lock routes tested; not hosted user authentication |
 | JSON export/import | Hardened | Validation before writes, collision protection, overwrite semantics, counter reconciliation, rollback/crash recovery |
-| Complete backup/restore and PDF trash | KNOWGST implementation retained | Byte hashes, copy/install failures, process interruption, legacy mode; secondary-folder ownership now enforced |
+| Complete backup/restore and PDF trash | KNOWGST implementation retained | Byte hashes, copy/install failures, process interruption, legacy mode; invoice trash restores linked stock/receipts/PDFs; secondary-folder ownership enforced |
 | Control Panel and updater | Product-specific replacement | Working local backups/folder actions; source-product updater/installer intentionally disabled |
 | Help/documentation | Product-specific replacement | 20-topic local guide, actual screenshots, contextual links, mobile/theme tests |
 | About/What's new | Product-specific replacement | Local KNOWGST changelog; original donor promotions replaced by attribution and existing onboarding |

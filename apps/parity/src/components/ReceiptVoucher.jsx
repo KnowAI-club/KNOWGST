@@ -1,7 +1,7 @@
 import PageHeader from './PageHeader';
 import { useState, useEffect, useRef } from 'react';
 import { Receipt, Plus, Trash2, Search, Printer, Pencil } from 'lucide-react';
-import { getAllReceipts, saveReceipt, deleteReceipt, getAllBills, getProfile, getNextInvoiceNumber, saveBill } from '../store';
+import { getAllReceipts, saveReceipt, deleteReceipt, getAllBills, getProfile, getNextInvoiceNumber } from '../store';
 import { formatCurrency, numberToWords, belongsToProfile, isUnassignedToBusiness, countsAsSales, businessKeyOf, localToday, amountDue, paymentStatusFor, isCancelledBill } from '../utils';
 import UnassignedBanner from './UnassignedBanner';
 import { toast } from './Toast';
@@ -84,7 +84,7 @@ export default function ReceiptVoucher() {
   const openAdd = async () => {
     const receiptNo = await getNextReceiptNo();
     previewedNoRef.current = receiptNo;
-    setForm({ ...emptyForm, date: localToday(), receiptNo });
+    setForm({ ...emptyForm, id:'rcp_'+crypto.randomUUID(), date: localToday(), receiptNo });
     setEditingId(null);
     setShowForm(true);
   };
@@ -96,6 +96,7 @@ export default function ReceiptVoucher() {
   // id so the server upserts in place.
   const openEdit = (rcp) => {
     setForm({
+      _revision: rcp._revision,
       date: rcp.date || localToday(),
       receiptNo: rcp.receiptNo || '',
       clientName: rcp.clientName || '',
@@ -149,6 +150,7 @@ export default function ReceiptVoucher() {
       // business happens to be selected.
       const existing = editingId ? receipts.find(r => r.id === editingId) : null;
       const receipt = {
+        ...existing,
         ...form,
         receiptNo,
         amount: parseFloat(form.amount),
@@ -158,89 +160,25 @@ export default function ReceiptVoucher() {
       if (editingId) receipt.id = editingId;
       await saveReceipt(receipt);
 
-      // P1 #19: propagate the payment to the linked invoice so the Dashboard
-      // shows the invoice as paid/partial and doesn't require the user to
-      // double-record via the payment modal. If no invoice link, skip
-      // silently — receipts against ad-hoc payments (advances, deposits)
-      // aren't tied to any bill.
-      // v1.10.16 — Edit mode: find the previously-propagated payment record
-      // in the linked bill (matched by receiptNo) and update it in place
-      // instead of appending. Prevents double-counting when a receipt is
-      // edited. If the linked invoice was changed, we remove the old
-      // propagation and add a fresh one to the new invoice.
-      const modeMap = { 'Bank Transfer': 'bank-transfer', 'UPI': 'upi', 'Cash': 'cash', 'Cheque': 'cheque', 'Card': 'card', 'Other': 'other' };
-      const paidAmount = parseFloat(form.amount);
-      // A cancelled invoice stays cancelled (un-cancel it on the Dashboard,
-      // which also fixes its stock); otherwise paid once the payments cover
-      // the total less TDS.
-      const statusFor = (bill, paid) => (isCancelledBill(bill) ? 'cancelled' : paymentStatusFor(bill, paid));
-      const stripReceiptFromBill = async (bill) => {
-        if (!bill) return;
-        const priorPayments = bill.payments || [];
-        const kept = priorPayments.filter(p => p.receiptNo !== receiptNo);
-        if (kept.length === priorPayments.length) return;
-        const newTotal = kept.reduce((s, p) => s + (Number(p.amount) || 0), 0);
-        await saveBill({ ...bill, paidAmount: newTotal, status: statusFor(bill, newTotal), payments: kept }, { overwrite: true });
-      };
-      // If editing and the linked invoice changed (or was removed), scrub
-      // the old link first.
-      if (editingId) {
-        try {
-          const original = receipts.find(r => r.id === editingId);
-          const oldRef = original?.againstInvoice?.trim();
-          const newRef = form.againstInvoice?.trim();
-          if (oldRef && oldRef !== newRef) {
-            const oldBill = bills.find(b => b.invoiceNumber === oldRef || b.id === oldRef);
-            await stripReceiptFromBill(oldBill);
-          }
-        } catch { /* non-fatal */ }
-      }
-      let unmatchedRef = '';
-      if (form.againstInvoice && form.againstInvoice.trim()) {
-        try {
-          const bill = bills.find(b => b.invoiceNumber === form.againstInvoice.trim() || b.id === form.againstInvoice.trim());
-          if (!bill) unmatchedRef = form.againstInvoice.trim(); // v1.10.74 - tell the user below
-          if (bill) {
-            const priorPayments = bill.payments || [];
-            const priorIdx = priorPayments.findIndex(p => p.receiptNo === receiptNo);
-            const nextEntry = {
-              // The receipt's id, as payments recorded on the Dashboard carry
-              // theirs: editing or deleting the payment there then updates this
-              // receipt instead of making a second one.
-              id: receipt.id,
-              amount: paidAmount,
-              date: form.date,
-              mode: modeMap[form.paymentMode] || 'other',
-              note: `Receipt ${receiptNo}${form.referenceNo ? ' · ref ' + form.referenceNo : ''}`,
-              recordedAt: priorIdx >= 0 ? priorPayments[priorIdx].recordedAt : new Date().toISOString(),
-              receiptNo,
-            };
-            const nextPayments = priorIdx >= 0
-              ? priorPayments.map((p, i) => i === priorIdx ? nextEntry : p)
-              : [...priorPayments, nextEntry];
-            const newTotal = nextPayments.reduce((s, p) => s + (Number(p.amount) || 0), 0);
-            await saveBill({ ...bill, paidAmount: newTotal, status: statusFor(bill, newTotal), payments: nextPayments }, { overwrite: true });
-          }
-        } catch { /* non-fatal: receipt is saved; user can manually update the bill */ }
-      }
+      const unmatchedRef = receipt.againstInvoice && !receipt.billId ? receipt.againstInvoice : '';
 
       toast('Receipt saved', 'success');
       if (unmatchedRef) toast(`No invoice numbered ${unmatchedRef} was found, so this receipt is saved on its own.`, 'info');
       closeForm();
       loadData();
-    } catch {
-      toast('Failed to save', 'error');
+    } catch (error) {
+      toast(error.message || 'Failed to save', 'error');
     }
   };
 
   const handleDelete = async (id) => {
     if (await confirmAction({
       title: 'Delete this receipt?',
-      message: 'The receipt voucher is removed from your records. The underlying invoice payment (if this was linked to one) stays intact.',
+      message: 'The receipt and its linked invoice payment will be removed together. The invoice balance will be recalculated.',
       confirmLabel: 'Delete',
       tone: 'danger',
     })) {
-      try { await deleteReceipt(id); toast('Deleted', 'success'); loadData(); }
+      try { await deleteReceipt(id, receipts.find(r=>r.id===id)?._revision); toast('Deleted', 'success'); loadData(); }
       catch { toast('Failed to delete', 'error'); }
     }
   };

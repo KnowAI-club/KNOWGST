@@ -5,10 +5,10 @@
 import { useState } from 'react';
 import { FileSpreadsheet, Upload, Download, X } from 'lucide-react';
 import {
-  getProfile, getAllBills, saveBill, getAllProducts, saveProduct, applyStockChanges,
+  getProfile, getAllBills, saveTransactionalBill, getAllProducts,
   getAllClients, saveClient, getAllPurchases, savePurchase,
 } from '../store';
-import { belongsToProfile, isCancelledBill, isInterstateSupply, roundQty, localToday } from '../utils';
+import { belongsToProfile, isCancelledBill, isInterstateSupply, localToday } from '../utils';
 import {
   salesCsvToBills, billsToSalesCsv, purchaseCsvToRecords, purchasesToCsv, SALES_TEMPLATE, PURCHASE_TEMPLATE,
 } from '../utils/bulkCsv';
@@ -86,46 +86,13 @@ export default function BulkCsvImport({ kind = 'sales', onDone }) {
     let taken = 0;
     try {
       if (sales) {
-        const stock = {};
-        // Stock for the bills already saved is applied even if a later one
-        // stops the import (it used to be skipped, leaving those bills with
-        // a stock record that never happened).
-        try {
-          for (const bill of plan.result.bills) {
-            try {
-              await saveBill(bill, { overwrite: false }); // never replaces an invoice
-              saved += 1;
-              for (const [id, d] of Object.entries(bill.data.stockApplied || {})) stock[id] = (stock[id] || 0) + d;
-            } catch (err) {
-              if (err.status === 409) taken += 1; else throw err;
-            }
-          }
-        } finally {
-          if (Object.keys(stock).length) await applyStockChanges(stock);
+        for (const bill of plan.result.bills) {
+          try { await saveTransactionalBill(bill); saved += 1; }
+          catch(error) { if(error.status===409 && error.body?.code==='duplicate-invoice') taken += 1; else throw error; }
         }
         if (addClients) for (const c of plan.result.newClients) await saveClient({ ...c }).catch(() => {});
       } else {
-        // As when a bill is typed in: quantities go into product stock, and a
-        // new item becomes a product (Purchases > save does the same).
-        const products = await getAllProducts().catch(() => []);
-        const byName = new Map(products.map((p) => [String(p.name || '').trim().toLowerCase(), { ...p }]));
-        const touched = new Set();
-        // As for sales: the bills saved so far get their stock even if a later
-        // one fails.
-        try {
-          for (const purchase of plan.result.purchases) {
-            await savePurchase(purchase);
-            saved += 1;
-            for (const it of purchase.items) {
-              const key = it.name.trim().toLowerCase();
-              const prev = byName.get(key) || { name: it.name.trim(), hsn: it.hsn, sellingPrice: it.rate, rate: it.rate, taxPercent: it.taxPercent, cessPercent: it.cessPercent, unit: 'Nos', stock: 0, description: '' };
-              byName.set(key, { ...prev, stock: roundQty((Number(prev.stock) || 0) + it.quantity), purchasePrice: it.rate });
-              touched.add(key);
-            }
-          }
-        } finally {
-          for (const key of touched) await saveProduct(byName.get(key));
-        }
+        for (const purchase of plan.result.purchases) { await savePurchase(purchase); saved += 1; }
       }
       const parts = [`${saved} ${sales ? 'invoice' : 'purchase bill'}${saved === 1 ? '' : 's'} imported`];
       if (plan.result.skipped.length + taken) parts.push(`${plan.result.skipped.length + taken} already there, skipped`);
