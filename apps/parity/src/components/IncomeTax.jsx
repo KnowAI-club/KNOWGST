@@ -1,3 +1,4 @@
+import PageHeader from './PageHeader';
 import CurrentTaxYear from './CurrentTaxYear';
 import { useState, useEffect, useMemo } from 'react';
 import { Calculator, Landmark, FileText, TrendingUp, Upload, Info, Check, X, ChevronRight, Briefcase, Clock, Download } from 'lucide-react';
@@ -216,12 +217,7 @@ export default function IncomeTax() {
 
   return (
     <div className="dashboard-container">
-      <div className="page-header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <div>
-            <h1 className="page-title">Income Tax Helper</h1>
-            <p className="page-subtitle">FY {CURRENT_FY} · AY {CURRENT_AY} — Old vs New Regime, bank-statement import, ITR summary</p>
-          </div>
+      <PageHeader title="Income Tax Helper" subtitle={<>FY {CURRENT_FY} · AY {CURRENT_AY} — Old vs New Regime, bank-statement import, ITR summary</>}>
           <HelpButton title="Income tax — how to use" doc="income-tax">
             <ul style={{ paddingLeft: '1.1rem', margin: 0 }}>
               <li><strong>Regime Calculator</strong>: your income and deductions, old and new regime side by side.</li>
@@ -229,8 +225,7 @@ export default function IncomeTax() {
               <li>Every figure is an estimate. Have your CA confirm it before filing.</li>
             </ul>
           </HelpButton>
-        </div>
-      </div>
+      </PageHeader>
 
       <CurrentTaxYear />
 
@@ -378,10 +373,10 @@ function PresumptiveTab({ presumptiveInputs, setPresumptiveInputs, presumptive, 
   const set = (patch) => setPresumptiveInputs(prev => ({ ...prev, ...patch }));
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+    <div className="tax-form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
       <div className="glass-panel p-4">
         <h3 className="section-title" style={{ marginTop: 0 }}>Section</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem', marginBottom: '1rem' }}>
+        <div className="tax-form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem', marginBottom: '1rem' }}>
           {[
             { key: '44AD',  label: '§44AD',  hint: 'Trading / Retail / Manufacturing' },
             { key: '44ADA', label: '§44ADA', hint: 'Professionals (CA, doctor, lawyer, consultant)' },
@@ -511,7 +506,7 @@ function AdvanceTaxTab({ advanceInputs, setAdvanceInputs, schedule, totalTax, re
           Based on your recommended <strong style={{ textTransform: 'uppercase' }}>{recommended}</strong> Regime total tax of <strong>{formatCurrency(totalTax)}</strong>.
         </p>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+        <div className="tax-form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
           <NumberInput label="TDS already deducted" hint="From salary, contract payments, interest — as per Form 26AS" value={advanceInputs.tdsCredit} onChange={v => set({ tdsCredit: v })} />
           <div>
             <Row label="Total tax liability" value={totalTax} />
@@ -559,7 +554,7 @@ function AdvanceTaxTab({ advanceInputs, setAdvanceInputs, schedule, totalTax, re
             </table>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+          <div className="tax-form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
             <div className="glass-panel p-4">
               <h4 style={{ marginTop: 0, marginBottom: '0.5rem' }}>Payments made</h4>
               {(advanceInputs.payments || []).length === 0 && <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>No advance-tax payments recorded yet.</p>}
@@ -614,7 +609,7 @@ function RegimeCalculatorTab({ inputs, setInputs, comparison, onReset }) {
   }));
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+    <div className="tax-form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
       {/* Left column: inputs */}
       <div className="glass-panel p-4">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
@@ -682,7 +677,7 @@ function RegimeCalculatorTab({ inputs, setInputs, comparison, onReset }) {
           </p>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+        <div className="tax-form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
           <RegimeCard title="Old Regime" result={comparison.old} highlighted={comparison.recommended === 'old'} color="#8b5cf6" />
           <RegimeCard title="New Regime" result={comparison.new} highlighted={comparison.recommended === 'new'} color="#059669" />
         </div>
@@ -1037,7 +1032,7 @@ function SummaryTab({ bills, expenses, purchases, profile, comparison, inputs, p
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+      <div className="tax-form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
         <div className="glass-panel p-4">
           <h3 className="section-title">Income breakdown</h3>
           <Row label="Sales / Turnover" value={sales} />

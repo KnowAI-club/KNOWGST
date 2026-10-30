@@ -1,3 +1,4 @@
+import PageHeader from './PageHeader';
 import { useState, useEffect, useRef } from 'react';
 import { Package, Search, Plus, Edit3, Trash2, X, Save, Upload, Table2 } from 'lucide-react';
 import { getAllProducts, saveProduct, deleteProduct, getProfile, getStockAlertSettings } from '../store';
@@ -213,12 +214,7 @@ export default function InventoryView() {
 
   return (
     <div className="dashboard-container">
-      <div className="page-header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <div>
-            <h1 className="page-title">Products</h1>
-            <p className="page-subtitle">Manage your products and services catalog</p>
-          </div>
+      <PageHeader title="Products" subtitle={<>Manage your products and services catalog</>}>
           <HelpButton title="Products — how to use" doc="products">
             <ul style={{ paddingLeft: '1.1rem', margin: 0 }}>
               <li><strong>Add Product</strong>: name, HSN/SAC, purchase and selling price, GST %, unit and stock. Typing the name on an invoice fills the rest in.</li>
@@ -227,7 +223,6 @@ export default function InventoryView() {
               <li><strong>Low stock</strong> shows in amber, none in red. Set the level in Settings → Low-stock alerts.</li>
             </ul>
           </HelpButton>
-        </div>
         <div className="flex gap-2">
           <input type="file" accept=".csv" ref={csvInputRef} style={{ display: 'none' }} onChange={handleCSVImport} />
           <button className="btn btn-secondary" onClick={() => csvInputRef.current?.click()}>
@@ -241,7 +236,7 @@ export default function InventoryView() {
             <Plus size={18} /> Add Product
           </button>
         </div>
-      </div>
+      </PageHeader>
 
       {/* Search */}
       <div className="glass-panel p-4 mb-6">

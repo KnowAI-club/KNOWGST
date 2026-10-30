@@ -1,3 +1,4 @@
+import PageHeader from './PageHeader';
 import { useState, useEffect, useMemo, lazy, Suspense } from 'react';
 import { ShoppingCart, Plus, Edit3, Trash2, Search, X, Save, Download, Wand2, FileText, Eye } from 'lucide-react';
 import HelpButton from './HelpButton';
@@ -827,12 +828,7 @@ export default function PurchaseBills() {
 
   return (
     <div className="dashboard-container">
-      <div className="page-header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <div>
-            <h1 className="page-title">Purchase Bills</h1>
-            <p className="page-subtitle">Track supplier invoices for ITC claims in GSTR-3B</p>
-          </div>
+      <PageHeader title="Purchase Bills" subtitle={<>Track supplier invoices for ITC claims in GSTR-3B</>}>
           <HelpButton title="Purchase Bills — how to use" doc="purchases">
             <ul style={{ paddingLeft: '1.1rem', margin: 0 }}>
               <li><strong>Add Purchase</strong> — record every supplier tax invoice you receive. The GST paid becomes your ITC (input tax credit) in GSTR-3B.</li>
@@ -842,7 +838,6 @@ export default function PurchaseBills() {
               <li><strong>Print / PDF</strong>, <strong>Excel</strong> and <strong>CSV</strong> above the list: the purchase register with totals, for your CA at return time.</li>
             </ul>
           </HelpButton>
-        </div>
         <div className="flex gap-2">
           <button className="btn btn-secondary" onClick={() => setShowOCR(true)} title="Extract fields from a bill photo/scan">
             <Wand2 size={16} /> Import from image (OCR)
@@ -850,7 +845,7 @@ export default function PurchaseBills() {
           <BulkCsvImport kind="purchase" onDone={() => { loadPurchases(); loadProducts(); }} />
           <button className="btn btn-primary" onClick={openAdd}><Plus size={18} /> Add Purchase</button>
         </div>
-      </div>
+      </PageHeader>
 
       {/* v1.10.22 — Bill OCR modal (tesseract.js, lazy-loaded). */}
       {showOCR && (

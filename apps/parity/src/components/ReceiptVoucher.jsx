@@ -1,3 +1,4 @@
+import PageHeader from './PageHeader';
 import { useState, useEffect, useRef } from 'react';
 import { Receipt, Plus, Trash2, Search, Printer, Pencil } from 'lucide-react';
 import { getAllReceipts, saveReceipt, deleteReceipt, getAllBills, getProfile, getNextInvoiceNumber, saveBill } from '../store';
@@ -305,12 +306,7 @@ export default function ReceiptVoucher() {
 
   return (
     <div className="dashboard-container">
-      <div className="page-header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <div>
-            <h1 className="page-title">Receipts</h1>
-            <p className="page-subtitle">Generate payment receipts for clients</p>
-          </div>
+      <PageHeader title="Receipts" subtitle={<>Generate payment receipts for clients</>}>
           <HelpButton title="Receipts — how to use" doc="receipts">
             <ul style={{ paddingLeft: '1.1rem', margin: 0 }}>
               <li><strong>New Receipt</strong>: pick an unpaid invoice to fill in the client, amount and invoice number.</li>
@@ -318,9 +314,8 @@ export default function ReceiptVoucher() {
               <li>Payments recorded on the Dashboard make their own receipt; print it from the invoice's payment history.</li>
             </ul>
           </HelpButton>
-        </div>
         <button className="btn btn-primary" onClick={openAdd}><Plus size={18} /> New Receipt</button>
-      </div>
+      </PageHeader>
 
       <UnassignedBanner
         count={unassignedReceipts.length}

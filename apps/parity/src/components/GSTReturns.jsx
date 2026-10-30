@@ -1,3 +1,4 @@
+import PageHeader from './PageHeader';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { FileText, Download, Upload, ExternalLink, CheckCircle, ChevronDown, ChevronRight, AlertTriangle, BookOpen, BarChart3 } from 'lucide-react';
 import { getAllBills, getAllExpenses, getAllPurchases, getProfile } from '../store';
@@ -1486,9 +1487,7 @@ export default function GSTReturns() {
 
   return (
     <div className="dashboard-container">
-      {/* Header row: title + period selector + portal link */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap', marginBottom: '1.25rem' }}>
-        <h1 className="page-title" style={{ margin: 0 }}>GST Returns</h1>
+      <PageHeader title="GST Returns" subtitle="Review tax summaries, reconcile purchases and prepare your returns.">
         <HelpButton title="GST Returns — how to use" doc="gst-returns">
           <ul style={{ paddingLeft: '1.1rem', margin: 0 }}>
             <li><strong>Pick a period</strong> — Monthly / Quarterly (QRMP) / Full Year, then the specific month + year.</li>
@@ -1499,6 +1498,8 @@ export default function GSTReturns() {
             <li><strong>Mark Filed</strong> — after filing on the portal, click Mark Filed to keep the app's status in sync.</li>
           </ul>
         </HelpButton>
+      </PageHeader>
+      <div className="workspace-toolbar gst-period-toolbar">
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flex: 1, flexWrap: 'wrap' }}>
           <select className="form-input" value={filterMode} onChange={e => setFilterMode(e.target.value)} style={{ width: 'auto', minWidth: '120px' }}>
             <option value="month">Monthly</option>

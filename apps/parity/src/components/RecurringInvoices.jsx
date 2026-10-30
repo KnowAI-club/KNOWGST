@@ -1,3 +1,4 @@
+import PageHeader from './PageHeader';
 import { useState, useEffect } from 'react';
 import { RefreshCw, Plus, Edit3, Trash2, Play, Pause, X, Save } from 'lucide-react';
 import { getAllRecurring, saveRecurring, deleteRecurring, getAllClients, getProfile, generateRecurringNow } from '../store';
@@ -221,12 +222,7 @@ export default function RecurringInvoices() {
 
   return (
     <div className="dashboard-container">
-      <div className="page-header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <div>
-            <h1 className="page-title">Recurring Invoices</h1>
-            <p className="page-subtitle">Auto-generate invoices for retainer clients</p>
-          </div>
+      <PageHeader title="Recurring Invoices" subtitle={<>Auto-generate invoices for retainer clients</>}>
           <HelpButton title="Recurring invoices — how to use" doc="recurring">
             <ul style={{ paddingLeft: '1.1rem', margin: 0 }}>
               <li><strong>Easiest</strong>: make the first invoice as usual and tick <em>Make this a recurring invoice</em> under Customize. Taxes, terms and options carry over.</li>
@@ -234,9 +230,8 @@ export default function RecurringInvoices() {
               <li>Invoices are made automatically when the app starts and once a day. <strong>▶ Generate Now</strong> makes one straight away.</li>
             </ul>
           </HelpButton>
-        </div>
         <button className="btn btn-primary" onClick={openAdd}><Plus size={18} /> New Template</button>
-      </div>
+      </PageHeader>
 
       {/* Due Now Alert */}
       <UnassignedBanner

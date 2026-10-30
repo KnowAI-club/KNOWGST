@@ -989,7 +989,7 @@ function App() {
           <button className="pwa-dismiss-btn" onClick={dismissInstallBanner} title="Remind me later (re-shows in 14 days)"><X size={16} /></button>
         </div>
       )}
-      <div className="main-content">
+      <div className="main-content" data-view={currentView}>
         <div className="knowgst-development">KNOWGST · Compatibility preview. Imported workflows are under regression and tax-rule review.</div>
         {currentView === 'dashboard' && (
           <Dashboard onNew={handleNewInvoice} onEdit={handleEditInvoice} onPrint={handlePrintInvoice} onDuplicate={handleDuplicateInvoice} onConvert={handleConvertToInvoice} onOpenProducts={() => setCurrentView('inventory')} onOpenSettings={() => setCurrentView('settings')} onOpenGuide={openDocs} onOpenSupport={() => setCurrentView('support')} activeProfile={profile} />

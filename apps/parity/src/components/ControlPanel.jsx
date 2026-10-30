@@ -19,7 +19,7 @@ export default function ControlPanel(){
    </div>
    {message&&<p role="status">{message}</p>}
    <h3 style={{marginTop:24}}>Saved snapshots</h3>
-   {backups.length===0?<p>No backups yet.</p>:<table className="data-table"><thead><tr><th>Date</th><th>Location</th><th>Action</th></tr></thead><tbody>{backups.map(b=><tr key={b.date}><td>{b.date}</td><td>{b.onlyInBackupFolder?'Secondary folder':'Local'}</td><td><button className="btn btn-secondary" disabled={busy} onClick={()=>restore(b.date)}>Restore</button></td></tr>)}</tbody></table>}
+   {backups.length===0?<p>No backups yet.</p>:<div className="table-scroll"><table className="data-table"><thead><tr><th>Date</th><th>Location</th><th>Action</th></tr></thead><tbody>{backups.map(b=><tr key={b.date}><td>{b.date}</td><td>{b.onlyInBackupFolder?'Secondary folder':'Local'}</td><td><button className="btn btn-secondary" disabled={busy} onClick={()=>restore(b.date)}>Restore</button></td></tr>)}</tbody></table></div>}
   </section>
  </div>;
 }

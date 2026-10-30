@@ -1,3 +1,4 @@
+import PageHeader from './PageHeader';
 import { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
 import { ArrowLeft, Plus, Trash2, Download, UserPlus, Pencil, Settings, ChevronUp, ChevronDown, MessageCircle, Check, Loader, Truck, Printer, Eye, EyeOff } from 'lucide-react';
 import { jsPDF } from 'jspdf';
@@ -3234,6 +3235,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
 
   return (
     <div className="generator-container">
+      <PageHeader title={editingBill ? "Edit document" : "New Invoice"} subtitle="Create, review and save your billing document." />
       {readOnlyDoc && (
         <div className="notice notice-info" role="status" style={{ marginBottom: '0.75rem' }}>
           {editingBill.convertedTo

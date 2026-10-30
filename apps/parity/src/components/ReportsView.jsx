@@ -1,3 +1,4 @@
+import PageHeader from './PageHeader';
 import { useState, useEffect } from 'react';
 import { TrendingUp, TrendingDown, Wallet, BarChart3, Clock, Search, X, Users, Package, Boxes } from 'lucide-react';
 import { getAllBills, getAllExpenses, getProfile } from '../store';
@@ -184,12 +185,7 @@ export default function ReportsView() {
 
   return (
     <div className="dashboard-container">
-      <div className="page-header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <div>
-            <h1 className="page-title">Reports</h1>
-            <p className="page-subtitle">Financial reports and receivables analysis</p>
-          </div>
+      <PageHeader title="Reports" subtitle={<>Financial reports and receivables analysis</>}>
           <HelpButton title="Reports — how to use" doc="reports">
             <ul style={{ paddingLeft: '1.1rem', margin: 0 }}>
               <li><strong>Profit &amp; Loss</strong>: sales against expenses, without GST, by year or month.</li>
@@ -199,8 +195,7 @@ export default function ReportsView() {
               <li>Only real sales count: estimates, challans and cancelled invoices are left out, credit notes are subtracted.</li>
             </ul>
           </HelpButton>
-        </div>
-      </div>
+      </PageHeader>
 
       {/* Tab Selector — v1.9.5 adds Client + Product tabs */}
       <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
@@ -540,7 +535,7 @@ export default function ReportsView() {
         const topByRevenue = [...clientArr].sort((a, b) => b.revenue - a.revenue).slice(0, 10);
         const worstPayers = clientArr.filter(c => c.outstanding > 0).sort((a, b) => b.outstanding - a.outstanding).slice(0, 10);
         return (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '1rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 400px), 1fr))', gap: '1rem' }}>
             <div className="glass-panel" style={{ padding: '1.25rem' }}>
               <h3 style={{ marginTop: 0, fontSize: '1rem' }}>🏆 Top clients by revenue</h3>
               {topByRevenue.length === 0 ? <p className="text-muted">No client data for this period.</p> : (
@@ -647,7 +642,7 @@ export default function ReportsView() {
         const bestSellers = [...productArr].sort((a, b) => b.revenue - a.revenue).slice(0, 10);
         const mostSoldByUnits = [...productArr].sort((a, b) => b.qty - a.qty).slice(0, 10);
         return (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '1rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 400px), 1fr))', gap: '1rem' }}>
             <div className="glass-panel" style={{ padding: '1.25rem' }}>
               <h3 style={{ marginTop: 0, fontSize: '1rem' }}>💰 Top revenue producers</h3>
               {bestSellers.length === 0 ? <p className="text-muted">No product data for this period.</p> : (

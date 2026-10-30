@@ -35,3 +35,95 @@ html[data-theme=dark] .form-input{background:var(--card-bg);color:var(--text);bo
 .sidebar .sidebar-logo.knowgst-brand-symbol{background:transparent;width:32px;height:32px;border-radius:0;box-shadow:none;color:var(--text)}
 .sidebar .sidebar-title{font-size:18px;font-weight:600;letter-spacing:-.65px;white-space:nowrap;line-height:1.2}
 .knowgst-mobile-brand{display:inline-flex;align-items:center;gap:9px}.knowgst-mobile-brand .knowai-symbol{width:23px;height:23px}
+
+/* Workspace rhythm: 4/8/12/16/24/32. Screen-only so invoice/PDF geometry is unchanged. */
+@media screen {
+  :root { --workspace-gutter:32px; --section-space:24px; --panel-space:24px; --control-height:40px; }
+  .app-layout > .main-content { padding:24px var(--workspace-gutter) 32px; gap:24px; min-width:0; }
+  .main-content > .knowgst-development { margin:0; padding-bottom:12px; }
+  .main-content > :is(.dashboard-container,.settings-container,.generator-container) { width:100%; max-width:1440px; margin-inline:auto; min-width:0; }
+  .main-content > .dashboard-container { display:flex; flex-direction:column; gap:var(--section-space); }
+  .main-content > .dashboard-container > :not(.modal-overlay):not(style) { margin-block:0 !important; min-width:0; }
+  .main-content > .settings-container > :not(.modal-overlay):not(.settings-savebar) { margin-block:0 var(--section-space) !important; }
+  .main-content .workspace-heading { padding:0 0 24px; margin:0 0 24px; background:none; border:0; border-bottom:1px solid var(--border); border-radius:0; align-items:flex-start; gap:16px 24px; }
+  .workspace-heading-copy { flex:1 1 260px; min-width:0; }
+  .workspace-heading-title { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  .main-content .workspace-heading .page-title { margin:0; font-size:28px; line-height:36px; letter-spacing:-.7px; font-weight:600; }
+  .workspace-heading .page-subtitle { margin-top:4px; font-size:13px; line-height:20px; max-width:70ch; }
+  .workspace-heading-meta { font-size:12px; line-height:20px; color:var(--text-muted); font-variant-numeric:tabular-nums; }
+  .workspace-heading-actions,.workspace-heading-actions > .flex { display:flex; align-items:center; flex-wrap:wrap; gap:8px; }
+  .workspace-heading-actions { margin-left:auto; padding-top:2px; max-width:100%; }
+  .main-content .section-title { font-size:15px; line-height:22px; font-weight:600; color:var(--text-primary); margin-bottom:16px; letter-spacing:-.15px; }
+  .main-content .glass-panel.p-6 { padding:var(--panel-space); }
+  .main-content .glass-panel.p-4 { padding:16px; }
+  .main-content :is(.form-label,.line-item-field > label) { text-transform:none; letter-spacing:0; font-size:12px; line-height:18px; margin-bottom:6px; }
+  .main-content .grid:has(> .form-group) { gap:20px; }
+  .main-content .grid > .form-group { margin-bottom:0; min-width:0; }
+  .main-content :is(.form-input,.form-select,.search-input,.filter-select,.filter-date) { min-height:var(--control-height); font-size:13px; }
+  .main-content :is(.btn,.search-box) { min-height:var(--control-height); }
+  .main-content .btn { padding:9px 14px; font-size:13px; line-height:20px; gap:8px; }
+  .main-content .stats-grid { gap:16px; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); }
+  .main-content .stat-card { padding:20px; gap:16px; min-width:0; }
+  .main-content .stat-label { font-size:11px; line-height:16px; letter-spacing:.04em; margin-bottom:8px; }
+  .main-content .stat-value { font-size:28px; line-height:36px; color:var(--text-primary); }
+  .main-content .table-header { padding:16px 24px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; }
+  .main-content .table-header h3 { font-size:15px; line-height:22px; }
+  .main-content .filters-bar { padding:16px 24px; gap:12px; }
+  .main-content .data-table :is(th,td) { padding:12px 16px; }
+  .main-content .data-table th { font-size:11px; line-height:16px; letter-spacing:.035em; }
+  .main-content .data-table td { font-size:13px; line-height:20px; }
+  .main-content .table-scroll { min-width:0; max-width:100%; }
+  .workspace-toolbar { display:flex; align-items:center; flex-wrap:wrap; gap:12px; padding:16px; border:1px solid var(--border); border-radius:8px; background:var(--card-bg); }
+  .main-content .generator-toolbar { padding:0 0 16px; gap:12px; margin-bottom:24px; }
+  .generator-toolbar > .flex { flex-wrap:wrap; }
+  .main-content .split-view { gap:24px; }
+  .main-content .editor-pane,.main-content .preview-pane { min-width:0; }
+  .main-content .editor-pane { padding-right:0; }
+  .main-content .settings-bar { top:-24px; padding:12px !important; border-radius:8px !important; box-shadow:none !important; }
+  .settings-jumpnav :is(button,a) { min-height:36px; padding:8px 12px !important; border-radius:6px !important; box-shadow:none !important; }
+  .main-content .modal-content { padding:24px; max-height:calc(100dvh - 32px); overflow-y:auto; }
+  .main-content .modal-content > .section-title { margin-bottom:24px; }
+  .knowgst-about { max-width:880px; }
+  .knowgst-about :is(h2,h3) { margin:24px 0 12px; font-size:16px; line-height:24px; }
+  .knowgst-about > h2:first-child { margin-top:0; }
+  .knowgst-about p { font-size:14px; margin:0 0 16px; line-height:24px; }
+  .knowgst-about ul { padding-left:20px; font-size:14px; line-height:24px; }
+  .knowgst-about summary { margin-top:16px; padding:12px 0; font-size:13px; font-weight:500; }
+  .main-content[data-view=controlpanel] .glass-panel > h3 { font-size:16px; line-height:24px; margin-bottom:8px; }
+  .main-content[data-view=controlpanel] .glass-panel > p { margin:0 0 20px; font-size:14px; line-height:24px; max-width:80ch; }
+}
+@media screen and (max-width:768px) {
+  :root { --workspace-gutter:16px; --section-space:20px; --panel-space:16px; --control-height:44px; }
+  .app-layout > .main-content { padding:72px 16px 24px; gap:20px; }
+  .main-content .workspace-heading { padding-bottom:20px; gap:12px; }
+  .main-content .workspace-heading .page-title { font-size:24px; line-height:32px; }
+  .workspace-heading-copy { flex-basis:100%; }
+  .workspace-heading-actions { width:100%; margin-left:0; padding-top:0; }
+  .main-content .stats-grid { grid-template-columns:repeat(2,minmax(0,1fr)) !important; gap:12px; }
+  .main-content .stat-card { padding:16px; flex-wrap:wrap; gap:12px; }
+  .main-content .stat-value { font-size:24px; line-height:32px; }
+  .main-content :is(.table-header,.filters-bar) { padding:16px; }
+  .main-content .grid:has(> .form-group) { grid-template-columns:minmax(0,1fr); gap:16px; }
+  .main-content .grid > .form-group.full-width { grid-column:auto; }
+  .main-content .settings-bar { top:52px; }
+  .main-content .modal-content { padding:20px; }
+  .main-content .generator-toolbar { position:static; }
+}
+
+@media screen {
+  .workspace-heading { flex-shrink:0; }
+  .workspace-heading-title > .icon-btn { flex-shrink:0; }
+  .main-content[data-view=controlpanel] .data-table { min-width:360px; }
+  .tax-form-grid > * { min-width:0; }
+}
+@media screen and (max-width:768px) {
+  .main-content .tax-form-grid { grid-template-columns:minmax(0,1fr) !important; gap:16px !important; }
+  .main-content .generator-container { display:block; height:auto; }
+  .main-content .split-view { flex:none; height:auto; }
+  .main-content .editor-pane { flex:none; overflow:visible; }
+  .main-content .preview-pane { flex:none; max-height:70dvh; }
+  .main-content .settings-bar { position:static !important; }
+}
+@media screen {
+  .settings-jumpnav [aria-current=location] { background:#3158e8 !important; color:#fff !important; }
+}

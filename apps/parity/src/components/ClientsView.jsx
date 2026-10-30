@@ -1,3 +1,4 @@
+import PageHeader from './PageHeader';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { Users, Search, FileText, ChevronDown, ChevronUp, Trash2, X, MessageCircle, Mail, Plus, Edit3, Copy, Upload, Download } from 'lucide-react';
 import HelpButton from './HelpButton';
@@ -753,12 +754,7 @@ export default function ClientsView({ onEdit, onDuplicate, onNew }) {
 
   return (
     <div className="dashboard-container">
-      <div className="page-header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <div>
-            <h1 className="page-title">Clients</h1>
-            <p className="page-subtitle">Client-wise invoice ledger and outstanding</p>
-          </div>
+      <PageHeader title="Clients" subtitle={<>Client-wise invoice ledger and outstanding</>}>
           <HelpButton title="Clients — how to use" doc="clients">
             <ul style={{ paddingLeft: '1.1rem', margin: 0 }}>
               <li><strong>Click a client name</strong> to see every invoice, payment, and credit note in one place.</li>
@@ -769,7 +765,6 @@ export default function ClientsView({ onEdit, onDuplicate, onNew }) {
               <li><strong>WhatsApp / Email</strong> — quick outreach without leaving the app.</li>
             </ul>
           </HelpButton>
-        </div>
         <div className="flex gap-2">
           <input type="file" accept=".csv" ref={csvInputRef} style={{ display: 'none' }} onChange={handleCSVImport} />
           <button className="btn btn-secondary" onClick={() => csvInputRef.current?.click()}>
@@ -782,7 +777,7 @@ export default function ClientsView({ onEdit, onDuplicate, onNew }) {
             <FileText size={18} /> New Invoice
           </button>
         </div>
-      </div>
+      </PageHeader>
 
       {/* Add/Edit Client Modal */}
       <ClientModal show={showForm} onClose={closeForm} onSave={handleModalSave} client={modalClient} isEditing={!!editingClientId} defaultCountry={profileCountry} />

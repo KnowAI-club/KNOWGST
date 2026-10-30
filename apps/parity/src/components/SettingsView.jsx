@@ -1,3 +1,4 @@
+import PageHeader from './PageHeader';
 import { useState, useEffect, useRef } from 'react';
 import { getProfile, saveProfile, exportAllData, importData, inspectBackup, getTermsTemplates, saveTermsTemplate, deleteTermsTemplate, getAllProfiles, saveBusinessProfile, deleteBusinessProfile, getRegionMode, setRegionMode, getEnabledModules, setEnabledModules, getStockAlertSettings, saveStockAlertSettings, renameNumberSeries, getInvoiceDisplayOptions, saveInvoiceDisplayOptions } from '../store';
 import { ensureToken, findOrCreateFolder, uploadJSON } from '../services/googleDrive';
@@ -781,32 +782,7 @@ export default function SettingsView({ onSaved }) {
            card, gear glyph in a rounded badge for visual identity, and
            a subtle count chip showing how many sections there are so
            the user has a scale expectation before diving in. */}
-      <div className="page-header" style={{
-        padding: '1.1rem 1.35rem',
-        background: 'linear-gradient(135deg, rgba(var(--primary-rgb), 0.12), var(--card-bg))',
-        border: '1px solid var(--border)',
-        borderRadius: 12,
-        marginBottom: '1.25rem',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
-          <div style={{
-            width: 44, height: 44,
-            borderRadius: 12,
-            background: 'linear-gradient(135deg, var(--primary), var(--primary-darker))',
-            color: '#fff',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '1.15rem',
-            boxShadow: '0 6px 18px rgba(var(--primary-rgb), 0.35)',
-          }}>⚙</div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <h1 className="page-title" style={{ margin: 0 }}>Settings</h1>
-            <p className="page-subtitle" style={{ margin: '0.15rem 0 0' }}>
-              Business profile, branding, integrations & data
-              <span style={{ fontSize: '0.7rem', padding: '0.1rem 0.5rem', borderRadius: 999, background: 'var(--bg-secondary)', border: '1px solid var(--border)', marginLeft: '0.55rem', fontWeight: 600 }}>
-                {JUMP_NAV_SECTIONS.length} sections
-              </span>
-            </p>
-          </div>
+      <PageHeader title="Settings" subtitle="Business profile, branding, integrations & data" meta={`${JUMP_NAV_SECTIONS.length} sections`}>
           <HelpButton title="Settings — how to use" doc="settings">
             <ul style={{ paddingLeft: '1.1rem', margin: 0 }}>
               <li><strong>Company Details</strong> — this is the header block on every invoice. GSTIN drives place-of-supply detection.</li>
@@ -819,8 +795,7 @@ export default function SettingsView({ onSaved }) {
               <li><strong>Data Management</strong> — export all or part of your data to one backup file, and import it here or on another computer. Clients and products import from CSV on their own screens.</li>
             </ul>
           </HelpButton>
-        </div>
-      </div>
+      </PageHeader>
 
       {/* v1.10.75 - the section buttons, pinned at the top. They wrap onto a
            second line rather than scroll sideways (asked for: "top should not
@@ -846,7 +821,7 @@ export default function SettingsView({ onSaved }) {
           {JUMP_NAV_SECTIONS.map(([id, label]) => {
             const active = activeSection === id;
             return (
-              <a key={id} href={`#${id}`}
+              <a key={id} href={`#${id}`} aria-current={active ? 'location' : undefined}
                 onClick={(e) => {
                   e.preventDefault();
                   const el = document.getElementById(id);
