@@ -157,7 +157,7 @@ test("entry dialogs keep fields and actions inside the mobile viewport", async (
     ["purchases", "Add Purchase"],
     ["receipts", "New Receipt"],
     ["recurring", "New Template"],
-  ]) {
+  ] as const) {
     await page.goto(`/?view=${view}`);
     await page
       .locator(".main-content")
