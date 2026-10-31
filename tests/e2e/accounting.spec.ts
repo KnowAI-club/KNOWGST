@@ -179,3 +179,211 @@ test("business stock cannot be read or consumed through another profile", async 
     ).stock,
   ).toBe(5);
 });
+
+test("sales posting, linked receipts, cancellation, restore and credit notes reconcile", async ({
+  page,
+  request,
+}) => {
+  const day = new Date().toISOString().slice(0, 10);
+  const bill = {
+    id: "auto-sale-ui",
+    invoiceNumber: "AUTO-SALE",
+    invoiceDate: day,
+    invoiceType: "tax-invoice",
+    totalAmount: 118,
+    totalTaxAmount: 18,
+    status: "unpaid",
+    payments: [],
+    data: { profile, items: [], totals: { total: 118, totalTaxAmount: 18 } },
+  };
+  const create = await request.post("/api/invoice-transactions", {
+    data: { operations: [{ bill }] },
+  });
+  expect(create.ok()).toBe(true);
+  let saved = (await create.json()).bills[0];
+  const journal = async () =>
+    (await (await request.get("/api/accounting")).json()).entries.filter(
+      (e: any) => e.source === "sale:auto-sale-ui",
+    );
+  expect(await journal()).toHaveLength(1);
+  const retry = await request.post("/api/invoice-transactions", {
+    data: { operations: [{ bill: saved, overwrite: true }] },
+  });
+  expect(retry.ok()).toBe(true);
+  expect(await journal()).toHaveLength(1);
+  let receipt = (
+    await (
+      await request.post("/api/receipts", {
+        data: {
+          id: "auto-receipt-ui",
+          date: day,
+          amount: 40,
+          billId: bill.id,
+          againstInvoice: bill.id,
+          ownerName: profile.businessName,
+          paymentMode: "Cash",
+        },
+      })
+    ).json()
+  ).receipt;
+  expect(receipt).toBeTruthy();
+  expect(await journal()).toHaveLength(2);
+  const edit = await request.post("/api/receipts", {
+    data: { ...receipt, amount: 60 },
+  });
+  expect(edit.ok()).toBe(true);
+  receipt = (await edit.json()).receipt;
+  expect(await journal()).toHaveLength(4);
+  const removed = await request.delete("/api/receipts/auto-receipt-ui", {
+    headers: { "If-Match": receipt._revision },
+  });
+  expect(removed.ok()).toBe(true);
+  const balance = (entries: any[], account: string) =>
+    entries
+      .flatMap((e) => e.lines)
+      .filter((l) => l.account === account)
+      .reduce((n, l) => n + l.debit - l.credit, 0);
+  expect(balance(await journal(), "1000")).toBe(0);
+  saved = (await (await request.get("/api/bills")).json()).find(
+    (b: any) => b.id === bill.id,
+  );
+  expect(
+    (
+      await request.post("/api/invoice-transactions", {
+        data: {
+          operations: [
+            { bill: { ...saved, status: "cancelled" }, overwrite: true },
+          ],
+        },
+      })
+    ).ok(),
+  ).toBe(true);
+  expect(balance(await journal(), "1100")).toBe(0);
+  expect((await request.delete("/api/bills/auto-sale-ui")).ok()).toBe(true);
+  expect(
+    (await request.post("/api/trash/auto-sale-ui/restore", { data: {} })).ok(),
+  ).toBe(true);
+  expect(balance(await journal(), "1100")).toBe(0); // A restored cancelled invoice remains cancelled.
+  saved = (await (await request.get("/api/bills")).json()).find(
+    (b: any) => b.id === bill.id,
+  );
+  expect(
+    (
+      await request.post("/api/invoice-transactions", {
+        data: {
+          operations: [
+            { bill: { ...saved, status: "unpaid" }, overwrite: true },
+          ],
+        },
+      })
+    ).ok(),
+  ).toBe(true);
+  expect(balance(await journal(), "1100")).toBe(11800);
+  const credit = {
+    ...bill,
+    id: "auto-credit-ui",
+    invoiceNumber: "AUTO-CREDIT",
+    invoiceType: "credit-note",
+  };
+  expect(
+    (
+      await request.post("/api/invoice-transactions", {
+        data: { operations: [{ bill: credit }] },
+      })
+    ).ok(),
+  ).toBe(true);
+  const all = (
+    await (await request.get("/api/accounting")).json()
+  ).entries.filter((e: any) =>
+    ["sale:auto-sale-ui", "sale:auto-credit-ui"].includes(e.source),
+  );
+  expect(balance(all, "4000")).toBe(0);
+  expect(balance(all, "2100")).toBe(0);
+  await page.goto("/?view=reports");
+  await page
+    .getByRole("button", { name: "Accounts & history", exact: true })
+    .click();
+  await expect(
+    page.locator("tr").filter({ hasText: "Sale: AUTO-SALE" }).first(),
+  ).toBeVisible();
+  await expect(
+    page
+      .locator("tr")
+      .filter({ hasText: "Sale: AUTO-SALE" })
+      .first()
+      .getByRole("button", { name: "Reverse", exact: true }),
+  ).toHaveCount(0);
+  await page.screenshot({
+    path: "test-results/automatic-sales-journal.png",
+    fullPage: true,
+  });
+});
+
+test("expense form edits and deletes reverse postings; stale and cross-business edits fail", async ({
+  page,
+  request,
+}) => {
+  await page.goto("/?view=expenses");
+  await page
+    .getByRole("button", { name: "Add Expense", exact: true })
+    .first()
+    .click();
+  await page
+    .getByPlaceholder("e.g. AWS Hosting - March")
+    .fill("Automatic ledger expense");
+  await page.getByPlaceholder("0.00").fill("118");
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  const row = page
+    .locator("tr")
+    .filter({ hasText: "Automatic ledger expense" });
+  await expect(row).toBeVisible();
+  let expense = (await (await request.get("/api/expenses")).json()).find(
+    (e: any) => e.description === "Automatic ledger expense",
+  );
+  const journal = async () =>
+    (await (await request.get("/api/accounting")).json()).entries.filter(
+      (e: any) => e.source === `expense:${expense.id}`,
+    );
+  expect(await journal()).toHaveLength(1);
+  await row.getByRole("button", { name: "Edit", exact: true }).click();
+  await page.getByPlaceholder("0.00").fill("236");
+  await page.getByRole("button", { name: "Update", exact: true }).click();
+  await expect(row).toContainText("236");
+  expect(await journal()).toHaveLength(3);
+  expect(
+    (
+      await request.post("/api/expenses", { data: { ...expense, amount: 90 } })
+    ).status(),
+  ).toBe(409);
+  expect(
+    (
+      await request.delete(`/api/expenses/${expense.id}`, {
+        headers: { "If-Match": expense._revision },
+      })
+    ).status(),
+  ).toBe(409);
+  expense = (await (await request.get("/api/expenses")).json()).find(
+    (e: any) => e.id === expense.id,
+  );
+  expect(
+    (
+      await request.post("/api/expenses", {
+        data: { ...expense, businessId: "another-business" },
+      })
+    ).status(),
+  ).toBe(409);
+  await row.getByRole("button", { name: "Delete", exact: true }).click();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Delete", exact: true })
+    .click();
+  await expect(row).toHaveCount(0);
+  const entries = await journal();
+  expect(entries).toHaveLength(4);
+  expect(
+    entries
+      .flatMap((e: any) => e.lines)
+      .filter((l: any) => l.account === "5100")
+      .reduce((n: number, l: any) => n + l.debit - l.credit, 0),
+  ).toBe(0);
+});

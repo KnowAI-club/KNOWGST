@@ -48,7 +48,7 @@ Reports → Accounts & history:
 - Audited record changes store action, record identity, before/after revision hashes, changed field names and time. Sensitive record bodies are not duplicated in the audit trail.
 - Actor is `local-session`, not an authenticated employee identity. Profile/settings changes outside the tracked record collections, printing and external providers are not a complete security-event log. Restoring a backup restores its historical audit snapshot.
 
-No automatic sales/expense posting, period lock, fully classified GST ledger or full financial statements are claimed in this increment. The existing financial helpers and P&L remain unchanged.
+Automatic sales/expense postings were added on 31 October as described below. Period locks, a fully classified GST ledger and complete financial statements remain outside this increment. The existing financial helpers and P&L remain unchanged.
 
 ## Supplier payments
 
@@ -61,3 +61,17 @@ Legacy Paid/Partial bills with no payment history are blocked from new tracking 
 ## Validation and limits
 
 Regression suites cover the retained financial helpers and all existing document types. Added checks exercise migration parity, stale-JSON isolation, rollback/process interruption, immutable journal history, balancing, reversals, supplier payment atomicity, cross-business stock, portable backups and desktop/mobile UI flows. Full packaging, hosted authentication, broad accessibility/performance review and accountant acceptance remain separate release gates.
+
+## Automatic source postings — 31 October 2026
+
+Saving an identified INR sale or expense now reconciles its journal in the **same SQLite transaction** as its document, audit event, linked receipt and stock changes. No startup backfill rewrites older books. Untouched legacy records, incomplete records without an amount/date, unidentified imported owners and non-INR documents are not automatically included; account balances are therefore not certified complete financial statements. Existing legacy `paidAmount` without actual payment rows is not treated as evidence of cash received.
+
+- Tax invoices, bills of supply and composition bills debit customer receivables and credit sales/output tax using the saved total and tax snapshot. Credit notes reverse that direction. Saved TCS is credited separately; saved TDS is held as a receivable pending reconciliation. This does not validate tax eligibility, remittance or withholding certificates.
+- Quotations, proformas, delivery challans, drafts and converted source documents create no sales revenue. Cancelling an invoice reverses its sale but retains recorded collections as customer credit until a refund/removal is recorded.
+- Individual invoice-linked payments debit cash/bank and credit receivables. Negative payment rows represent refunds. Editing/removing linked receipts reconciles the invoice's payment posting without a second receipt-side posting. Internal credit allocations do not invent cash. Standalone receipts and customer-level allocation subledgers are not added in this increment.
+- Expenses debit gross expenses and credit cash/bank, consistent with the expense module's payment record. Embedded GST is not automatically claimed as input credit. Unpaid supplier liabilities belong in purchases, not the expense form.
+- Changes reverse the previous source entry and append its replacement; deletion reverses it, restoration appends a new posting. Original source dates are used for reversals/replacements so a historical correction does not leave duplicate revenue in an earlier period. `recordedAt` retains the actual correction time. Period locking and accountant-approved closed-period adjustments remain future work.
+- Source entries cannot be reversed through the manual journal endpoint. Correct the invoice, payment or expense instead. Exact retries and non-financial metadata edits do not duplicate entries. Posted sources cannot silently lose required financial fields or switch accounting currency.
+- Expense edits/deletes require the loaded revision and verify business ownership. Legacy invoice overwrite requests now require a current revision when changing a saved document. Conflicts leave the document and journal unchanged.
+
+The report keeps its existing layout and brand. Its scope note now explains automatic INR postings. Non-financial contact/template imports remain available; merging financial records into posted books still requires a complete verified backup.

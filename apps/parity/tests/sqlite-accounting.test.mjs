@@ -311,6 +311,9 @@ test("SQLite records, journals and PDF bytes survive verified portable restore",
       ],
     }),
   );
+  const sale = saleFixture();
+  f.commit({ writes: new Map([[f.file("bills", sale.id), sale]]) });
+  const journalBefore = readAccounting(f.root, "A");
   const pdf = path.join(f.runtime, "Saved Invoices"),
     trash = path.join(f.runtime, "Trash");
   fs.mkdirSync(pdf);
@@ -329,7 +332,7 @@ test("SQLite records, journals and PDF bytes survive verified portable restore",
   );
   f.reopen();
   assert.equal(f.read("products", "later"), null);
-  assert.equal(readAccounting(f.root, "A").entries.length, 1);
+  assert.deepEqual(readAccounting(f.root, "A"), journalBefore);
   assert.equal(fs.readFileSync(path.join(pdf, "one.pdf"), "utf8"), "original");
 });
 
@@ -366,4 +369,236 @@ test("incomplete migration is retried; malformed source cannot become authoritat
   const s = openRecordDatabase(root);
   assert.equal(JSON.parse(s.get("products/bad.json").payload).stock, 2);
   s.close();
+});
+
+const saleFixture = (extra = {}) => ({
+  id: "sale-auto",
+  businessId: "A",
+  invoiceNumber: "INV-AUTO",
+  invoiceDate: "2026-10-30",
+  invoiceType: "tax-invoice",
+  totalAmount: 118,
+  totalTaxAmount: 18,
+  status: "unpaid",
+  payments: [],
+  data: { totals: { total: 118, totalTaxAmount: 18 }, items: [] },
+  ...extra,
+});
+const accountBalance = (state, account) =>
+  state.entries
+    .flatMap((e) => e.lines)
+    .filter((l) => l.account === account)
+    .reduce((n, l) => n + l.debit - l.credit, 0);
+const balanced = (state) => {
+  for (const e of state.entries)
+    assert.equal(
+      e.lines.reduce((n, l) => n + l.debit - l.credit, 0),
+      0,
+    );
+};
+test("automatic sale journal follows saved totals, retries, edits, cancellation and uncancellation", (t) => {
+  const f = setup(t),
+    save = (b) => f.commit({ writes: new Map([[f.file("bills", b.id), b]]) });
+  const b = saleFixture();
+  save(b);
+  let s = readAccounting(f.root, "A");
+  assert.equal(s.entries.length, 1);
+  assert.equal(accountBalance(s, "1100"), 11800);
+  assert.equal(accountBalance(s, "4000"), -10000);
+  assert.equal(accountBalance(s, "2100"), -1800);
+  save({ ...b, note: "metadata only" });
+  assert.equal(readAccounting(f.root, "A").entries.length, 1);
+  save({ ...b, totalAmount: 236, totalTaxAmount: 36 });
+  s = readAccounting(f.root, "A");
+  assert.equal(s.entries.length, 3);
+  assert.equal(s.entries[1].reversalOf, s.entries[0].id);
+  assert.equal(accountBalance(s, "4000"), -20000);
+  save({ ...b, status: "cancelled" });
+  s = readAccounting(f.root, "A");
+  assert.equal(accountBalance(s, "1100"), 0);
+  save(b);
+  s = readAccounting(f.root, "A");
+  assert.equal(accountBalance(s, "1100"), 11800);
+  assert.throws(
+    () =>
+      planJournal(f.root, "A", {
+        id: "manual-reverse-auto",
+        reversalOf: s.entries.at(-1).id,
+        date: "2026-10-31",
+        memo: "Invalid override",
+      }),
+    /source document/,
+  );
+  balanced(s);
+});
+test("all document types, TDS, TCS, tax snapshots and unsupported currencies have explicit posting behavior", (t) => {
+  const f = setup(t);
+  for (const type of [
+    "tax-invoice",
+    "bill-of-supply",
+    "composition",
+    "credit-note",
+    "quotation",
+    "proforma",
+    "delivery-challan",
+  ]) {
+    const b = saleFixture({ id: type, invoiceType: type });
+    f.commit({ writes: new Map([[f.file("bills", type), b]]) });
+  }
+  let s = readAccounting(f.root, "A");
+  assert.equal(s.entries.length, 4);
+  assert.equal(accountBalance(s, "1100"), 23600);
+  const b = saleFixture({
+    id: "withholding",
+    totalAmount: 119,
+    data: { totals: { tdsAmount: 10, tcsAmount: 1 } },
+  });
+  f.commit({ writes: new Map([[f.file("bills", b.id), b]]) });
+  s = readAccounting(f.root, "A");
+  assert.equal(accountBalance(s, "1400"), 1000);
+  assert.equal(accountBalance(s, "2200"), -100);
+  assert.equal(
+    s.entries.at(-1).lines.find((l) => l.account === "4000").credit,
+    10000,
+  );
+  const count = s.entries.length;
+  for (const b of [
+    saleFixture({ id: "usd", currency: "USD" }),
+    saleFixture({ id: "draft", status: "draft" }),
+    saleFixture({ id: "converted", convertedTo: "new" }),
+  ])
+    f.commit({ writes: new Map([[f.file("bills", b.id), b]]) });
+  assert.equal(readAccounting(f.root, "A").entries.length, count);
+  assert.throws(
+    () =>
+      f.commit({
+        writes: new Map([
+          [
+            f.file("bills", "bad"),
+            saleFixture({ id: "bad", totalTaxAmount: 119 }),
+          ],
+        ]),
+      }),
+    /exceeds/,
+  );
+  assert.equal(f.read("bills", "bad"), null);
+  balanced(s);
+});
+test("customer collections, refunds and receipt removal reconcile without treating cancellation as a refund", (t) => {
+  const f = setup(t),
+    save = (b) => f.commit({ writes: new Map([[f.file("bills", b.id), b]]) });
+  let b = saleFixture({
+    payments: [{ id: "pay-1", amount: 50, date: "2026-10-30", mode: "cash" }],
+  });
+  save(b);
+  let s = readAccounting(f.root, "A");
+  assert.equal(accountBalance(s, "1000"), 5000);
+  assert.equal(accountBalance(s, "1100"), 6800);
+  b = { ...b, status: "cancelled" };
+  save(b);
+  s = readAccounting(f.root, "A");
+  assert.equal(accountBalance(s, "1000"), 5000);
+  assert.equal(accountBalance(s, "1100"), -5000);
+  b = {
+    ...b,
+    payments: [
+      ...b.payments,
+      { id: "refund", amount: -20, date: "2026-10-31", mode: "cash" },
+    ],
+  };
+  save(b);
+  s = readAccounting(f.root, "A");
+  assert.equal(accountBalance(s, "1000"), 3000);
+  b = {
+    ...b,
+    payments: [
+      ...b.payments,
+      { id: "allocation", amount: 10, mode: "credit-applied" },
+    ],
+  };
+  save(b);
+  assert.equal(accountBalance(readAccounting(f.root, "A"), "1000"), 3000);
+  save({ ...b, payments: [] });
+  s = readAccounting(f.root, "A");
+  assert.equal(accountBalance(s, "1000"), 0);
+  balanced(s);
+});
+test("expense revisions and deletion append balanced reversals and preserve journal history", (t) => {
+  const f = setup(t),
+    file = f.file("expenses", "e");
+  const e = {
+    id: "e",
+    businessId: "A",
+    date: "2026-10-30",
+    description: "Office",
+    amount: 118,
+    gstAmount: 18,
+  };
+  const save = (value) => f.commit({ writes: new Map([[file, value]]) });
+  save(e);
+  let s = readAccounting(f.root, "A");
+  assert.equal(accountBalance(s, "5100"), 11800);
+  assert.equal(accountBalance(s, "1300"), 0);
+  save({ ...e, amount: 236 });
+  s = readAccounting(f.root, "A");
+  assert.equal(s.entries.length, 3);
+  assert.equal(accountBalance(s, "1000"), -23600);
+  save(null);
+  s = readAccounting(f.root, "A");
+  assert.equal(s.entries.length, 4);
+  assert.equal(accountBalance(s, "5100"), 0);
+  save(e);
+  s = readAccounting(f.root, "A");
+  assert.equal(s.entries.length, 5);
+  balanced(s);
+  assert.throws(() => save({ ...e, amount: -1 }), /non-negative/);
+  assert.deepEqual(f.read("expenses", "e"), e);
+});
+test("automatic journal, document and audit roll back together and survive restart", (t) => {
+  const f = setup(t),
+    b = saleFixture();
+  let writes = new Map([[f.file("bills", b.id), b]]);
+  augmentAccounting(f.root, writes, { businessId: "A" });
+  assert.throws(
+    () =>
+      commitJsonBatch(f.root, writes, {
+        beforeInstall() {
+          throw Error("injected");
+        },
+      }),
+    /injected/,
+  );
+  assert.equal(f.read("bills", b.id), null);
+  assert.equal(readAccounting(f.root, "A").entries.length, 0);
+  f.commit({ writes: new Map([[f.file("bills", b.id), b]]) });
+  const before = readAccounting(f.root, "A");
+  f.db.close();
+  f.reopen();
+  assert.deepEqual(readAccounting(f.root, "A"), before);
+  // Deleting a posted invoice reverses its recognition, restoring it posts a new linked source entry.
+  f.commit({ writes: new Map([[f.file("bills", b.id), null]]) });
+  f.commit({ writes: new Map([[f.file("bills", b.id), b]]) });
+  assert.equal(accountBalance(readAccounting(f.root, "A"), "1100"), 11800);
+});
+test("automatic postings stay business-scoped and cannot be manually relocated", (t) => {
+  const f = setup(t),
+    b = saleFixture();
+  f.commit({ writes: new Map([[f.file("bills", b.id), b]]) });
+  f.commit({
+    writes: new Map([
+      [
+        f.file("expenses", "b-exp"),
+        { id: "b-exp", businessId: "B", date: "2026-10-30", amount: 20 },
+      ],
+    ]),
+  });
+  assert.equal(accountBalance(readAccounting(f.root, "A"), "5100"), 0);
+  assert.equal(accountBalance(readAccounting(f.root, "B"), "5100"), 2000);
+  assert.throws(
+    () =>
+      f.commit({
+        writes: new Map([[f.file("bills", b.id), { ...b, businessId: "B" }]]),
+      }),
+    /moved between/,
+  );
 });

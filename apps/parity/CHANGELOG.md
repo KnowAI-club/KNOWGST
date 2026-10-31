@@ -35,3 +35,8 @@
 - Local compatibility preview; hosted access and signed macOS packaging are not ready.
 - External delivery, government submission and exhaustive tax compliance are not certified.
 - Standalone receipt, purchase/CSV, recurring, deletion/restore and PDF workflows still require transaction migration; network-drive backups need further hardening.
+
+### Automatic sales and expense accounting
+- Post saved INR sales, credit notes, invoice-linked collections/refunds and gross paid expenses atomically with their source records.
+- Preserve source history with linked reversals on corrections, cancellations, deletion and restoration; guard duplicate saves and stale expense edits.
+- Keep the current interface and KnowAI branding. Historical backfill, standalone receipt accounting, FX and period closing remain outside this increment.

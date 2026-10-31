@@ -298,11 +298,11 @@ export const getAllExpenses = async () => {
 export const saveExpense = async (expense) => {
   const res = await apiFetch(`${API}/expenses`, { method: 'POST', body: JSON.stringify(expense) });
   if (res.id) expense.id = res.id;
-  return expense;
+  return res.expense || expense;
 };
 
-export const deleteExpense = async (id) => {
-  return apiFetch(`${API}/expenses/${encodeURIComponent(id)}`, { method: 'DELETE' });
+export const deleteExpense = async (id, revision) => {
+  return apiFetch(`${API}/expenses/${encodeURIComponent(id)}`, { method: 'DELETE', headers:{'If-Match':revision||''} });
 };
 
 // ---- Purchases (Purchase Bills for ITC) ----

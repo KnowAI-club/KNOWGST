@@ -139,7 +139,7 @@ export default function ExpenseTracker() {
   const totalGST = filtered.reduce((s, e) => s + (e.gstAmount || 0), 0);
 
   const openAdd = () => {
-    setForm({ ...emptyForm, date: localToday() });
+    setForm({ ...emptyForm, id: 'exp_' + crypto.randomUUID(), currency: 'INR', date: localToday() });
     setEditingId(null);
     setShowForm(true);
   };
@@ -147,6 +147,7 @@ export default function ExpenseTracker() {
   const openEdit = (exp) => {
     setForm({
       date: exp.date || '',
+      currency: exp.currency || 'INR',
       description: exp.description || '',
       category: exp.category || 'Other',
       amount: exp.amount || '',
@@ -177,7 +178,8 @@ export default function ExpenseTracker() {
     if (!(gstPct >= 0 && gstPct <= 100)) { toast('GST % must be between 0 and 100', 'warning'); return; }
     try {
       const expense = {
-        ...(editingId ? { id: editingId } : {}),
+        ...(editingId ? { id: editingId, _revision: expenses.find(e => e.id === editingId)?._revision } : { id: form.id }),
+        currency: form.currency || 'INR',
         date: form.date,
         description: form.description.trim(),
         category: form.category,
@@ -200,8 +202,8 @@ export default function ExpenseTracker() {
       toast(editingId ? 'Expense updated' : 'Expense added', 'success');
       closeForm();
       loadExpenses();
-    } catch {
-      toast('Failed to save expense', 'error');
+    } catch (error) {
+      toast(error.message || 'Failed to save expense', 'error');
     }
   };
 
@@ -213,11 +215,11 @@ export default function ExpenseTracker() {
       tone: 'danger',
     })) {
       try {
-        await deleteExpense(id);
+        await deleteExpense(id, expenses.find(e => e.id === id)?._revision);
         toast('Expense deleted', 'success');
         loadExpenses();
-      } catch {
-        toast('Failed to delete', 'error');
+      } catch (error) {
+        toast(error.message || 'Failed to delete', 'error');
       }
     }
   };

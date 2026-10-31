@@ -332,7 +332,10 @@ app.post('/api/bills', (req, res) => {
       invoiceNumber: bill.id,
     });
   }
-  writeJSON(filePath, bill);
+  const previous=readRecord(filePath), next=cleanRecord(bill);
+  if(previous&&invoiceRevision(previous)!==invoiceRevision(next)&&bill._revision!==invoiceRevision(previous))throw storageError('Invoice changed. Reload before saving.','stale-invoice',409);
+  if(!previous&&bill._revision)throw storageError('Invoice was removed. Reload before saving.','stale-invoice',409);
+  writeJSON(filePath, next);
   res.json({ success: true });
 });
 
@@ -478,7 +481,7 @@ app.post('/api/accounting/supplier-payments',(req,res)=>{requireSnapshotIdle();r
 // EXPENSES
 // ========================
 app.get('/api/expenses', (req, res) => {
-  const expenses = readAllFromDir('expenses');
+  const expenses = readAllFromDir('expenses').map(versionedInvoice);
   expenses.sort((a, b) => new Date(b.date) - new Date(a.date));
   res.json(expenses);
 });
@@ -487,12 +490,20 @@ app.post('/api/expenses', (req, res) => {
   const expense = req.body;
   if (!expense.id) expense.id = 'exp_' + crypto.randomUUID();
   const filePath = path.join(DATA_DIR, 'expenses', safeFileName(expense.id) + '.json');
-  writeJSON(filePath, expense);
-  res.json({ success: true, id: expense.id });
+  const old=readRecord(filePath), businessId=requireBusiness();
+  for(const record of [old,expense]){const owner=businessOf(DATA_DIR,record);if(owner&&owner!==businessId)throw storageError('Expense belongs to another business.','conflict',409);}
+  const next={...cleanRecord(expense),businessId};
+  if(old&&invoiceRevision(old)!==invoiceRevision(next)&&expense._revision!==invoiceRevision(old))throw storageError('Expense changed. Reload before saving.','conflict',409);
+  if(!old&&expense._revision)throw storageError('Expense was removed. Reload before saving.','conflict',409);
+  writeJSON(filePath, next);
+  res.json({ success: true, id: expense.id, expense:versionedInvoice(next) });
 });
 
 app.delete('/api/expenses/:id', (req, res) => {
   const filePath = path.join(DATA_DIR, 'expenses', safeFileName(req.params.id) + '.json');
+  const old=readRecord(filePath);
+  if(old){const owner=businessOf(DATA_DIR,old);if(owner&&owner!==requireBusiness())throw storageError('Expense belongs to another business.','conflict',409);
+    if(req.headers['if-match']!==invoiceRevision(old))throw storageError('Expense changed. Reload before deleting.','conflict',409);}
   deleteFile(filePath);
   res.json({ success: true });
 });
@@ -763,7 +774,7 @@ app.post('/api/import', (req, res) => {
   // so the next reservation doesn't collide.
   requireSnapshotIdle();
   const data = req.body;
-  if(data.accounting?.length||data.purchases?.some?.(p=>p?.accountingManaged)||readAllFromDir('accounting').some(s=>s.entries?.length||s.supplierPayments?.length))throw storageError('Use a complete verified backup to restore accounting history. Selective JSON merge cannot preserve posted books.','conflict',409);
+
   const collections={bills:'bills',clients:'clients',termsTemplates:'templates',products:'products',expenses:'expenses',recurring:'recurring',receipts:'receipts',profiles:'profiles',purchases:'purchases'};
   for(const [key,dir] of Object.entries(collections)){
     if(data[key]===undefined)continue;
@@ -777,6 +788,7 @@ app.post('/api/import', (req, res) => {
       if(existing?.id!==undefined&&existing.id!==record.id)throw storageError('Import ID collision','conflict',409);
     }
   }
+  if(data.accounting?.length||data.purchases?.some?.(p=>p?.accountingManaged)||(['bills','expenses','receipts','purchases','profile','profiles'].some(k=>data[k]!==undefined)&&readAllFromDir('accounting').some(s=>s.entries?.length||s.supplierPayments?.length)))throw storageError('Use a complete verified backup to restore accounting history. Selective financial JSON merge cannot preserve posted books.','conflict',409);
   if(data.profile!==undefined)validateObject(data.profile);
   if(data.meta!==undefined)validateObject(data.meta);
   const pending=new Map();

@@ -154,6 +154,8 @@ test('compatibility service: module persistence, isolation and recovery', async 
         assert.equal(generated.totalAmount,total);
         assert.equal(generated.invoiceType,type);
         assert.equal(generated.data.items[0].name,'Service');
+        const entries=(await call('/accounting')).body.entries.filter(e=>e.source===`sale:${generated.id}`);
+        assert.equal(entries.length,['tax-invoice','bill-of-supply','composition','credit-note'].includes(type)?1:0);
         let saved=(await call('/recurring')).body.find(x=>x.id===tpl.id);
         assert.equal(saved.nextDate,'2028-02-29');assert.equal(saved.occurrencesCreated,1);
         const second=await call(`/recurring/${tpl.id}/generate`,'POST',{});
@@ -192,6 +194,7 @@ test('compatibility service: module persistence, isolation and recovery', async 
       assert.equal(again.status,200);assert.equal(again.body.invoiceNumber,first.body.invoiceNumber);
       assert.equal((await call('/products')).body.find(p=>p.id==='flow-product').stock,8);
       assert.equal((await call('/recurring')).body.find(p=>p.id===tpl.id).occurrencesCreated,1);
+      assert.equal((await call('/accounting')).body.entries.filter(e=>e.source===`sale:${first.body.invoiceNumber}`).length,1);
       assert.equal((await call('/recurring/flow-recurring/generate','POST',{...request,requestId:'second-stale'})).status,409);
       const id=first.body.invoiceNumber,name=`INV_${id.replaceAll('/','-')}.pdf`;
       const pdf=await fetch(`http://127.0.0.1:${port}/api/save-pdf?name=${encodeURIComponent(name)}&client=Flow%20client&month=October`,{method:'POST',headers:{'x-knowgst-key':secret,'Content-Type':'application/pdf'},body:'%PDF-1.7 workflow bytes'});

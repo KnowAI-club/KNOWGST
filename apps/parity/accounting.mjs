@@ -89,12 +89,14 @@ export const ACCOUNTS = [
   ["1100", "Customer receivables", "asset"],
   ["1200", "Inventory", "asset"],
   ["1300", "Input tax pending review", "asset"],
+  ["1400", "TDS receivable (pending reconciliation)", "asset"],
   ["2000", "Supplier payables", "liability"],
   ["2100", "Output tax", "liability"],
+  ["2200", "TCS payable", "liability"],
   ["3000", "Opening equity", "equity"],
   ["4000", "Sales", "income"],
   ["5000", "Purchases (gross; tax unclassified)", "expense"],
-  ["5100", "Expenses", "expense"],
+  ["5100", "Expenses (gross; tax unclassified)", "expense"],
 ];
 export function minor(value) {
   const text = String(value ?? "");
@@ -180,11 +182,7 @@ export function planJournal(root, businessId, input) {
   let lines;
   if (input.reversalOf) {
     const original = state.entries.find((e) => e.id === input.reversalOf);
-    if (
-      !original ||
-      original.source?.startsWith("purchase:") ||
-      original.source?.startsWith("supplier-payment:")
-    )
+    if (!original || original.source)
       fail("Use the source document to reverse this entry.");
     if (state.entries.some((e) => e.reversalOf === original.id))
       fail("Entry already reversed.");
@@ -227,6 +225,143 @@ export function assertStockOwner(root, product, businessId) {
   if (product.businessId !== businessId)
     fail("This stock item belongs to another business.");
 }
+// Source snapshots are reconciled against active entries, never edited in place.
+// A retry or a metadata-only change therefore cannot duplicate a posting.
+function sourcePostings(collection, record) {
+  if (!record) return [];
+  const unit =
+    record.currency || record.data?.invoiceOptions?.currency || "INR";
+  if (unit !== "INR") return []; // No invented exchange rate.
+  const result = [];
+  const add = (key, day, memo, lines) => {
+    lines = lines.filter((l) => l.debit || l.credit);
+    if (lines.length)
+      result.push({ key, date: date(day), memo, currency: unit, lines });
+  };
+  const line = (account, debit, credit = 0) => ({ account, debit, credit });
+  if (collection === "expenses") {
+    if (record.amount === undefined || !record.date) return [];
+    const amount = minor(record.amount);
+    add("expense", record.date, `Expense: ${record.description || record.id}`, [
+      line("5100", amount),
+      line("1000", 0, amount),
+    ]);
+    return result;
+  }
+  const type = record.invoiceType || record.data?.invoiceType || "tax-invoice";
+  if (
+    !["tax-invoice", "bill-of-supply", "composition", "credit-note"].includes(
+      type,
+    ) ||
+    record.status === "draft" ||
+    record.convertedTo
+  )
+    return [];
+  const day = record.invoiceDate || record.data?.details?.invoiceDate;
+  if (record.totalAmount === undefined || !day) return []; // Incomplete legacy records need review.
+  const total = minor(record.totalAmount),
+    totals = record.data?.totals || {};
+  const tax = minor(record.totalTaxAmount ?? totals.totalTaxAmount ?? 0);
+  const tcs = minor(totals.tcsAmount ?? 0),
+    tds = minor(totals.tdsAmount ?? 0);
+  if (tax + tcs > total || tds > total)
+    fail("Saved invoice tax/deduction exceeds its total.", 400);
+  let lines = [
+    line("1100", total - tds),
+    line("1400", tds),
+    line("4000", 0, total - tax - tcs),
+    line("2100", 0, tax),
+    line("2200", 0, tcs),
+  ];
+  if (type === "credit-note")
+    lines = lines.map((l) => ({ ...l, debit: l.credit, credit: l.debit }));
+  if (record.status !== "cancelled")
+    add(
+      "sale",
+      day,
+      `${type === "credit-note" ? "Credit note" : "Sale"}: ${record.invoiceNumber || record.id}`,
+      lines,
+    );
+  const payments = record.payments || record.data?.payments || [];
+  if (!Array.isArray(payments)) fail("Invalid invoice payments.", 400);
+  const seen = new Set();
+  payments.forEach((p, index) => {
+    // Credit allocations transfer an existing customer balance, not cash.
+    if (String(p.mode).startsWith("credit-")) return;
+    const key = "payment:" + (p.id || `legacy-${index}`);
+    if (seen.has(key)) fail("Duplicate invoice payment identifier.", 400);
+    seen.add(key);
+    const negative = String(p.amount).startsWith("-");
+    const amount = minor(negative ? String(p.amount).slice(1) : p.amount);
+    add(
+      key,
+      p.date || day,
+      `${negative ? "Customer refund" : "Customer payment"}: ${record.invoiceNumber || record.id}`,
+      [
+        line("1000", negative ? 0 : amount, negative ? amount : 0),
+        line("1100", negative ? amount : 0, negative ? 0 : amount),
+      ],
+    );
+  });
+  return result;
+}
+function reconcileSource(state, collection, old, next) {
+  const source = `${collection === "bills" ? "sale" : "expense"}:${(next || old).id}`;
+
+  const reversed = new Set(
+    state.entries.map((e) => e.reversalOf).filter(Boolean),
+  );
+  const active = state.entries.filter(
+    (e) => e.source === source && !e.reversalOf && !reversed.has(e.id),
+  );
+  if (active.length && next) {
+    const unit = next.currency || next.data?.invoiceOptions?.currency || "INR";
+    if (unit !== "INR")
+      fail(
+        "Reverse the source document before changing its accounting currency.",
+      );
+    if (
+      collection === "bills" &&
+      (next.totalAmount === undefined ||
+        !(next.invoiceDate || next.data?.details?.invoiceDate))
+    )
+      fail("A posted invoice must retain its amount and date.", 400);
+    if (collection === "expenses" && (next.amount === undefined || !next.date))
+      fail("A posted expense must retain its amount and date.", 400);
+  }
+  const desired = sourcePostings(collection, next);
+  const fingerprint = (p) =>
+    hash({
+      key: p.key || p.sourceKey,
+      date: p.date,
+      memo: p.memo,
+      currency: p.currency,
+      lines: p.lines,
+    });
+  for (const previous of active) {
+    const match = desired.find((p) => p.key === previous.sourceKey);
+    if (match && fingerprint(match) === fingerprint(previous)) continue;
+    entry(state, {
+      id: crypto.randomUUID(),
+      date: previous.date,
+      memo: `Reverse: ${previous.memo}`,
+      currency: previous.currency,
+      source,
+      reversalOf: previous.id,
+      lines: previous.lines.map((l) => ({
+        ...l,
+        debit: l.credit,
+        credit: l.debit,
+      })),
+    });
+  }
+  for (const posting of desired) {
+    if (active.some((e) => fingerprint(e) === fingerprint(posting))) continue;
+    const saved = entry(state, { ...posting, id: crypto.randomUUID(), source });
+    saved.sourceKey = posting.key;
+  }
+}
+
 export function augmentAccounting(
   root,
   writes,
@@ -234,7 +369,11 @@ export function augmentAccounting(
 ) {
   const states = new Map(),
     stateFor = (id) => {
-      if (!states.has(id)) states.set(id, readAccounting(root, id));
+      if (!states.has(id))
+        states.set(
+          id,
+          writes.get(stateFile(root, id)) || readAccounting(root, id),
+        );
       return states.get(id);
     };
   for (const [file, next] of [...writes]) {
@@ -281,6 +420,13 @@ export function augmentAccounting(
         ...new Set([...Object.keys(old || {}), ...Object.keys(next || {})]),
       ].filter((k) => hash(old?.[k] ?? null) !== hash(next?.[k] ?? null)),
     });
+    if (dir === "bills" || dir === "expenses") {
+      const previousOwner = businessOf(root, old),
+        nextOwner = businessOf(root, next);
+      if (previousOwner && next && previousOwner !== nextOwner)
+        fail("Posted document business cannot change.");
+      if (nextOwner || previousOwner) reconcileSource(state, dir, old, next);
+    }
     if (dir === "products") {
       if (old?.businessId && old.businessId !== id)
         fail("Stock business mismatch.");
@@ -318,18 +464,7 @@ export function augmentAccounting(
         );
     }
   }
-  for (const [id, state] of states) {
-    const file = stateFile(root, id);
-    if (writes.has(file)) {
-      const planned = writes.get(file);
-      planned.audit.push(
-        ...state.audit.slice(readAccounting(root, id).audit.length),
-      );
-      planned.movements.push(
-        ...state.movements.slice(readAccounting(root, id).movements.length),
-      );
-    } else writes.set(file, state);
-  }
+  for (const [id, state] of states) writes.set(stateFile(root, id), state);
   return writes;
 }
 export function planSupplierPayment(root, businessId, input) {

@@ -54,8 +54,9 @@ export default function AccountingPanel() {
         <div>
           <h3>Accounts & history</h3>
           <p className="text-muted">
-            Posted journals and supplier payments only. Existing sales and
-            expenses are not automatically posted here.
+            INR sales, linked payments and expenses post when saved. Changes
+            create linked reversals. Older untouched records are not backfilled;
+            expense GST remains unclassified.
           </p>
         </div>
         <button className="btn btn-primary" onClick={() => setForm(blank())}>
