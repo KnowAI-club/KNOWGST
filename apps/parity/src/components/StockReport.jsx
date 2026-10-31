@@ -1,3 +1,5 @@
+import {getProfile} from '../store';
+import {belongsToProfile} from '../utils';
 // v1.10.77 (#85) - closing stock and its value at the end of any month.
 // Calculation lives in utils/products.js (unit-tested); this file only shows
 // and exports it. Products and stock are shared by all your businesses, so
@@ -24,11 +26,11 @@ export default function StockReport({ businessName }) {
   const [month, setMonth] = useState(localToday().slice(0, 7));
 
   useEffect(() => {
-    Promise.all([getAllProducts(), getAllBills(), getAllPurchases()])
-      .then(([products, bills, purchases]) => setData({
+    Promise.all([getAllProducts(), getAllBills(), getAllPurchases(),getProfile()])
+      .then(([products, bills, purchases,profile]) => setData({
         products: products || [],
-        bills: bills || [],
-        purchases: purchases || [],
+        bills: (bills || []).filter(b=>belongsToProfile(b,profile)),
+        purchases: (purchases || []).filter(p=>p.businessId?p.businessId===profile?.id:belongsToProfile(p,profile)),
       }))
       .catch(() => toast('Failed to load stock', 'error'));
   }, []);

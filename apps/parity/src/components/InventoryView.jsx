@@ -1,3 +1,4 @@
+import {getUnassignedProducts,assignProduct} from '../store';
 import PageHeader from './PageHeader';
 import { useState, useEffect, useRef } from 'react';
 import { Package, Search, Plus, Edit3, Trash2, X, Save, Upload, Table2 } from 'lucide-react';
@@ -20,6 +21,7 @@ const emptyForm = {
 };
 
 export default function InventoryView() {
+  const [unassigned,setUnassigned]=useState([]);
   const [products, setProducts] = useState([]);
   const [search, setSearch] = useState('');
   // v1.10.77 (#85) - edit many products at once (see ProductBulkEdit).
@@ -41,6 +43,7 @@ export default function InventoryView() {
     try {
       const data = await getAllProducts();
       setProducts(data);
+      setUnassigned(await getUnassignedProducts());
     } catch {
       toast('Failed to load products', 'error');
     }
@@ -138,7 +141,7 @@ export default function InventoryView() {
       tone: 'danger',
     })) {
       try {
-        await deleteProduct(id);
+        await deleteProduct(id,products.find(p=>p.id===id)?._revision);
         toast('Product deleted', 'success');
         loadProducts();
       } catch {
@@ -238,6 +241,7 @@ export default function InventoryView() {
         </div>
       </PageHeader>
 
+      {unassigned.length>0&&<div className="glass-panel p-4 mb-6"><h3>Assign legacy stock</h3><p className="text-muted">These items have no business owner. Confirm ownership before using their quantities.</p>{unassigned.map(p=><div key={p.id} className="flex gap-2" style={{alignItems:'center',marginBottom:8}}><span>{p.name} · Stock {p.stock||0}</span><button className="btn btn-secondary" onClick={async()=>{try{await assignProduct(p);await loadProducts();}catch(e){toast(e.message,'error');}}}>Assign to current business</button></div>)}</div>}
       {/* Search */}
       <div className="glass-panel p-4 mb-6">
         <div className="search-box" style={{ maxWidth: '400px' }}>

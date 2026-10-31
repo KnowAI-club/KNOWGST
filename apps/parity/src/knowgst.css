@@ -127,3 +127,9 @@ html[data-theme=dark] .form-input{background:var(--card-bg);color:var(--text);bo
 @media screen {
   .settings-jumpnav [aria-current=location] { background:#3158e8 !important; color:#fff !important; }
 }
+
+/* Accounting dialogs reuse the current spacing and theme tokens. */
+.accounting-dialog .form-group { display: flex; flex-direction: column; gap: 6px; margin: 0 0 16px; }
+.accounting-dialog .table-scroll { margin-top: 20px; }
+.accounting-dialog h3 { margin: 0 0 8px; }
+.accounting-dialog > p { margin: 0 0 16px; }

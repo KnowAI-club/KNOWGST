@@ -1,3 +1,11 @@
+# Unreleased — SQLite and initial accounting
+
+- Active storage migrated to SQLite 3.54.1 with verified legacy import and portable backup/restore.
+- Added balanced INR journals, reversals, account balances and local-session audit history under Reports.
+- Added business-owned inventory, explicit legacy assignment and quantity movement history.
+- Added partial supplier payments, overpayment protection and payment reversal history.
+- Existing invoice calculations, UI and KnowAI branding remain unchanged. Accounting scope and migration details: docs/SQLITE-ACCOUNTING.md.
+
 # KNOWGST changelog
 
 ## [0.1.0] - 2026-10-29

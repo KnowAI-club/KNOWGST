@@ -1,5 +1,6 @@
+import { businessOf, assertStockOwner } from "./accounting.mjs";
 import path from "node:path";
-import fs from "node:fs";
+import { recordFs as fs } from "./sqlite-storage.mjs";
 import crypto from "node:crypto";
 import {
   readRecord,
@@ -35,6 +36,7 @@ export function planInvoices(root, operations) {
     fail("Expected 1–200 invoice operations", "bad-request", 400);
   const writes = new Map(),
     stock = {},
+    stockOwners = new Map(),
     results = [],
     seen = new Set();
   const recordPath = (dir, id) => {
@@ -103,7 +105,14 @@ export function planInvoices(root, operations) {
       );
     if (!old && operation.bill._revision)
       fail("This invoice was removed. Reload before saving.", "stale-invoice");
+    const businessId = businessOf(root, bill);
     for (const item of bill.data?.items || []) {
+      if (item.productId)
+        assertStockOwner(
+          root,
+          readRecord(recordPath("products", item.productId)),
+          businessId,
+        );
       if (item.productId && !Number.isFinite(Number(item.quantity)))
         fail("Invalid stock quantity", "bad-request", 400);
     }
@@ -118,8 +127,14 @@ export function planInvoices(root, operations) {
       bill.data = { ...bill.data, stockApplied: next };
       for (const [id, delta] of Object.entries(
         stockDelta(old ? appliedStock(old) : {}, next),
-      ))
+      )) {
+        if (businessId) {
+          if (stockOwners.has(id) && stockOwners.get(id) !== businessId)
+            fail("Stock cannot be shared across businesses.");
+          stockOwners.set(id, businessId);
+        }
         stock[id] = (stock[id] || 0) + delta;
+      }
     }
     if (bill.payments !== undefined && !Array.isArray(bill.payments))
       fail("Invalid payments", "bad-request", 400);
@@ -191,6 +206,7 @@ export function planInvoices(root, operations) {
         "A stock item is missing. Restore it before saving.",
         "missing-product",
       );
+    assertStockOwner(root, product, stockOwners.get(id));
     const quantity = Number(product.stock || 0) + delta;
     if (!Number.isFinite(quantity))
       fail("Invalid stock quantity", "bad-request", 400);

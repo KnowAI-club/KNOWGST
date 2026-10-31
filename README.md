@@ -6,14 +6,14 @@ Open-source invoicing and bookkeeping. New KNOWGST code is GPL-3.0-only; reused 
 
 ## Run
 
-Node.js 22.22+ and pnpm 9.15.9:
+Node.js 22.22+ and pnpm 9.15.9, Python 3 and a C/C++ build toolchain (macOS Command Line Tools or Linux build-essential):
 
 ```sh
 pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-Open http://127.0.0.1:4173. Both interface and protected local service start together. OCR assets are prepared from locked dependencies. Records are isolated in `.local/parity/data`; generated PDFs live under `.local/parity/Saved Invoices`. `KNOWGST_RUNTIME` selects another runtime directory. Keep this development service on loopback.
+Open http://127.0.0.1:4173. Both interface and protected local service start together. OCR assets are prepared from locked dependencies. SQLite 3.54.1 is compiled from checksum-pinned official source on first startup. Records are stored in `.local/parity/data/knowgst.sqlite`; generated PDFs live under `.local/parity/Saved Invoices`. `KNOWGST_RUNTIME` selects another runtime directory. Keep this development service on loopback.
 
 ## Included modules
 
@@ -44,4 +44,10 @@ Browser tests create a separate temporary runtime. Never point tests at real boo
 - `apps/api`, `apps/web`, `packages/domain`: earlier transactional SQLite prototype, retained for incremental architectural migration. Run separately with `pnpm dev:prototype`; its `.local/knowgst.sqlite` data is not shared with the compatibility app.
 - `docs/UPSTREAM-MANIFEST.json`: original source hashes; financial helper drift is checked automatically.
 
-Compatibility storage remains JSON. Self-hosted PostgreSQL, normalized migrations, hosted authentication and Tauri packaging remain future stages. AI and expanded integrations follow feature parity. See [proposal](docs/TECHNICAL-PROPOSAL.md) and [provenance](THIRD-PARTY-NOTICES.md).
+The active application now uses SQLite 3.54.1 with WAL, full synchronous commits and a schema-versioned record store. Legacy JSON payloads are preserved during migration; the complete domain model is not yet normalized into separate relational tables. Self-hosted PostgreSQL, hosted authentication and Tauri packaging remain future stages. AI and expanded integrations follow feature parity. See [proposal](docs/TECHNICAL-PROPOSAL.md) and [provenance](THIRD-PARTY-NOTICES.md).
+
+## Accounts and business stock
+
+Reports → **Accounts & history** provides balanced INR journals, reversals, account balances, audit events and stock movements. Products are scoped to the active business; legacy stock requires explicit assignment. Purchases → **Payments** records partial payments, rejects overpayments and retains reversal history.
+
+This is an initial accounting increment: manual journals and supplier-payable/payment postings are supported. Sales/expenses are not automatically posted, purchase tax remains unclassified in the gross opening entry, and the existing P&L is unchanged. See [SQLite migration and accounting boundaries](docs/SQLITE-ACCOUNTING.md) before using real books.

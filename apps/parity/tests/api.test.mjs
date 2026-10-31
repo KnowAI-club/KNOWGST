@@ -84,11 +84,14 @@ test('compatibility service: module persistence, isolation and recovery', async 
       assert.equal((await call('/clients/collision_a','DELETE')).status,409);
       assert.equal((await call('/meta/__proto__','POST',{value:{bad:true}})).status,400);
     });
-    await t.test('corrupt metadata blocks counter resets and remains unchanged',async()=>{
-      const file=join(runtime,'data','meta.json');const previous=await readFile(file,'utf8');
-      try{await writeFile(file,'{"broken":');const response=await call('/meta/counter_INV/increment','POST',{});
-        assert.equal(response.status,503);assert.equal(response.body.code,'data-corrupt');assert.equal(await readFile(file,'utf8'),'{"broken":');
-      }finally{await writeFile(file,previous);}
+    await t.test('obsolete JSON metadata cannot override authoritative SQLite counters',async()=>{
+      const file=join(runtime,'data','meta.json');
+      const first=await call('/meta/sqliteCounter/increment','POST',{});
+      await writeFile(file,'{"broken":');
+      const second=await call('/meta/sqliteCounter/increment','POST',{});
+      assert.equal(second.status,200);assert.equal(second.body.value,first.body.value+1);
+      assert.equal(await readFile(file,'utf8'),'{"broken":');
+      await rm(file);
     });
     await t.test('selective export/import does not erase unrelated modules', async () => {
       const exported=(await call('/export')).body;
@@ -114,7 +117,7 @@ test('compatibility service: module persistence, isolation and recovery', async 
       const snapshots=(await call('/backups')).body;
       const date=snapshots[0].date;
       await call('/profile','POST',{...profile,businessName:'Changed after backup'});
-      assert.equal((await call(`/backups/${date}/restore`,'POST',{})).status,200);
+      const restored=await call(`/backups/${date}/restore`,'POST',{}); assert.equal(restored.status,200,JSON.stringify(restored.body)+(restored.status===200?'':await readFile(join(runtime,'data','errors.log'),'utf8')));
       assert.equal((await call('/profile')).body.businessName,'Test Studio');
       assert.equal(await readFile(pdfPath,'utf8'),'%PDF-1.7 original bytes');
       const manifestPath=join(runtime,'data','backups',date,'knowgst-backup-manifest.json');
@@ -131,10 +134,12 @@ test('compatibility service: module persistence, isolation and recovery', async 
       assert.equal((await call('/bills')).body.length,1);
       assert.equal((await call('/meta/testCounter')).body.value,20);
     });
-    await t.test('all module records can be removed without touching unrelated records', async () => {
+    await t.test('unused records can be removed while referenced inventory is retained', async () => {
       for (const [module, record] of Object.entries(records)) {
         const saved=(await call(`/${module}`)).body.find(x=>x.id===record.id);
-        assert.equal((await call(`/${module}/${record.id}`,'DELETE',undefined, saved?._revision ? {'If-Match':saved._revision} : {})).status,200);
+        const deleted=await call(`/${module}/${record.id}`,'DELETE',undefined, saved?._revision ? {'If-Match':saved._revision} : {});
+        if(module==='products'){assert.equal(deleted.status,409);assert.ok((await call('/products')).body.some(p=>p.id===record.id));continue;}
+        assert.equal(deleted.status,200);
         assert.equal((await call(`/${module}`)).body.some(x=>x.id===record.id),false);
       }
       assert.equal((await call('/bills')).body.length,1);

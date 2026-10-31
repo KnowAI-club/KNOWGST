@@ -1,3 +1,4 @@
+import AccountingPanel from './AccountingPanel';
 import PageHeader from './PageHeader';
 import { useState, useEffect } from 'react';
 import { TrendingUp, TrendingDown, Wallet, BarChart3, Clock, Search, X, Users, Package, Boxes } from 'lucide-react';
@@ -199,6 +200,7 @@ export default function ReportsView() {
 
       {/* Tab Selector — v1.9.5 adds Client + Product tabs */}
       <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
+        <button className={`btn ${activeTab === 'accounting' ? 'btn-primary' : 'btn-secondary'}`} onClick={()=>setActiveTab('accounting')}>Accounts & history</button>
         <button className={`btn ${activeTab === 'pl' ? 'btn-primary' : 'btn-secondary'}`}
           onClick={() => setActiveTab('pl')}>
           <BarChart3 size={16} /> Profit & Loss
@@ -225,9 +227,10 @@ export default function ReportsView() {
         </button>
       </div>
 
+      {activeTab === 'accounting' && <AccountingPanel />}
       {/* v1.10.74 - Period + Currency Selector, shared by P&L, Client Analytics
           and Product Performance (they all read the same period/currency). */}
-      {activeTab !== 'aging' && activeTab !== 'party' && activeTab !== 'stock' && (
+      {activeTab !== 'accounting' && activeTab !== 'aging' && activeTab !== 'party' && activeTab !== 'stock' && (
           <div className="glass-panel" style={{ padding: '1.25rem', marginBottom: '1.5rem' }}>
             <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
               <div className="form-group" style={{ margin: 0 }}>

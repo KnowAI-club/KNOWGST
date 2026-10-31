@@ -7,13 +7,15 @@
   "scripts": {
     "build": "node scripts/bundle-ocr.mjs && vite build",
     "prepare:ocr": "node scripts/bundle-ocr.mjs",
-    "test": "node scripts/tax-test.mjs && node scripts/discount-modes-test.mjs && node scripts/csv-test.mjs && node --test tests/*.test.mjs",
+    "test": "node scripts/prepare-sqlite.mjs && node scripts/tax-test.mjs && node scripts/discount-modes-test.mjs && node scripts/csv-test.mjs && node --test tests/*.test.mjs",
     "check": "node --check server.js",
-    "lint": "node --check server.js"
+    "lint": "node --check server.js",
+    "prepare:sqlite": "node scripts/prepare-sqlite.mjs"
   },
   "dependencies": {
     "@fontsource/inter": "^5.3.0",
     "@tesseract.js-data/eng": "1.0.0",
+    "better-sqlite3": "13.0.3",
     "dompurify": "^3.4.17",
     "express": "^5.2.1",
     "fflate": "^0.8.3",
@@ -28,6 +30,7 @@
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.4",
+    "node-gyp": "10.3.1",
     "vite": "^7.0.0"
   }
 }

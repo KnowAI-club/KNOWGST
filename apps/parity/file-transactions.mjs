@@ -1,4 +1,5 @@
-import fs from "node:fs";
+import {commitSqliteFiles} from "./sqlite-storage.mjs";
+import {recordFs as fs} from "./sqlite-storage.mjs";
 import path from "node:path";
 import { durableWrite, readRecord, storageError } from "./json-storage.mjs";
 const journalDir = (root) => path.join(root, ".workspace-transaction");
@@ -40,6 +41,7 @@ export function recoverFileTransaction(root) {
 }
 // Used for invoice trash/restore: JSON and PDF bytes share one recovery journal.
 export function commitFileBatch(root, writes, { beforeInstall } = {}) {
+  if (commitSqliteFiles(root,writes,{beforeInstall})) return;
   if (!writes.size) return;
   recoverFileTransaction(root);
   const dir = journalDir(root);

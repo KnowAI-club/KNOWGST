@@ -1,3 +1,5 @@
+> Implementation follow-up: [SQLite migration, journal, business inventory and supplier payments](SQLITE-ACCOUNTING.md). This review remains the baseline assessment before that increment.
+
 # KNOWGST product and module review
 
 Reviewed 30 October 2026 against the local working tree based on `6d9824e`, including the transaction-hardening increment accompanying this document. This is a source-led product review, not a statutory audit or a claim that every input combination has been tested.

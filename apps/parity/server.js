@@ -1,3 +1,6 @@
+import {acquireRuntimeLock} from './runtime-lock.mjs';
+import {initializeAccounting, activeBusiness, businessOf, readAccounting, augmentAccounting, planJournal, planSupplierPayment, ACCOUNTS} from './accounting.mjs';
+import {openRecordDatabase, withDatabaseClosed, storeFor} from './sqlite-storage.mjs';
 import { planReceipt, planPurchase, planInvoiceTrash, planRecurringTemplate, commitWorkflow, recordPath, cleanRecord } from './workflow-transactions.mjs';
 import { commitFileBatch, recoverFileTransaction } from './file-transactions.mjs';
 import { commitInvoices, planInvoices, invoiceRevision, versionedInvoice } from './invoice-transactions.mjs';
@@ -7,7 +10,7 @@ import express from 'express';
 // v1.10.0 — `cors` package no longer imported. The CORS-lockdown
 // middleware below is intentionally custom + strict (localhost only)
 // where `cors()` echoed `*` for every origin.
-import fs from 'fs';
+import {recordFs as fs} from './sqlite-storage.mjs';
 import crypto from 'crypto';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -22,10 +25,12 @@ import { templateTotals, clientYearToDate, nextCounterValue, startFor, numberSer
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const RUNTIME_DIR = path.resolve(process.env.KNOWGST_RUNTIME || path.join(__dirname, '../../.local/parity'));
 fs.mkdirSync(RUNTIME_DIR, { recursive: true, mode: 0o700 });
+acquireRuntimeLock(RUNTIME_DIR);
 const DATA_DIR = path.join(RUNTIME_DIR, 'data');
 recoverFileTransaction(RUNTIME_DIR);
 recoverInterruptedRestore(DATA_DIR);
 recoverJsonTransaction(DATA_DIR);
+openRecordDatabase(DATA_DIR);
 
 // Port choice — we deliberately default to a high, unusual number rather than
 // the conventional 3001. The 3000-range is heavily used by every other Node /
@@ -59,12 +64,13 @@ app.use((req, res, next) => {
   const supplied = Buffer.from(String(req.headers['x-knowgst-key'] || ''));
   const expected = Buffer.from(localSecret);
   if (supplied.length !== expected.length || !crypto.timingSafeEqual(supplied, expected)) return res.status(401).json({ error: 'Local session required' });
+  storeFor(DATA_DIR)?.flushFiles();
   res.setHeader('Cache-Control', 'no-store');
   res.setHeader('X-Content-Type-Options', 'nosniff');
   // Upstream updater/launcher must never replace KNOWGST with another product.
   if (req.path === '/api/check-update') return res.json({ current: '0.1.0', latest: '0.1.0', updateAvailable: false });
   if (req.path === '/api/control-panel/launch-script' || req.path === '/api/update') return res.status(409).json({ error: 'Signed KNOWGST updater is not available yet. Use the KNOWGST repository.' });
-  if (req.path === '/api/health') return res.json({ ok: true, version: '0.1.0', mode: 'compatibility', uptimeSec: Math.round(process.uptime()) });
+  if (req.path === '/api/health') return res.json({ ok: true, version: '0.1.0', mode: 'compatibility', storage:'sqlite',sqliteVersion:storeFor(DATA_DIR)?.version, uptimeSec: Math.round(process.uptime()) });
   next();
 });
 
@@ -133,6 +139,12 @@ for (const dir of DIRS) {
   const dirPath = path.join(DATA_DIR, dir);
   if (!fs.existsSync(dirPath)) fs.mkdirSync(dirPath, { recursive: true });
 }
+
+initializeAccounting(DATA_DIR);
+app.use((req,res,next)=>{
+ if(['POST','PUT','PATCH','DELETE'].includes(req.method)&&req.headers['x-knowgst-business']&&!['/api/profile','/api/profiles'].includes(req.path)&&req.headers['x-knowgst-business']!==activeBusiness(DATA_DIR)?.id)return res.status(409).json({error:'The selected business changed. Reload before saving.'});
+ next();
+});
 
 // Reject malformed shapes and colliding storage identities before any write/delete.
 app.use((req,res,next)=>{
@@ -237,7 +249,7 @@ function invalidateCache(dir) { delete dirCache[dir]; }
 
 // Helper: read all JSON files from a directory (cached, 5s TTL)
 function readAllFromDir(dir) {
-  const entry = dirCache[dir];
+  const entry = dir==='accounting'?null:dirCache[dir];
   if (entry && (Date.now() - entry.at) < DIR_CACHE_TTL_MS) return entry.value;
   const dirPath = path.join(DATA_DIR, dir);
   if (!fs.existsSync(dirPath)) return [];
@@ -258,7 +270,10 @@ function readJSON(filePath, fallback = null) {
 // atomically via temp+rename so a crash mid-write can't leave a
 // truncated meta.json that resets the invoice counter.
 function writeJSON(filePath, data) {
-  writeFileAtomic(filePath, JSON.stringify(data, null, 2));
+  if(!filePath.startsWith(DATA_DIR+path.sep)||!filePath.endsWith('.json'))return durableWrite(filePath,JSON.stringify(data,null,2));
+  const writes=new Map([[filePath,data]]);
+  augmentAccounting(DATA_DIR,writes,{businessId:activeBusiness(DATA_DIR)?.id});
+  commitJsonBatch(DATA_DIR,writes);
   // Invalidate cache for the parent directory
   const parentDir = path.basename(path.dirname(filePath));
   if (DIRS.includes(parentDir)) invalidateCache(parentDir);
@@ -266,7 +281,7 @@ function writeJSON(filePath, data) {
 
 // Helper: delete file (with cache invalidation)
 function deleteFile(filePath) {
-  if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+  if (fs.existsSync(filePath)) {const writes=new Map([[filePath,null]]);augmentAccounting(DATA_DIR,writes,{action:'record.deleted',businessId:activeBusiness(DATA_DIR)?.id});commitJsonBatch(DATA_DIR,writes);}
   const parentDir = path.basename(path.dirname(filePath));
   if (DIRS.includes(parentDir)) invalidateCache(parentDir);
 }
@@ -283,7 +298,11 @@ app.get('/api/bills', (req, res) => {
 app.post('/api/invoice-transactions', (req, res) => {
   requireSnapshotIdle();
   try {
-    const result = commitInvoices(DATA_DIR, req.body?.operations);
+    const operations=req.body?.operations;
+    if(!Array.isArray(operations))throw storageError('Expected invoice operations.','bad-request',400);
+    for(const operation of operations){validateObject(operation);validateObject(operation.bill);const id=businessOf(DATA_DIR,operation.bill),old=readRecord(recordPath(DATA_DIR,'bills',operation.renameFrom||operation.bill.id)),oldBusiness=businessOf(DATA_DIR,old);if(id&&id!==requireBusiness()||oldBusiness&&oldBusiness!==requireBusiness())throw storageError('Invoice belongs to another business.','conflict',409);operation.bill={...operation.bill,businessId:requireBusiness()};}
+    const plan=planInvoices(DATA_DIR, req.body?.operations);
+    const result = runRecordTransaction(plan);
     for (const dir of ['bills', 'products', 'receipts', 'trash']) invalidateCache(dir);
     res.json(result);
   } catch (error) {
@@ -297,6 +316,9 @@ app.post('/api/bills', (req, res) => {
   const bill = req.body;
   if (!bill || !bill.id) return res.status(400).json({ error: 'Bill must have an id' });
   const filePath = path.join(DATA_DIR, 'bills', safeFileName(bill.id) + '.json');
+  const owner=businessOf(DATA_DIR,bill),previousOwner=businessOf(DATA_DIR,readRecord(filePath));
+  if(owner&&owner!==requireBusiness()||previousOwner&&previousOwner!==requireBusiness())throw storageError('Invoice belongs to another business.','conflict',409);
+  bill.businessId=requireBusiness();
 
   // Dupe-check: the invoice-number field is free-text on the client, so a
   // typo (INV/2026/0007 typed again for a fresh bill) would silently
@@ -348,8 +370,10 @@ app.get('/api/profile', (req, res) => {
 });
 
 app.post('/api/profile', (req, res) => {
-  writeJSON(PROFILE_PATH, req.body);
-  res.json({ success: true });
+  const profile={...req.body,id:req.body.id||'biz_'+crypto.randomUUID()};
+  validateId(profile.id);
+  writeJSON(PROFILE_PATH, profile);
+  res.json({ success: true, id:profile.id });
 });
 
 // ========================
@@ -412,24 +436,43 @@ app.delete('/api/templates/:id', (req, res) => {
 // PRODUCTS / INVENTORY
 // ========================
 app.get('/api/products', (req, res) => {
-  const products = readAllFromDir('products');
+  const id=requireBusiness();
+  const products = readAllFromDir('products').filter(p=>req.query.unassigned==='1'?!p.businessId:p.businessId===id).map(versionedInvoice);
   products.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
   res.json(products);
 });
 
 app.post('/api/products', (req, res) => {
-  const product = req.body;
-  if (!product.id) product.id = 'prod_' + crypto.randomUUID();
-  const filePath = path.join(DATA_DIR, 'products', safeFileName(product.id) + '.json');
-  writeJSON(filePath, product);
-  res.json({ success: true, id: product.id });
+  requireSnapshotIdle();const businessId=requireBusiness();
+  const product={...req.body,id:req.body.id||'prod_'+crypto.randomUUID()};
+  const file=recordPath(DATA_DIR,'products',product.id),old=readRecord(file);
+  if(old&&old.businessId!==businessId)throw storageError('Assign legacy stock first; another business’s stock cannot be edited.','conflict',409);
+  if(old&&product._revision!==invoiceRevision(old))throw storageError('Product changed. Reload before saving.','conflict',409);
+  if(!Number.isFinite(Number(product.stock||0)))throw storageError('Invalid stock quantity','bad-request',400);
+  delete product._revision;product.businessId=businessId;
+  const writes=new Map([[file,product]]);augmentAccounting(DATA_DIR,writes,{businessId,action:old?'stock.adjusted':'stock.opened',reason:'Product form / import'});commitJsonBatch(DATA_DIR,writes);invalidateCache('products');
+  res.json({success:true,id:product.id,product:versionedInvoice(product)});
+});
+app.post('/api/products/:id/assign', (req,res)=>{
+  requireSnapshotIdle();const businessId=requireBusiness(),file=recordPath(DATA_DIR,'products',req.params.id),old=readRecord(file);
+  if(!old||old.id!==req.params.id||old.businessId||req.body.revision!==invoiceRevision(old))throw storageError('Product changed or is already assigned. Reload first.','conflict',409);
+  const owners=new Set();
+  for(const dir of ['bills','purchases'])for(const record of readAllFromDir(dir))if((record.items||record.data?.items||[]).some(i=>i.productId===old.id||!i.productId&&String(i.name||'').trim().toLowerCase()===String(old.name||'').trim().toLowerCase())){const owner=businessOf(DATA_DIR,record);if(!owner)throw storageError('Resolve the business on linked documents before assigning stock.','conflict',409);owners.add(owner);}
+  if([...owners].some(id=>id!==businessId))throw storageError('Historical documents link this stock to another business. Reconcile or split it first.','conflict',409);
+  const next={...old,businessId},writes=new Map([[file,next]]);augmentAccounting(DATA_DIR,writes,{businessId,action:'stock.assigned',reason:'Explicit legacy stock assignment'});commitJsonBatch(DATA_DIR,writes);invalidateCache('products');res.json({success:true});
+});
+app.delete('/api/products/:id', (req,res)=>{
+  requireSnapshotIdle();const businessId=requireBusiness(),file=recordPath(DATA_DIR,'products',req.params.id),old=readRecord(file);
+  if(!old)return res.json({success:true});
+  if(old.businessId!==businessId||req.headers['if-match']!==invoiceRevision(old))throw storageError('Product changed or belongs to another business.','conflict',409);
+  if(['bills','purchases','trash'].some(dir=>readAllFromDir(dir).some(r=>(r.items||r.data?.items||[]).some(i=>i.productId===old.id||!i.productId&&String(i.name||'').trim().toLowerCase()===String(old.name||'').trim().toLowerCase()))))throw storageError('This product has document history and cannot be deleted.','conflict',409);
+  deleteFile(file);res.json({success:true});
 });
 
-app.delete('/api/products/:id', (req, res) => {
-  const filePath = path.join(DATA_DIR, 'products', safeFileName(req.params.id) + '.json');
-  deleteFile(filePath);
-  res.json({ success: true });
-});
+function requireBusiness(){const id=activeBusiness(DATA_DIR)?.id;if(!id)throw storageError('Complete business setup first.','bad-request',400);return id;}
+app.get('/api/accounting',(_req,res)=>{const state=readAccounting(DATA_DIR,requireBusiness());res.json({...state,accounts:ACCOUNTS});});
+app.post('/api/accounting/journal',(req,res)=>{requireSnapshotIdle();res.json(runRecordTransaction(planJournal(DATA_DIR,requireBusiness(),req.body)));});
+app.post('/api/accounting/supplier-payments',(req,res)=>{requireSnapshotIdle();res.json(runRecordTransaction(planSupplierPayment(DATA_DIR,requireBusiness(),req.body)));});
 
 // ========================
 // EXPENSES
@@ -478,7 +521,7 @@ app.delete('/api/recurring/:id', (req,res) => {
 // RECEIPTS / PAYMENT VOUCHERS
 // ========================
 function runRecordTransaction(plan) {
-  try { return commitWorkflow(plan, DATA_DIR); }
+  try { augmentAccounting(DATA_DIR,plan.writes,{businessId:activeBusiness(DATA_DIR)?.id}); return commitWorkflow(plan, DATA_DIR); }
   finally { for (const dir of ['bills','receipts','purchases','products','recurring','trash']) invalidateCache(dir); }
 }
 
@@ -512,12 +555,15 @@ app.get('/api/purchases', (req, res) => {
 app.post('/api/purchases', (req, res) => {
   requireSnapshotIdle();
   const purchase = { ...req.body, id: req.body.id || 'pur_' + crypto.randomUUID() };
+  if(businessOf(DATA_DIR,purchase)&&businessOf(DATA_DIR,purchase)!==requireBusiness())throw storageError('Purchase belongs to another business.','conflict',409);
+  purchase.businessId=requireBusiness();
   res.json(runRecordTransaction(planPurchase(DATA_DIR, purchase)));
 });
 app.delete('/api/purchases/:id', (req, res) => {
   requireSnapshotIdle();
   const old = readJSON(recordPath(DATA_DIR,'purchases',req.params.id));
   if (!old) return res.json({success:true});
+  if(businessOf(DATA_DIR,old)!==requireBusiness())throw storageError('Purchase belongs to another business.','conflict',409);
   res.json(runRecordTransaction(planPurchase(DATA_DIR, { ...old, _revision: req.headers['if-match'] }, {remove:true})));
 });
 
@@ -695,6 +741,7 @@ app.get('/api/export', (req, res) => {
     receipts: readAllFromDir('receipts'),
     profiles: readAllFromDir('profiles'),
     purchases: readAllFromDir('purchases'),
+    accounting: readAllFromDir('accounting'),
     // v1.10.77 - never the PIN hash: a backup file can travel (email, Drive).
     meta: withoutLock(readJSON(META_PATH, {})),
     exportedAt: new Date().toISOString(),
@@ -716,6 +763,7 @@ app.post('/api/import', (req, res) => {
   // so the next reservation doesn't collide.
   requireSnapshotIdle();
   const data = req.body;
+  if(data.accounting?.length||data.purchases?.some?.(p=>p?.accountingManaged)||readAllFromDir('accounting').some(s=>s.entries?.length||s.supplierPayments?.length))throw storageError('Use a complete verified backup to restore accounting history. Selective JSON merge cannot preserve posted books.','conflict',409);
   const collections={bills:'bills',clients:'clients',termsTemplates:'templates',products:'products',expenses:'expenses',recurring:'recurring',receipts:'receipts',profiles:'profiles',purchases:'purchases'};
   for(const [key,dir] of Object.entries(collections)){
     if(data[key]===undefined)continue;
@@ -841,6 +889,7 @@ app.post('/api/import', (req, res) => {
     throw err;
   }
 
+  augmentAccounting(DATA_DIR,pending,{action:'records.imported',businessId:activeBusiness(DATA_DIR)?.id});
   commitJsonBatch(DATA_DIR,pending);
   for(const dir of DIRS)invalidateCache(dir);
   res.json({ ...counts, hasProfile: !!data.profile });
@@ -1450,7 +1499,7 @@ app.post('/api/backups/:date/restore', (req, res) => {
     const metaBefore=readJSON(META_PATH,{});
     const snapshotDir=path.join(BACKUPS_DIR,`pre-restore-${Date.now()}`);
     createVerifiedBackup(DATA_DIR,snapshotDir,{pdfDir:INVOICES_DIR,trashDir:TRASH_DIR});
-    restoreVerifiedBackup(DATA_DIR,source,{pdfDir:INVOICES_DIR,trashDir:TRASH_DIR,prepare(entries,staged){
+    restoreWithDatabase(DATA_DIR,source,{pdfDir:INVOICES_DIR,trashDir:TRASH_DIR,prepare(entries,staged){
       const entry=entries.find(e=>e.target===META_PATH);
       if(!entry) return;
       const file=path.join(staged,String(entry.index));
@@ -1542,8 +1591,11 @@ app.get('/api/trash', (req, res) => {
 });
 
 function commitInvoiceTrash(id, restore, revision) {
+  const sourceRecord=readRecord(recordPath(DATA_DIR,restore?'trash':'bills',id));
+  if(sourceRecord&&businessOf(DATA_DIR,sourceRecord)&&businessOf(DATA_DIR,sourceRecord)!==requireBusiness())throw storageError('Invoice belongs to another business.','conflict',409);
   const plan = planInvoiceTrash(DATA_DIR,id,{restore,revision});
   if (!plan.bill) return plan.result;
+  augmentAccounting(DATA_DIR,plan.writes,{businessId:activeBusiness(DATA_DIR)?.id,action:restore?'invoice.restored':'invoice.trashed'});
   const bytes = new Map([...plan.writes].map(([file,value])=>[file,value===null?null:Buffer.from(JSON.stringify(value,null,2))]));
   const name = savedPdfNameFor(plan.bill);
   const source = restore ? TRASH_DIR : INVOICES_DIR, destination = restore ? INVOICES_DIR : TRASH_DIR;
@@ -1566,7 +1618,7 @@ app.delete('/api/trash/:id', (req, res) => {
   try {
     const fname = safeFileName(req.params.id) + '.json';
     const trashPath = path.join(BILL_TRASH_DIR, fname);
-    if (fs.existsSync(trashPath)) fs.unlinkSync(trashPath);
+    if (fs.existsSync(trashPath)) deleteFile(trashPath);
     res.json({ success: true });
   } catch (err) { errRes(res, 500, 'server-error', err); }
 });
@@ -1580,7 +1632,7 @@ function purgeOldTrash() {
       const p = path.join(BILL_TRASH_DIR, name);
       const stat = fs.statSync(p);
       if (now - stat.mtime.getTime() > thirtyDays) {
-        try { fs.unlinkSync(p); } catch { /* ignore */ }
+        try { deleteFile(p); } catch { /* ignore */ }
       }
     }
   } catch { /* ignore */ }
@@ -2040,3 +2092,5 @@ setTimeout(() => { processDueRecurring().catch(err => logFatal(err, 'recurring')
 // often never makes extra invoices - it just stops a template due today from
 // waiting until the same time tomorrow on a PC that stays on.
 setInterval(() => { processDueRecurring().catch(err => logFatal(err, 'recurring')); }, 60 * 60 * 1000);
+
+function restoreWithDatabase(...args) { return withDatabaseClosed(DATA_DIR,()=>restoreVerifiedBackup(...args)); }

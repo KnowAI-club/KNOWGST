@@ -1,3 +1,4 @@
+import SupplierPaymentPanel from './SupplierPaymentPanel';
 import PageHeader from './PageHeader';
 import { useState, useEffect, useMemo, lazy, Suspense } from 'react';
 import { ShoppingCart, Plus, Edit3, Trash2, Search, X, Save, Download, Wand2, FileText, Eye } from 'lucide-react';
@@ -89,6 +90,7 @@ function calcPurchaseTotal(items, applyRoundOff = false) {
 // v1.10.6 — audit L4: local copy removed, imported from utils above.
 
 export default function PurchaseBills() {
+  const [paymentPurchase,setPaymentPurchase]=useState(null);
   const [purchases, setPurchases] = useState([]);
   // v1.10.65 (#58 item 3) — the business these records belong to.
   const [ownerProfile, setOwnerProfile] = useState(null);
@@ -694,6 +696,7 @@ export default function PurchaseBills() {
 
   return (
     <div className="dashboard-container">
+      {paymentPurchase&&<SupplierPaymentPanel purchase={paymentPurchase} onClose={()=>setPaymentPurchase(null)} onSaved={loadPurchases}/>}
       <PageHeader title="Purchase Bills" subtitle={<>Track supplier invoices for ITC claims in GSTR-3B</>}>
           <HelpButton title="Purchase Bills — how to use" doc="purchases">
             <ul style={{ paddingLeft: '1.1rem', margin: 0 }}>
@@ -1111,15 +1114,15 @@ export default function PurchaseBills() {
                           Dashboard." Marking a supplier bill paid took
                           opening it, changing one field and saving. */}
                       <td>
-                        <select className="status-select"
+                        {p.accountingManaged?<span>{p.paymentStatus} · Balance {formatCurrency(Math.max(0,Number(p.totalAmount)-(p.supplierPaidMinor||0)/100))}</span>:<select className="status-select"
                           value={p.paymentStatus || 'Unpaid'}
                           style={{ background: PAYMENT_STATUS_COLORS[p.paymentStatus || 'Unpaid'].bg, color: PAYMENT_STATUS_COLORS[p.paymentStatus || 'Unpaid'].color, borderColor: PAYMENT_STATUS_COLORS[p.paymentStatus || 'Unpaid'].color + '44' }}
                           onChange={e => changePaymentStatus(p, e.target.value)}>
                           {PAYMENT_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-                        </select>
+                        </select>}
                       </td>
                       <td>
-                        <div className="table-actions">
+                        <div className="table-actions"><button className="btn btn-secondary" onClick={()=>setPaymentPurchase(p)}>Payments</button>
                           {/* v1.10.30 — quick View modal (no download).
                               Modal has a Download PDF button inside for
                               users who do want the file. */}

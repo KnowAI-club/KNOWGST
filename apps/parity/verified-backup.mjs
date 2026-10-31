@@ -1,4 +1,4 @@
-import fs from 'node:fs';
+import {recordFs as fs} from './sqlite-storage.mjs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 const MANIFEST='knowgst-backup-manifest.json';

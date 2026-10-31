@@ -1,4 +1,4 @@
-import fs from "node:fs";
+import {recordFs as fs, writeSqliteRecord, commitSqliteRecords} from "./sqlite-storage.mjs";
 import path from "node:path";
 import crypto from "node:crypto";
 export function storageError(message, code = "data-corrupt", status = 503) {
@@ -22,6 +22,7 @@ export function readRecord(file, fallback = null) {
   }
 }
 export function durableWrite(file, contents) {
+  if (writeSqliteRecord(file, contents)) return;
   const temp = `${file}.${crypto.randomUUID()}.tmp`;
   let fd;
   try {
@@ -69,6 +70,7 @@ export function recoverJsonTransaction(root) {
 }
 // Stage all bytes and old versions before publishing a journal or changing live records.
 export function commitJsonBatch(root, writes, { beforeInstall } = {}) {
+  if (commitSqliteRecords(root,writes,{beforeInstall})) return;
   if (!writes.size) return;
   recoverJsonTransaction(root);
   const dir = transaction(root);

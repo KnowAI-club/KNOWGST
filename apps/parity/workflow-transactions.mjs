@@ -1,4 +1,5 @@
-import fs from "node:fs";
+import { businessOf, assertStockOwner } from "./accounting.mjs";
+import { recordFs as fs } from "./sqlite-storage.mjs";
 import path from "node:path";
 import crypto from "node:crypto";
 import {
@@ -54,7 +55,7 @@ const owner = (r) =>
   norm(r.ownerName || r.data?.profile?.businessName || r.profile?.businessName);
 const currency = (r) => r.currency || r.data?.invoiceOptions?.currency || "INR";
 const round = (n) => Math.round(n * 1000) / 1000;
-function addStock(root, writes, deltas) {
+function addStock(root, writes, deltas, businessId) {
   for (const [id, delta] of Object.entries(deltas)) {
     if (!delta) continue;
     const file = recordPath(root, "products", id),
@@ -64,6 +65,7 @@ function addStock(root, writes, deltas) {
         "A stock item is missing. Restore it before continuing.",
         "missing-product",
       );
+    assertStockOwner(root, product, businessId);
     const stock = Number(product.stock || 0) + delta;
     if (!Number.isFinite(stock))
       fail("Invalid stock quantity", "bad-request", 400);
@@ -204,7 +206,18 @@ export function planPurchase(root, input, { remove = false } = {}) {
     purchase = cleanRecord(input),
     writes = new Map();
   if (remove && !old) return { writes, result: { success: true } };
-  const products = all(root, "products"),
+  if (old?.accountingManaged) {
+    purchase.accountingManaged = true;
+    purchase.supplierPaidMinor = old.supplierPaidMinor;
+    purchase.paymentStatus = old.paymentStatus;
+  } else {
+    delete purchase.accountingManaged;
+    delete purchase.supplierPaidMinor;
+  }
+  const businessId = businessOf(root, purchase);
+  const products = all(root, "products").filter(
+      (p) => !businessId || p.businessId === businessId,
+    ),
     byId = new Map(products.map((p) => [p.id, p])),
     byName = new Map();
   for (const product of products) {
@@ -220,6 +233,7 @@ export function planPurchase(root, input, { remove = false } = {}) {
           "A stock item is missing. Restore it before continuing.",
           "missing-product",
         );
+      assertStockOwner(root, product, businessId);
       return product;
     }
     const matches = byName.get(norm(item.name)) || [];
@@ -262,6 +276,7 @@ export function planPurchase(root, input, { remove = false } = {}) {
       if (!product) {
         product = {
           id: "prod_" + crypto.randomUUID(),
+          ...(businessId ? { businessId } : {}),
           name: item.name.trim(),
           stock: 0,
           hsn: item.hsn || "",
@@ -295,7 +310,7 @@ export function planPurchase(root, input, { remove = false } = {}) {
       };
   }
   checkRevision(old, input);
-  addStock(root, writes, stockDelta(prior, next));
+  addStock(root, writes, stockDelta(prior, next), businessId);
   writes.set(
     recordPath(root, "purchases", purchase.id),
     remove ? null : purchase,
@@ -354,7 +369,12 @@ export function planInvoiceTrash(root, id, { restore = false, revision } = {}) {
           : {}),
       },
     };
-    addStock(root, writes, stockDelta({}, stockReturnedOnDelete || {}));
+    addStock(
+      root,
+      writes,
+      stockDelta({}, stockReturnedOnDelete || {}),
+      businessOf(root, bill),
+    );
     for (const receipt of _archivedReceipts || []) {
       if (current(root, "receipts", receipt.id))
         fail("A receipt with this ID already exists");
@@ -368,7 +388,7 @@ export function planInvoiceTrash(root, id, { restore = false, revision } = {}) {
     }
   } else {
     const returned = appliedStock(bill);
-    addStock(root, writes, stockDelta(returned, {}));
+    addStock(root, writes, stockDelta(returned, {}), businessOf(root, bill));
     const receipts = all(root, "receipts").filter(
       (r) => r.billId === id || payments.some((p) => p.id === r.id),
     );

@@ -1,3 +1,5 @@
+> Updated implementation: [SQLite 3.54.1 and initial accounting increment](SQLITE-ACCOUNTING.md). The JSON-storage limitations below describe the prior increment; active records now use SQLite.
+
 # Production gap review — 29 October 2026
 
 ## Source evidence

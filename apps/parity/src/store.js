@@ -4,11 +4,12 @@
 import { getFinancialYearLabel, parseLocalDate, nextCounterValue, startFor, numberSeriesFor, counterKeyFor, formatDocNumber, INVOICE_TYPES, savedPdfNameFor } from './utils';
 
 const API = '/api';
+let selectedBusiness=null;
 
 async function apiFetch(url, options = {}) {
   const res = await fetch(url, {
-    headers: { 'Content-Type': 'application/json' },
     ...options,
+    headers: { 'Content-Type': 'application/json', ...(selectedBusiness?{'x-knowgst-business':selectedBusiness}:{}), ...options.headers },
   });
   if (!res.ok) {
     // Preserve server-provided error message (used e.g. for 409 duplicate
@@ -237,11 +238,11 @@ export const purgeTrashedBill = async (id) => apiFetch(`${API}/trash/${encodeURI
 
 // ---- Profile ----
 export const saveProfile = async (profile) => {
-  return apiFetch(`${API}/profile`, { method: 'POST', body: JSON.stringify(profile) });
+  const result=await apiFetch(`${API}/profile`, { method: 'POST', body: JSON.stringify(profile) }); if(result.id){profile.id=result.id;selectedBusiness=result.id;} return result;
 };
 
 export const getProfile = async () => {
-  return apiFetch(`${API}/profile`);
+  const profile=await apiFetch(`${API}/profile`);selectedBusiness=profile?.id;return profile;
 };
 
 // ---- Saved Clients ----
@@ -281,12 +282,12 @@ export const getAllProducts = async () => {
 
 export const saveProduct = async (product) => {
   const res = await apiFetch(`${API}/products`, { method: 'POST', body: JSON.stringify(product) });
-  if (res.id) product.id = res.id;
+  if (res.product) Object.assign(product,res.product); else if (res.id) product.id = res.id;
   return product;
 };
 
-export const deleteProduct = async (id) => {
-  return apiFetch(`${API}/products/${encodeURIComponent(id)}`, { method: 'DELETE' });
+export const deleteProduct = async (id, revision) => {
+  return apiFetch(`${API}/products/${encodeURIComponent(id)}`, { method: 'DELETE',headers:{'If-Match':revision||''} });
 };
 
 // ---- Expenses ----
@@ -567,3 +568,9 @@ export const importData = async (jsonString, selection) => {
 
   return result;
 };
+
+export const getAccounting=()=>apiFetch(`${API}/accounting`);
+export const postJournal=data=>apiFetch(`${API}/accounting/journal`,{method:'POST',body:JSON.stringify(data)});
+export const postSupplierPayment=data=>apiFetch(`${API}/accounting/supplier-payments`,{method:'POST',body:JSON.stringify(data)});
+export const getUnassignedProducts=()=>apiFetch(`${API}/products?unassigned=1`);
+export const assignProduct=product=>apiFetch(`${API}/products/${encodeURIComponent(product.id)}/assign`,{method:'POST',body:JSON.stringify({revision:product._revision})});
