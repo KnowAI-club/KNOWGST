@@ -98,9 +98,14 @@ test('client creation persists through reload',async ({page})=>{
   await expect(page.locator('.main-content')).toContainText('Browser Test Client');
 });
 
-test('mobile navigation and dark theme work',async ({page})=>{
+test('mobile navigation and dark theme work',async ({page,request})=>{
+  // Preferences are shared by the test server across browser contexts.
+  // Establish light mode explicitly after earlier dark-theme checks.
+  const prefs = await request.post('/api/local-prefs',{data:{set:{freegstbill_theme:'light'}}});
+  expect(prefs.ok()).toBe(true);
   await page.setViewportSize({width:390,height:844});
   await page.goto('/?view=dashboard');
+  await expect(page.locator('html')).toHaveAttribute('data-theme','light');
   await page.getByRole('button',{name:'Open menu',exact:true}).click();
   await page.locator('.sidebar').getByRole('button',{name:'Clients',exact:true}).click();
   await expect(page.locator('.main-content')).toContainText('Clients');
