@@ -135,7 +135,14 @@ app.use((req, res, next) => {
   return (req.path === IMPORT_ROUTE ? importBody : jsonBody)(req, res, next);
 });
 
-integrationRoutes(app, RUNTIME_DIR);
+integrationRoutes(app, RUNTIME_DIR, ({month,currency}) => {
+  const businessId=activeBusiness(DATA_DIR)?.id;
+  if(!businessId || typeof month!=='string' || !/^\d{4}-(0[1-9]|1[0-2])$/.test(month) || Number(month.slice(0,4))<1900 || typeof currency!=='string' || !/^[A-Z]{3}$/.test(currency)) throw storageError('Select a business, month and currency.','bad-request',400);
+  const scoped=dir=>readAllFromDir(dir).filter(r=>businessOf(DATA_DIR,r)===businessId);
+  const summary=dashboardSummary({bills:scoped('bills'),receipts:scoped('receipts'),expenses:scoped('expenses'),purchases:scoped('purchases'),products:scoped('products'),accounting:readAccounting(DATA_DIR,businessId),month,currency,today:localToday(),stockSettings:readRecord(META_PATH)?.stockAlertSettings||{}});
+  const coverage=previewBackfill(DATA_DIR,businessId);
+  return {...summary,businessId,coverage:{ready:coverage.ready,review:coverage.review}};
+});
 
 // Ensure data directory and sub-directories exist
 const DIRS = ['bills', 'clients', 'templates', 'products', 'expenses', 'recurring', 'receipts', 'profiles', 'purchases'];

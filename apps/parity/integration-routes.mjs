@@ -1,18 +1,17 @@
+import { aiWorkspace } from "./ai-workspace.mjs";
 import { credentialStore } from "./integration-vault.mjs";
 import { chatgptOAuth } from "./chatgpt-oauth.mjs";
 import { resendEmail } from "./resend-email.mjs";
-export function integrationRoutes(app, runtime) {
+export function integrationRoutes(app, runtime, readSummary) {
   let store;
   try {
     store = credentialStore(runtime);
   } catch {
     app.use("/api/integrations", (_req, res) =>
-      res
-        .status(503)
-        .json({
-          error:
-            "Integration settings could not be read. Your billing data is unaffected. Preserve the credentials file and contact support before reconnecting.",
-        }),
+      res.status(503).json({
+        error:
+          "Integration settings could not be read. Your billing data is unaffected. Preserve the credentials file and contact support before reconnecting.",
+      }),
     );
     return;
   }
@@ -43,6 +42,11 @@ export function integrationRoutes(app, runtime) {
   route("post", "/chatgpt/disconnect", (b) => chat.disconnect(b.clientId));
   route("get", "/chatgpt/models", () => chat.models());
   route("post", "/chatgpt/ask", (b) => chat.ask(b));
+  if (readSummary) {
+    const assistant = aiWorkspace({ readSummary, chat });
+    route("post", "/ai/preview", (b) => assistant.preview(b));
+    route("post", "/ai/analyze", (b) => assistant.analyze(b));
+  }
   route("post", "/resend", (b) => mail.configure(b));
   route("post", "/resend/disconnect", () => mail.disconnect());
   route("post", "/resend/send", (b) => mail.send(b));

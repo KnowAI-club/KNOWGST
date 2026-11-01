@@ -1,0 +1,83 @@
+.ai-workspace {
+  max-width: 1200px;
+  min-width: 0;
+  margin: 0 auto;
+}
+.ai-panel {
+  padding: 24px;
+  margin-bottom: 20px;
+  min-width: 0;
+}
+.ai-panel h2 {
+  font-size: 16px;
+  margin: 0 0 16px;
+}
+.ai-panel p {
+  font-size: 13px;
+  line-height: 1.6;
+  margin: 12px 0;
+}
+.ai-fields {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 2fr;
+  gap: 16px;
+}
+.ai-fields label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  font-size: 13px;
+}
+.ai-fields input,
+.ai-fields select {
+  width: 100%;
+  min-width: 0;
+  padding: 8px;
+  color: inherit;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+}
+.ai-context {
+  max-height: 360px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  line-height: 1.6;
+  padding: 16px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+}
+.ai-consent {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 16px 0;
+  font-size: 13px;
+}
+.ai-answer {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.7;
+  margin-bottom: 20px;
+}
+.ai-links {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+@media (max-width: 800px) {
+  .ai-fields {
+    grid-template-columns: 1fr 1fr;
+  }
+  .ai-panel {
+    padding: 16px;
+  }
+}
+@media (max-width: 480px) {
+  .ai-fields {
+    grid-template-columns: 1fr;
+  }
+}

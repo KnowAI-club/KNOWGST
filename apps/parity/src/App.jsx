@@ -19,6 +19,7 @@ import { isModuleEnabled, getUpcomingFilings, countsAsSales, localToday, toLocal
 // Result: smaller initial JS payload; each heavy view chunk-caches
 // once fetched.
 import Dashboard from './components/Dashboard';
+import AiWorkspace from './components/AiWorkspace';
 import DashboardOverview from './components/DashboardOverview';
 import InvoiceGenerator from './components/InvoiceGenerator';
 import SetupWizard from './components/SetupWizard';
@@ -75,7 +76,7 @@ function App() {
       const params = new URLSearchParams(window.location.search);
       const v = params.get('view');
       // v1.10.74 - 'controlpanel' added so ?view=controlpanel deep links work too.
-      const valid = ['dashboard', 'invoices', 'new', 'clients', 'inventory', 'expenses', 'purchases', 'recurring', 'receipts', 'reports', 'filing', 'incometax', 'settings', 'controlpanel', 'support'];
+      const valid = ['ai', 'dashboard', 'invoices', 'new', 'clients', 'inventory', 'expenses', 'purchases', 'recurring', 'receipts', 'reports', 'filing', 'incometax', 'settings', 'controlpanel', 'support'];
       if (v && valid.includes(v)) {
         // Strip the query string so a refresh doesn't keep snapping back to
         // the shortcut target — only the *first* navigation honours it.
@@ -532,6 +533,7 @@ function App() {
   const [openSidebarGroups, setOpenSidebarGroups] = useState({});
   const navigateDashboard=(view,options={})=>{setDashboardTarget(options);setCurrentView(view);};
   const navItems = [
+    { id: 'ai', icon: HelpCircle, label: 'AI assistant', module: 'dashboard' },
     { id: 'dashboard', icon: Home, label: 'Dashboard', module: 'dashboard' },
     { id: 'invoices', icon: FileText, label: 'Invoices', module: 'invoicing' },
     { id: 'new', icon: Plus, label: 'New Invoice', onClick: handleNewInvoice, module: 'invoicing' },
@@ -882,7 +884,7 @@ function App() {
 
         <nav className="sidebar-nav" aria-label="Main navigation">
           {[
-            ['Overview', ['dashboard']],
+            ['Overview', ['dashboard', 'ai']],
             ['Sales', ['invoices', 'new', 'clients', 'receipts', 'recurring']],
             ['Purchases & stock', ['purchases', 'expenses', 'inventory']],
             ['Accounting & tax', ['reports', 'filing', 'incometax']],
@@ -1018,6 +1020,7 @@ function App() {
         </div>
       )}
       <div className="main-content" data-view={currentView}>
+        {currentView === 'ai' && <AiWorkspace activeProfile={profile} onNavigate={navigateDashboard} />}
         {currentView === 'dashboard' && <DashboardOverview activeProfile={profile} onNavigate={navigateDashboard} onNew={handleNewInvoice} />}
         {currentView === 'invoices' && (
           <Dashboard initialSearch={dashboardTarget.search || ''} initialStatus={dashboardTarget.status || 'all'} onNew={handleNewInvoice} onEdit={handleEditInvoice} onPrint={handlePrintInvoice} onDuplicate={handleDuplicateInvoice} onConvert={handleConvertToInvoice} onOpenProducts={() => setCurrentView('inventory')} onOpenSettings={() => setCurrentView('settings')} onOpenGuide={openDocs} onOpenSupport={() => setCurrentView('support')} activeProfile={profile} />

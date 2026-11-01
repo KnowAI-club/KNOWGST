@@ -326,6 +326,22 @@ export const pages = [
     "view": null
   },
   {
+    "id": "ai-assistant",
+    "title": "AI assistant",
+    "group": "Workspace",
+    "intro": "Review monthly totals, understand bookkeeping review counts and prepare payment-reminder templates using your connected ChatGPT account.",
+    "steps": [
+      "Connect your eligible ChatGPT account in Settings → Integrations.",
+      "Open Overview → AI assistant. Select a task, month, currency and model.",
+      "Choose Preview data to share. Read the complete request and aggregate summary.",
+      "Tick the consent checkbox and generate a review. A preview expires after five minutes.",
+      "Check suggestions against your records. Copy reminder drafts and replace placeholders yourself; nothing is sent automatically."
+    ],
+    "notes": "Only aggregate totals and counts are shared, without customer names, tax IDs or individual records. AI output can be incorrect. No financial records are changed. The screenshot uses fictional local data and a simulated model catalog; it does not demonstrate a live provider response.",
+    "screen": "ai-assistant",
+    "view": "ai"
+  },
+  {
     "id": "limitations",
     "title": "Release scope",
     "group": "Help",
@@ -335,7 +351,7 @@ export const pages = [
       "Keep independent backups and validate financial exports before external use.",
       "Track release evidence and remaining work in the repository documentation."
     ],
-    "notes": "This is not a claim of exhaustive parity or production certification. Hosted authentication, PostgreSQL migration, packaged macOS builds, live integration validation, broader security/accessibility work and AI remain unfinished. KNOWGST is GPL-3.0-only with retained upstream MIT notices.",
+    "notes": "This is not a claim of exhaustive parity or production certification. Hosted authentication, PostgreSQL migration, packaged macOS builds, live integration validation, broader security/accessibility work and broader AI workflows remain unfinished. KNOWGST is GPL-3.0-only with retained upstream MIT notices.",
     "screen": null,
     "view": null
   }
