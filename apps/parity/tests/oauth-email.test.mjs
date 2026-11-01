@@ -153,6 +153,7 @@ test("OAuth validates callback, uses issued client and PKCE, preserves host and 
       });
     if (url.endsWith("/responses")) {
       lastRequest = JSON.parse(options.body);
+      if(lastRequest.input[0].content==="empty")return new Response('data: {"type":"response.completed"}\n\n');
       return new Response(
         'data: {"type":"response.output_text.delta","delta":"Read-only answer"}\n\ndata: {"type":"response.completed"}\n\n',
       );
@@ -195,6 +196,11 @@ test("OAuth validates callback, uses issued client and PKCE, preserves host and 
   assert.equal(lastRequest.stream, true);
   assert.equal(lastRequest.input[0].content, "Explain bookkeeping");
   assert.equal(lastRequest.tools, undefined);
+  await chat.ask({model:"available-model",prompt:"Read invoice"},{image:"data:image/png;base64,test"});
+  assert.deepEqual(lastRequest.input[0].content,[{type:"input_text",text:"Read invoice"},{type:"input_image",image_url:"data:image/png;base64,test",detail:"high"}]);
+  assert.equal(lastRequest.store,false);
+  assert.equal(lastRequest.stream,true);
+  await assert.rejects(chat.ask({model:"available-model",prompt:"empty"}),/no readable answer/);
   authURL = new URL((await chat.start("oaiapp_test")).url);
   assert.equal(authURL.searchParams.get("ext_agent_host_id"), host);
   assert.equal(authURL.searchParams.get("client_id"), "oaiapp_test");

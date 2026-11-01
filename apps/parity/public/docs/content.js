@@ -306,7 +306,7 @@ export const pages = [
       "Configure Google Drive only if you want to send backup data to that provider. Verify authorization and the uploaded result.",
       "Review a WhatsApp draft and its saved-client recipient before sending it yourself. On desktop, the PDF downloads for you to attach manually."
     ],
-    "notes": "Local OCR has automated extraction coverage. Live Drive authorization, real delivery and third-party account behavior remain unverified. AI and expanded messaging integrations are planned, not shipped.",
+    "notes": "ChatGPT bill extraction and email draft flows have automated tests with simulated provider responses. Live ChatGPT, Drive authorization and actual email delivery require your connected accounts. Product matching and financial calculations stay local.",
     "screen": "purchases",
     "view": "purchases"
   },
@@ -335,11 +335,28 @@ export const pages = [
       "Open Overview → AI assistant. Select a task, month, currency and model.",
       "Choose Preview data to share. Read the complete request and aggregate summary.",
       "Tick the consent checkbox and generate a review. A preview expires after five minutes.",
-      "Check suggestions against your records. Copy reminder drafts and replace placeholders yourself; nothing is sent automatically."
+      "Check suggestions against your records. Copy reminder drafts and replace placeholders yourself; nothing is sent automatically.",
+      "Use Ask about your business records for a specific invoice, party or item. Approve record access; the assistant searches one module and shows source coverage. Open the source register to verify."
     ],
-    "notes": "Only aggregate totals and counts are shared, without customer names, tax IDs or individual records. AI output can be incorrect. No financial records are changed. The screenshot uses fictional local data and a simulated model catalog; it does not demonstrate a live provider response.",
+    "notes": "Summary tasks share aggregate totals and counts. Record questions can share relevant party, tax and financial details from the active business after your approval. Credentials, attachments and other businesses are excluded. Searches return up to five matches; narrow your question if more exist. No records are changed. Screenshots use fictional data and simulated provider responses.",
     "screen": "ai-assistant",
     "view": "ai"
+  },
+  {
+    "id": "bill-ocr",
+    "title": "Scan a purchase bill",
+    "group": "Purchases & stock",
+    "intro": "Read a supplier invoice with your connected ChatGPT account, then review it in the existing purchase form.",
+    "steps": [
+      "Open Purchases → Import from image (OCR). Scanning uses ChatGPT; manual purchase entry remains available.",
+      "Choose a PNG, JPEG or WebP image up to 3 MB.",
+      "Connect your eligible account in Settings → Integrations, choose an image-capable model, and approve sharing the selected image. The whole image is sent, including any visible private details.",
+      "Review supplier, date, invoice number, quantities, rates, GST and cess against the image. Confirm or remove each linked product.",
+      "Resolve any item-cess mismatch. Choose Use these values to populate a purchase draft, then review and Save. Stock changes only on Save."
+    ],
+    "notes": "Product matching stays local. An ambiguous match is left unlinked; changing an item name clears its old link. Fixed-amount cess needs manual handling. ChatGPT may be unavailable for your model/account; enter the purchase manually if needed. Screenshot uses a simulated provider response and fictional data.",
+    "screen": "ocr-chatgpt",
+    "view": "purchases"
   },
   {
     "id": "limitations",

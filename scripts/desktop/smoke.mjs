@@ -227,49 +227,9 @@ try {
     return route.abort();
   });
   await page.goto(new URL(page.url()).origin + "/?view=purchases");
-  const image = await page.evaluate(() => {
-    const canvas = document.createElement("canvas");
-    canvas.width = 1400;
-    canvas.height = 700;
-    const ctx = canvas.getContext("2d");
-    ctx.fillStyle = "white";
-    ctx.fillRect(0, 0, 1400, 700);
-    ctx.fillStyle = "black";
-    ctx.font = "40px Arial";
-    [
-      "EXAMPLE SUPPLIER",
-      "Invoice No: TEST-123",
-      "Date: 29/10/2026",
-      "Taxable Amount: 1000.00",
-      "CGST: 90.00",
-      "SGST: 90.00",
-      "Grand Total: 1180.00",
-    ].forEach((line, i) => ctx.fillText(line, 50, 70 + i * 80));
-    return canvas.toDataURL("image/png").split(",")[1];
-  });
-  await page
-    .getByRole("button", { name: "Import from image (OCR)", exact: true })
-    .click();
-  await page
-    .locator('input[type=file][accept="image/*"]')
-    .setInputFiles({
-      name: "synthetic-invoice.png",
-      mimeType: "image/png",
-      buffer: Buffer.from(image, "base64"),
-    });
-  await page
-    .getByRole("button", { name: "Extract fields", exact: true })
-    .click();
-  await expect(
-    page.getByRole("heading", { name: "Extracted fields", exact: true }),
-  ).toBeVisible({ timeout: 60000 });
-  await expect(
-    page
-      .locator(".modal-overlay label")
-      .filter({ hasText: /^Invoice No\.$/ })
-      .locator("..")
-      .locator("input"),
-  ).toHaveValue("TEST-123");
+  await page.getByRole('button',{name:'Import from image (OCR)',exact:true}).click();
+  await expect(page.getByLabel('Send this image to ChatGPT for extraction')).toBeVisible();
+  await expect(page.getByLabel('OCR method')).toHaveCount(0);
   expect(external).toEqual([]);
   await page.goto(new URL(page.url()).origin + "/docs/");
   await expect(page.locator("body")).toContainText("KNOWGST");
@@ -291,7 +251,7 @@ try {
           "restart persistence",
           "bundled guide",
           "sandboxed report window",
-          "bundled offline OCR",
+          "ChatGPT extraction consent UI (no live inference)",
         ],
         passed: true,
       },

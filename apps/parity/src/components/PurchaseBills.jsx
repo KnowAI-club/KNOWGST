@@ -1,3 +1,4 @@
+import { purchaseOCRItems } from '../utils/ocr-purchase.mjs';
 import SupplierPaymentPanel from './SupplierPaymentPanel';
 import PageHeader from './PageHeader';
 import { useState, useEffect, useMemo, lazy, Suspense } from 'react';
@@ -27,9 +28,7 @@ function getAccentRGB() {
   return [30, 64, 175];
 }
 
-// v1.10.22 — Purchase-bill OCR modal. Lazy-loaded because tesseract.js is
-// ~2MB gzipped; we only pay the download cost when the user actually
-// opens the OCR flow.
+// Load the bill-extraction editor only when requested.
 const BillOCR = lazy(() => import('./BillOCR'));
 
 const PAYMENT_STATUSES = ['Unpaid', 'Paid', 'Partial'];
@@ -117,17 +116,8 @@ export default function PurchaseBills() {
     setEditingId(null);
     let items;
     if (Array.isArray(extracted.items) && extracted.items.length > 0) {
-      // Trust the OCR-extracted line items. Strip the internal match
-      // metadata (_matchedProductId etc.) since the purchase form
-      // doesn't consume it.
-      items = extracted.items.map(it => ({
-        name: it.name || '',
-        hsn: it.hsn || '',
-        quantity: Number(it.quantity) || 1,
-        rate: Number(it.rate) || 0,
-        taxPercent: Number(it.taxPercent) || 0,
-        cessPercent: 0,
-      }));
+      // Preserve reviewed product links and cess in the purchase draft.
+      items = purchaseOCRItems(extracted);
     } else if (extracted.grandTotal > 0) {
       // Legacy fallback — no line items detected, seed a single-row
       // placeholder from the grand total so the user has something to
@@ -701,7 +691,7 @@ export default function PurchaseBills() {
           <HelpButton title="Purchase Bills — how to use" doc="purchases">
             <ul style={{ paddingLeft: '1.1rem', margin: 0 }}>
               <li><strong>Add Purchase</strong> — record every supplier tax invoice you receive. The GST paid becomes your ITC (input tax credit) in GSTR-3B.</li>
-              <li><strong>Import from image (OCR)</strong> — snap the supplier's invoice with your phone. The app reads the supplier, GSTIN, invoice number, date, total and the item lines it can find, all on your computer. Check every field before saving.</li>
+              <li><strong>Import from image (OCR)</strong> — snap the supplier's invoice with your phone. The app reads the supplier, GSTIN, invoice number, date, total and the item lines it can find, using your connected ChatGPT account after you approve sharing the image. Check every field before saving.</li>
               <li><strong>Interstate toggle</strong> — flip ON when the supplier is in a different state (they charged IGST) so ITC routes correctly.</li>
               <li><strong>Payment status</strong> — Unpaid / Partial / Paid drives the "amount payable to suppliers" report.</li>
               <li><strong>Print / PDF</strong>, <strong>Excel</strong> and <strong>CSV</strong> above the list: the purchase register with totals, for your CA at return time.</li>
@@ -716,7 +706,7 @@ export default function PurchaseBills() {
         </div>
       </PageHeader>
 
-      {/* v1.10.22 — Bill OCR modal (tesseract.js, lazy-loaded). */}
+      {/* ChatGPT bill extraction, lazy-loaded. */}
       {showOCR && (
         <Suspense fallback={<div className="modal-overlay"><div className="modal-content" style={{ maxWidth: 320, textAlign: 'center' }}>Loading OCR…</div></div>}>
           <BillOCR onClose={() => setShowOCR(false)} onExtracted={applyOCR} />

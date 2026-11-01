@@ -109,3 +109,81 @@ test("AI preview uses actual scoped totals, consent gates inference and layout f
   await page.getByLabel("Month", { exact: true }).fill("2026-10");
   await expect(page.locator(".ai-answer")).toHaveCount(0);
 });
+
+test("business record questions require consent and show source coverage", async ({
+  page,
+  request,
+}) => {
+  await request.post("/api/profile", {
+    data: {
+      id: "records-ai",
+      businessName: "Records AI",
+      country: "India",
+      state: "Maharashtra",
+    },
+  });
+  await request.post("/api/local-prefs", {
+    data: {
+      set: {
+        gst_printSettings: JSON.stringify({ onboardingComplete: true }),
+        freegstbill_onboarded: "true",
+      },
+    },
+  });
+  expect(
+    (
+      await request.post("/api/integrations/ai/records", {
+        data: {
+          businessId: "another-business",
+          question: "Show invoices",
+          model: "m",
+          consent: true,
+        },
+      })
+    ).status(),
+  ).toBe(409);
+  expect(
+    (
+      await request.post("/api/integrations/ai/records", {
+        data: {
+          businessId: "records-ai",
+          question: "Show invoices",
+          model: "m",
+          consent: false,
+        },
+      })
+    ).status(),
+  ).toBe(400);
+  await page.route("**/api/integrations/chatgpt/models", (r) =>
+    r.fulfill({ json: [{ id: "m", name: "Test model" }] }),
+  );
+  await page.route("**/api/integrations/ai/records", (r) => {
+    expect(r.request().postDataJSON().consent).toBe(true);
+    return r.fulfill({
+      json: {
+        text: "Invoice TEST-1 needs review.",
+        sources: [{ id: "one", module: "bills", reference: "TEST-1" }],
+        coverage: { module: "bills", total: 8, returned: 1, more: true },
+      },
+    });
+  });
+  await page.goto("/?view=ai");
+  await page.getByLabel("Business records question").fill("Find TEST-1");
+  const ask = page.getByRole("button", {
+    name: "Ask about records",
+    exact: true,
+  });
+  await expect(ask).toBeDisabled();
+  await page
+    .getByLabel(
+      "Allow ChatGPT to search and read relevant records in this business for this question",
+    )
+    .check();
+  await ask.click();
+  await expect(page.locator(".ai-answer")).toContainText("TEST-1");
+  await expect(page.getByText(/Source coverage: 1 of 8/)).toBeVisible();
+  await page.getByRole("button", { name: "Open source register" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Invoices", exact: true, level: 1 }),
+  ).toBeVisible();
+});

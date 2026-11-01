@@ -65,26 +65,6 @@ test('reports reconcile signed sales, expenses, currency, cancelled and non-sale
   }
 });
 
-test('OCR reads a synthetic invoice using only bundled local assets',async({page})=>{
-  test.setTimeout(90000);
-  const external:string[]=[];
-  await page.route(/^https?:\/\/(?!127\.0\.0\.1)/,route=>{external.push(route.request().url());return route.abort();});
-  await page.goto('/?view=purchases');
-  const data=await page.evaluate(()=>{
-    const canvas=document.createElement('canvas');canvas.width=1400;canvas.height=700;
-    const ctx=canvas.getContext('2d')!;ctx.fillStyle='white';ctx.fillRect(0,0,1400,700);ctx.fillStyle='black';ctx.font='40px Arial';
-    ['EXAMPLE SUPPLIER','Invoice No: TEST-123','Date: 29/10/2026','Taxable Amount: 1000.00','CGST: 90.00','SGST: 90.00','Grand Total: 1180.00'].forEach((line,i)=>ctx.fillText(line,50,70+i*80));
-    return canvas.toDataURL('image/png').split(',')[1]!;
-  });
-  await page.getByRole('button',{name:'Import from image (OCR)',exact:true}).click();
-  await page.locator('input[type=file][accept="image/*"]').setInputFiles({name:'synthetic-invoice.png',mimeType:'image/png',buffer:Buffer.from(data,'base64')});
-  await page.getByRole('button',{name:'Extract fields',exact:true}).click();
-  await expect(page.getByRole('heading',{name:'Extracted fields',exact:true})).toBeVisible({timeout:60000});
-  await expect(page.locator('.modal-overlay label').filter({hasText:/^Invoice No\.$/}).locator('..').locator('input')).toHaveValue('TEST-123');
-  await expect(page.locator('.modal-overlay label').filter({hasText:/^Grand total$/}).locator('..').locator('input')).toHaveValue('1180');
-  expect(external).toEqual([]);
-});
-
 test('GST exports reconcile taxable sales and exclude estimates and cancelled invoices',async({page})=>{
   const today=new Date().toISOString().slice(0,10);
   const gstProfile={...profile,gstin:'27AAPFU0939F1ZV'};

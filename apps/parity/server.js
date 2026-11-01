@@ -142,6 +142,15 @@ integrationRoutes(app, RUNTIME_DIR, ({month,currency}) => {
   const summary=dashboardSummary({bills:scoped('bills'),receipts:scoped('receipts'),expenses:scoped('expenses'),purchases:scoped('purchases'),products:scoped('products'),accounting:readAccounting(DATA_DIR,businessId),month,currency,today:localToday(),stockSettings:readRecord(META_PATH)?.stockAlertSettings||{}});
   const coverage=previewBackfill(DATA_DIR,businessId);
   return {...summary,businessId,coverage:{ready:coverage.ready,review:coverage.review}};
+}, (expectedBusinessId,module) => {
+  const profile=activeBusiness(DATA_DIR),businessId=profile?.id;
+  if(!businessId||businessId!==expectedBusinessId)throw storageError('Business changed. Ask again in the correct business.','conflict',409);
+  if(module==='profile')return [profile];
+  const directories=['bills','clients','products','purchases','expenses','receipts','recurring'];
+  if(directories.includes(module))return readAllFromDir(module).filter(r=>businessOf(DATA_DIR,r)===businessId);
+  const fields={journal:'entries',audit:'audit',stockMovements:'movements',supplierPayments:'supplierPayments'};
+  if(!Object.hasOwn(fields,module))throw storageError('Unsupported record module.','bad-request',400);
+  return readAccounting(DATA_DIR,businessId)[fields[module]]||[];
 });
 
 // Ensure data directory and sub-directories exist

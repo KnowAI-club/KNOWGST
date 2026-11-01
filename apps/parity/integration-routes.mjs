@@ -1,8 +1,10 @@
+import { recordAssistant } from "./ai-records.mjs";
+import { extractBill } from "./ocr-extraction.mjs";
 import { aiWorkspace } from "./ai-workspace.mjs";
 import { credentialStore } from "./integration-vault.mjs";
 import { chatgptOAuth } from "./chatgpt-oauth.mjs";
 import { resendEmail } from "./resend-email.mjs";
-export function integrationRoutes(app, runtime, readSummary) {
+export function integrationRoutes(app, runtime, readSummary, readModule) {
   let store;
   try {
     store = credentialStore(runtime);
@@ -41,7 +43,10 @@ export function integrationRoutes(app, runtime, readSummary) {
   });
   route("post", "/chatgpt/disconnect", (b) => chat.disconnect(b.clientId));
   route("get", "/chatgpt/models", () => chat.models());
+  route("post", "/chatgpt/ocr", (b) => extractBill(chat, b));
   route("post", "/chatgpt/ask", (b) => chat.ask(b));
+  if (readModule)
+    route("post", "/ai/records", recordAssistant({ chat, readModule }));
   if (readSummary) {
     const assistant = aiWorkspace({ readSummary, chat });
     route("post", "/ai/preview", (b) => assistant.preview(b));
