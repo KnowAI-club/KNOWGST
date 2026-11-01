@@ -461,85 +461,28 @@ export function formatDate(dateStr, settings) {
 // Each preset patches printSettings with a common baseline for that vertical.
 // User can still tweak everything afterwards.
 // ============================================================================
+const BUSINESS_PRINT_BASE = {
+  pdfTemplate: 'modern', activePresetId: 'modern', userColorsEnabled: true,
+  pdfPrimaryText: '#242824', pdfMutedText: '#626862', pdfAccent: '#343c34',
+  pdfAccentText: '#ffffff', pdfHeaderBg: '#f4f5f2', pdfDividerColor: '#dfe2dc',
+  fontFamily: 'sans', fontWeight: 'normal', fontSize: 'medium',
+  allCaps: false, headerAlign: 'left', lineSpacing: 'normal',
+  showHSN: true, showRateLine: true, showAmountWords: true,
+  autoPrintOnSave: false, multiCopyEnabled: false, multiCopyCount: 1,
+  invoiceQrEnabled: false, signatureShow: true, labelLanguage: 'en',
+};
 export const BUSINESS_PRESETS = {
-  retail_shop: {
-    label: '🛒 Retail Shop / Kirana',
-    hint: 'Small retail counter · thermal receipt · quick print',
-    patch: {
-      pdfTemplate: 'modern',
-      fontSize: 'medium', fontWeight: 'bold', allCaps: true,
-      autoPrintOnSave: true,
-      showRateLine: true, showHSN: false,
-      footerMessage: 'Thank you! Visit again!',
-      cutMark: true, feedLines: 2,
-      labelLanguage: 'en',
-    },
-  },
-  freelancer: {
-    label: '💻 Freelancer / Consultant',
-    hint: 'A4 PDF · monthly retainer · professional feel',
-    patch: {
-      pdfTemplate: 'minimalist',
-      showHSN: true, showAmountWords: true, showRateLine: true,
-      pageNumbersEnabled: true, pageHeaderEnabled: true,
-      pdfFontFamily: 'helvetica',
-      pdfQuality: 'standard',
-      labelLanguage: 'en',
-    },
-  },
-  restaurant: {
-    label: '🍽 Restaurant / Cafe / Bar',
-    hint: '80mm thermal · compact receipt · UPI QR prominent',
-    patch: {
-      pdfTemplate: 'modern',
-      fontSize: 'medium', fontWeight: 'bold', allCaps: false,
-      autoPrintOnSave: true,
-      showHSN: false, showRateLine: false, showAmountWords: false,
-      showUPI: true, qrSize: 'large',
-      cutMark: true, feedLines: 3,
-      footerMessage: 'Thanks for dining with us!',
-    },
-  },
-  wholesale: {
-    label: '📦 Wholesale / Trading',
-    hint: 'A5 landscape · multi-copy · GST rule 48 compliant',
-    patch: {
-      pdfTemplate: 'classic',
-      multiCopyEnabled: true, multiCopyCount: 3,
-      showHSN: true, showAmountWords: true,
-      pdfDarkenOnPrint: true,
-      pdfQuality: 'standard',
-      labelLanguage: 'en',
-    },
-  },
-  manufacturer: {
-    label: '🏭 Manufacturing',
-    hint: 'A4 · detailed items · e-Way Bill ready · multi-page headers',
-    patch: {
-      pdfTemplate: 'corporate',
-      showHSN: true, showAmountWords: true, showRateLine: true,
-      pageNumbersEnabled: true, pageHeaderEnabled: true,
-      invoiceQrEnabled: true,
-      multiCopyEnabled: true, multiCopyCount: 3,
-    },
-  },
-  service: {
-    label: '🛠 Service / Repair Shop',
-    hint: 'A5 portrait · single copy · signature line prominent',
-    patch: {
-      pdfTemplate: 'classic',
-      showHSN: false, showAmountWords: true,
-      signatureShow: true,
-      pdfFontFamily: 'helvetica',
-      labelLanguage: 'en',
-    },
-  },
+  retail_shop: { label: 'Retail & Kirana', hint: 'Item quantities, HSN and payment details. A4 or thermal paper.', patch: { ...BUSINESS_PRINT_BASE, footerMessage: 'Thank you for your business.' } },
+  wholesale: { label: 'Wholesale & Distribution', hint: 'Detailed goods invoices with HSN, quantities and tax breakdowns.', patch: { ...BUSINESS_PRINT_BASE, pdfTemplate: 'classic', activePresetId: 'classic', pageHeaderEnabled: true } },
+  manufacturer: { label: 'Manufacturing', hint: 'Goods, dispatch references and multi-page item tables.', patch: { ...BUSINESS_PRINT_BASE, pageHeaderEnabled: true, pageNumbersEnabled: true } },
+  freelancer: { label: 'Professional Services & Consulting', hint: 'Service descriptions, SAC and payment terms.', patch: { ...BUSINESS_PRINT_BASE, pdfTemplate: 'minimalist', activePresetId: 'minimalist' } },
+  service: { label: 'Repair & Maintenance', hint: 'Labour and spare parts on the same invoice.', patch: { ...BUSINESS_PRINT_BASE } },
+  restaurant: { label: 'Restaurant & Cafe', hint: 'Compact item details and payment information. Check your GST scheme separately.', patch: { ...BUSINESS_PRINT_BASE, lineSpacing: 'compact', showUPI: true, footerMessage: 'Thank you for visiting.' } },
 };
 
 export function applyBusinessPreset(currentSettings, presetKey) {
   const preset = BUSINESS_PRESETS[presetKey];
-  if (!preset) return currentSettings;
-  return { ...currentSettings, ...preset.patch };
+  return preset ? { ...currentSettings, ...preset.patch } : currentSettings;
 }
 
 // Sample invoice for the Test Print button — uses the user's real business
@@ -562,9 +505,9 @@ export const buildSampleInvoice = (profile) => ({
   ],
   totals: {
     subtotal: 950, totalDiscount: 0, taxableAmount: 950,
-    cgst: 90, sgst: 90, igst: 0, cess: 0,
+    cgst: 78, sgst: 78, igst: 0, cess: 0,
     tcsAmount: 0, tdsAmount: 0, roundOff: 0,
-    total: 1130,
+    total: 1106,
   },
   invoiceType: 'tax-invoice',
 });

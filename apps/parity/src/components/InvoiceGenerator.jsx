@@ -1,3 +1,4 @@
+import { gstLayoutField } from '../utils/gstLayout';
 import PageHeader from './PageHeader';
 import { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
 import { ArrowLeft, Plus, Trash2, Download, UserPlus, Pencil, Settings, ChevronUp, ChevronDown, MessageCircle, Check, Loader, Truck, Printer, Eye, EyeOff } from 'lucide-react';
@@ -661,6 +662,10 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
       return { ...DEFAULT_OPTIONS, ...persisted, ...(draft?.invoiceOptions || {}) };
     } catch { return draft?.invoiceOptions || { ...DEFAULT_OPTIONS }; }
   });
+  useEffect(() => {
+    const required = Object.keys(DEFAULT_OPTIONS).filter(key => gstLayoutField(profile, invoiceType, key) && invoiceOptions[key] === false);
+    if (required.length) setInvoiceOptions(prev => ({ ...prev, ...Object.fromEntries(required.map(key => [key, true])) }));
+  }, [profile?.country, invoiceType, invoiceOptions]);
   const [showOptions, setShowOptions] = useState(false);
   // v1.10.36 — Portal-based print preview modal state. Only opens for
   // thermal receipts; A4 users hit Print → OS dialog directly since the
@@ -3789,7 +3794,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
                     ['showSignatoryText', 'Show "Authorized Signatory" caption'],
                     ['showTerms', 'Terms & Conditions'],
                     ['showNotes', 'Notes / Remarks'],
-                    ['showSystemGeneratedNote', 'Note: system-generated invoice, no signature or stamp required'],
+                    ['showSystemGeneratedNote', 'Note: electronically generated invoice'],
                     ['showDeclaration', 'Declaration'],
                     ['showCustomerSeal', "\"Customer's Seal and Signature\" box (Boxed grid / Tally style)"],
                   ]},
@@ -3908,10 +3913,11 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
                           // These default to OFF; everything else defaults to ON.
                           // v1.10.70 - showSystemGeneratedNote added: without it the box
                           // showed ticked while the invoice printed no note.
-                          const checked = invoiceOptionOn(invoiceOptions, key);
+                          const requiredParticular = gstLayoutField(profile, invoiceType, key);
+                          const checked = requiredParticular || invoiceOptionOn(invoiceOptions, key);
                           return (
                             <label key={key} className="option-toggle">
-                              <input type="checkbox" checked={checked} onChange={() => toggleOption(key)} />
+                              <input type="checkbox" checked={checked} disabled={requiredParticular} title={requiredParticular ? "Retained in the standard Indian invoice layout" : undefined} onChange={() => toggleOption(key)} />
                               <span>{label}</span>
                             </label>
                           );

@@ -16,7 +16,7 @@ const NEUTRAL_PRINT = {
   headerAlign: 'left', headerCaps: false, contrast: 'normal', pdfFontScale: 1,
 };
 const DESIGN_PRESETS = [
-  { id: 'modern', name: 'Essential', icon: '', description: 'Clear sections, quiet rules and a readable total.', tag: 'Everyday invoices', settings: { ...NEUTRAL_PRINT, pdfTemplate: 'modern' } },
+  { id: 'modern', name: 'GST Standard', icon: '', description: 'Clear sections, quiet rules and a readable total.', tag: 'Everyday invoices', settings: { ...NEUTRAL_PRINT, pdfTemplate: 'modern' } },
   { id: 'minimalist', name: 'Simple', icon: '', description: 'An open layout with generous space and minimal borders.', tag: 'Services & consulting', settings: { ...NEUTRAL_PRINT, pdfTemplate: 'minimalist', lineSpacing: 'comfortable' } },
   { id: 'classic', name: 'Compact', icon: '', description: 'A concise header and dense, easy-to-scan item rows.', tag: 'Detailed invoices', settings: { ...NEUTRAL_PRINT, pdfTemplate: 'classic', lineSpacing: 'compact' } },
 ];
@@ -265,8 +265,8 @@ export default function PrintSettings() {
         marginBottom: '1rem',
       }}>
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: '0.6rem', gap: '0.5rem', flexWrap: 'wrap' }}>
-          <strong style={{ fontSize: '0.9rem' }}>⚡ Business type <span style={{ fontSize: '0.65rem', fontWeight: 500, color: 'var(--text-muted)', marginLeft: 6 }}>sets up to a dozen settings to match your workflow</span></strong>
-          <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Pick this first. Every setting below is still editable.</span>
+          <strong style={{ fontSize: '0.9rem' }}>Business type <span style={{ fontSize: '0.65rem', fontWeight: 500, color: 'var(--text-muted)', marginLeft: 6 }}>goods, services and mixed businesses</span></strong>
+          <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Sets print defaults, not GST registration or tax rates.</span>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.5rem' }}>
           {Object.entries(BUSINESS_PRESETS).map(([key, preset]) => {
@@ -880,7 +880,7 @@ export default function PrintSettings() {
           <SettingGroup title="PDF template style (visual design)">
             <SelectRow label="Template" value={settings.pdfTemplate} onChange={v => set({ pdfTemplate: v })}
               options={[
-                ['modern', 'Essential (clean header · default)'],
+                ['modern', 'GST Standard (clean header · default)'],
                 ['classic', 'Classic (professional / conservative)'],
                 ['minimal', 'Minimal (clean / whitespace)'],
                 ['corporate', 'Corporate (formal layout)'],

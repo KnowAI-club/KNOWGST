@@ -3491,3 +3491,7 @@ html:not([data-theme="dark"]) .mobile-topbar-btn { background: rgba(15, 23, 42, 
 .invoice-preview-container:not(.paper-thermal) .inv-total-modern * {
   color: inherit !important;
 }
+
+/* Neutral supply labels remain legible in colour and monochrome print. */
+.invoice-preview-container .inv-tax-badge { background: #f1f3ef; color: #343c34; border: 1px solid #dfe2dc; }
+.invoice-preview-container .inv-signature { min-width: 180px; break-inside: avoid; }

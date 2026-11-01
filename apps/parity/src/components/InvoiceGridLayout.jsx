@@ -380,7 +380,7 @@ function TallyLayout({ ctx }) {
         <div style={{ padding: '4px 6px', borderTop: B }}><Signature ctx={ctx} /></div>
       </div>
       <div {...blockProps} style={{ textAlign: 'center', marginTop: 4, ...small }}>
-        {ctx.showSystemGeneratedNote ? 'This is a computer generated invoice. No signature or stamp is required.' : 'This is a Computer Generated Invoice'}
+        {ctx.showSystemGeneratedNote ? 'This invoice was generated electronically.' : 'This is a Computer Generated Invoice'}
       </div>
     </div>
   );
@@ -531,7 +531,7 @@ function BoxedLayout({ ctx }) {
           <div style={{ minWidth: 190 }}><Signature ctx={ctx} /></div>
         </div>
         <div {...blockProps} style={{ textAlign: 'center', borderTop: B, padding: '3px 6px', ...small, fontStyle: 'italic' }}>
-          {ctx.showSystemGeneratedNote ? 'This is a computer generated document. No signature or stamp is required.' : 'This is a computer generated document.'}
+          {ctx.showSystemGeneratedNote ? 'This document was generated electronically.' : 'This is a computer generated document.'}
         </div>
       </div>
     </div>

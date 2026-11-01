@@ -1,8 +1,9 @@
+import { gstLayoutField } from '../utils/gstLayout';
 import React, { useState, useEffect } from 'react';
 import QRCode from 'qrcode';
 import SignatureImages from './SignatureImages';
 import DOMPurify from 'dompurify';
-import { numberToWords, printedSubtotal, formatCurrency, INVOICE_TYPES, getCountryConfig, CURRENCY_NAMES, formatExchangeRateLine, getAccountById, getPaperSize, resolveLineDiscount, htmlHasText, splitNumberedTerms, invoiceOptionOn, DEFAULT_DECLARATION, filledOrderDetails, formatShortDate } from '../utils';
+import { getStateCode, numberToWords, printedSubtotal, formatCurrency, INVOICE_TYPES, getCountryConfig, CURRENCY_NAMES, formatExchangeRateLine, getAccountById, getPaperSize, resolveLineDiscount, htmlHasText, splitNumberedTerms, invoiceOptionOn, DEFAULT_DECLARATION, filledOrderDetails, formatShortDate } from '../utils';
 import { getPrintSettings, getLabel, formatCurrencyEx, formatDate } from '../utils/printSettings';
 import InvoiceGridLayout, { HsnSummaryTable } from './InvoiceGridLayout';
 
@@ -62,7 +63,8 @@ const InvoicePreview = React.forwardRef(({ profile: profileProp, client, details
 
   // Options with defaults. Each toggle defaults to ON so old invoices keep rendering as
   // before; users opt INTO hiding fields via Customize.
-  const opt = (key, fallback = true) => options[key] !== undefined ? options[key] : fallback;
+  const opt = (key, fallback = true) => gstLayoutField(profile, invoiceType, key) || (options[key] !== undefined ? options[key] : fallback);
+  const stateLabel = (state) => { const code = isIndia && getStateCode(state); return code ? `${state} (Code: ${code})` : state; };
   const showGST = opt('showGST', typeConfig.showGST);
   const showState = opt('showState');
   const showGSTIN = opt('showGSTIN');
@@ -249,8 +251,8 @@ const InvoicePreview = React.forwardRef(({ profile: profileProp, client, details
   // Header renderers per style
   const renderModernHeader = () => (
     <>
-      <div style={{ background: '#ffffff', borderBottom: '1px solid #dfe2dc', padding: '1.5rem 2rem', color: '#242824', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div>
+      <div style={{ background: '#ffffff', borderBottom: '1px solid #dfe2dc', padding: '1.5rem 2rem', color: '#242824', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1.5rem' }}>
+        <div style={{ order: 2, textAlign: 'right' }}>
           {showLogo && profile?.logo && (
             <img src={profile.logo} alt="Logo" style={{ maxHeight: `${profile.logoHeight || 48}px`, maxWidth: '180px', objectFit: 'contain', marginBottom: '0.5rem', display: 'block' }} />
           )}
@@ -259,12 +261,12 @@ const InvoicePreview = React.forwardRef(({ profile: profileProp, client, details
             <p style={{ fontSize: '0.7rem', color: '#626862', fontStyle: 'italic', margin: '0.25rem 0 0' }}>For estimation purposes only</p>
           )}
         </div>
-        <div style={{ textAlign: 'right' }}>
-          {showBusinessName && <h2 style={{ fontSize: '1rem', fontWeight: 700, margin: '0 0 0.25rem' }}>{profile?.businessName || 'Your Business'}</h2>}
+        <div style={{ order: 1, textAlign: 'left' }}>
+          {showBusinessName && <h2 style={{ fontSize: '1.15rem', fontWeight: 700, margin: '0 0 0.25rem' }}>{profile?.businessName || 'Your Business'}</h2>}
           <div style={{ fontSize: '0.7rem', color: '#626862', lineHeight: 1.6 }}>
             {showBusinessAddress && profile?.address && <p style={{ margin: 0 }}>{profile.address}</p>}
             {showBusinessAddress && (profile?.city || profile?.pin) && <p style={{ margin: 0 }}>{[profile.city, profile.pin].filter(Boolean).join(' - ')}</p>}
-            {showState && profile?.state && <p style={{ margin: 0 }}>{profile.state}</p>}
+            {showState && profile?.state && <p style={{ margin: 0 }}>{stateLabel(profile.state)}</p>}
             {showGSTIN && profile?.gstin && <p style={{ margin: 0 }}>{getCountryConfig(profile?.country).taxIdLabel}: {profile.gstin}</p>}
             {showBusinessEmail && profile?.email && <p style={{ margin: 0 }}>{profile.email}</p>}
             {showBusinessPhone && profile?.phone && <p style={{ margin: 0 }}>Ph: {profile.phone}</p>}
@@ -296,7 +298,7 @@ const InvoicePreview = React.forwardRef(({ profile: profileProp, client, details
           <div style={{ fontSize: '0.7rem', color: '#475569', lineHeight: 1.6, marginTop: '0.25rem' }}>
             {showBusinessAddress && profile?.address && <p style={{ margin: 0 }}>{profile.address}</p>}
             {showBusinessAddress && (profile?.city || profile?.pin) && <p style={{ margin: 0 }}>{[profile.city, profile.pin].filter(Boolean).join(' - ')}</p>}
-            {showState && profile?.state && <p style={{ margin: 0 }}>{profile.state}</p>}
+            {showState && profile?.state && <p style={{ margin: 0 }}>{stateLabel(profile.state)}</p>}
             {showGSTIN && profile?.gstin && <p style={{ margin: 0 }}>{getCountryConfig(profile?.country).taxIdLabel}: {profile.gstin}</p>}
             {showBusinessEmail && profile?.email && <p style={{ margin: 0 }}>{profile.email}</p>}
             {showBusinessPhone && profile?.phone && <p style={{ margin: 0 }}>Ph: {profile.phone}</p>}
@@ -352,7 +354,7 @@ const InvoicePreview = React.forwardRef(({ profile: profileProp, client, details
           <div className="inv-business-details">
             {showBusinessAddress && profile?.address && <p>{profile.address}</p>}
             {showBusinessAddress && (profile?.city || profile?.pin) && <p>{[profile.city, profile.pin].filter(Boolean).join(' - ')}</p>}
-            {showState && profile?.state && <p>{profile.state}</p>}
+            {showState && profile?.state && <p>{stateLabel(profile.state)}</p>}
             {showGSTIN && profile?.gstin && <p>{getCountryConfig(profile?.country).taxIdLabel}: <strong>{profile.gstin}</strong></p>}
             {showBusinessEmail && profile?.email && <p>{profile.email}</p>}
             {showBusinessPhone && profile?.phone && <p>Ph: {profile.phone}</p>}
@@ -380,8 +382,8 @@ const InvoicePreview = React.forwardRef(({ profile: profileProp, client, details
           <div className="inv-party-details">
             {showClientAddress && client?.address && <p>{client.address}</p>}
             {showClientAddress && (client?.city || client?.pin) && <p>{[client.city, client.pin].filter(Boolean).join(' - ')}</p>}
-            {showState && client?.state && <p>{client.state}</p>}
-            {showGSTIN && client?.gstin && <p>{getCountryConfig(profile?.country).taxIdLabel}: <strong>{client.gstin}</strong></p>}
+            {showState && client?.state && <p>{stateLabel(client.state)}</p>}
+            {showGSTIN && client?.gstin && <p>{isIndia ? 'GSTIN / UIN' : getCountryConfig(profile?.country).taxIdLabel}: <strong>{client.gstin}</strong></p>}
             {showClientEmail && client?.email && <p>{client.email}</p>}
             {showClientPhone && client?.phone && <p>Ph: {client.phone}</p>}
           </div>
@@ -393,14 +395,14 @@ const InvoicePreview = React.forwardRef(({ profile: profileProp, client, details
             <div className="inv-party-details">
               {details.shippingAddress && <p>{details.shippingAddress}</p>}
               {(details.shippingCity || details.shippingPin) && <p>{[details.shippingCity, details.shippingPin].filter(Boolean).join(' - ')}</p>}
-              {details.shippingState && <p>{details.shippingState}</p>}
+              {details.shippingState && <p>{stateLabel(details.shippingState)}</p>}
             </div>
           </div>
         )}
         {showPlaceOfSupply && (
           <div className="inv-party inv-party-right">
             <h4 className="inv-section-label">{getLabel(_ps_labels, 'placeOfSupply')}</h4>
-            <p className="inv-party-name">{details?.placeOfSupply || client?.state || '-'}</p>
+            <p className="inv-party-name">{stateLabel(details?.placeOfSupply || client?.state) || '-'}</p>
             {showGST && isIndia && isInterstate && <span className="inv-tax-badge">Interstate (IGST)</span>}
             {showGST && isIndia && !isInterstate && businessState && clientState && <span className="inv-tax-badge inv-tax-badge-green">{totals.isIntraUT ? 'Intra-UT (CGST + UTGST)' : 'Intrastate (CGST + SGST)'}</span>}
             {showGST && !isIndia && <span className="inv-tax-badge inv-tax-badge-green">{taxLabel}</span>}
@@ -1100,7 +1102,7 @@ const InvoicePreview = React.forwardRef(({ profile: profileProp, client, details
                   {showRateColumn && <th className="inv-th inv-th-right" rowSpan="2">Rate</th>}
                   {hasAnyDiscount && <th className="inv-th inv-th-right" rowSpan="2">Disc.</th>}
                   <th className="inv-th inv-th-center" colSpan="2" style={{ borderBottom: '1px solid #cbd5e1' }}>IGST</th>
-                  <th className="inv-th inv-th-right" rowSpan="2">Amount</th>
+                  <th className="inv-th inv-th-right" rowSpan="2">{showGST ? 'Taxable value' : 'Amount'}</th>
                 </tr>
                 <tr>
                   <th className="inv-th inv-th-center">%</th>
@@ -1118,7 +1120,7 @@ const InvoicePreview = React.forwardRef(({ profile: profileProp, client, details
                   {hasAnyDiscount && <th className="inv-th inv-th-right" rowSpan="2">Disc.</th>}
                   <th className="inv-th inv-th-center" colSpan="2" style={{ borderBottom: '1px solid #cbd5e1' }}>CGST</th>
                   <th className="inv-th inv-th-center" colSpan="2" style={{ borderBottom: '1px solid #cbd5e1' }}>{totals.isIntraUT ? 'UTGST' : 'SGST'}</th>
-                  <th className="inv-th inv-th-right" rowSpan="2">Amount</th>
+                  <th className="inv-th inv-th-right" rowSpan="2">{showGST ? 'Taxable value' : 'Amount'}</th>
                 </tr>
                 <tr>
                   <th className="inv-th inv-th-center">%</th>
@@ -1138,7 +1140,7 @@ const InvoicePreview = React.forwardRef(({ profile: profileProp, client, details
                   {showRateColumn && <th className="inv-th inv-th-right" rowSpan="2">Rate</th>}
                   {hasAnyDiscount && <th className="inv-th inv-th-right" rowSpan="2">Disc.</th>}
                   <th className="inv-th inv-th-center" colSpan="2" style={{ borderBottom: '1px solid #cbd5e1' }}>{taxLabel}</th>
-                  <th className="inv-th inv-th-right" rowSpan="2">Amount</th>
+                  <th className="inv-th inv-th-right" rowSpan="2">{showGST ? 'Taxable value' : 'Amount'}</th>
                 </tr>
                 <tr>
                   <th className="inv-th inv-th-center">%</th>
@@ -1154,7 +1156,7 @@ const InvoicePreview = React.forwardRef(({ profile: profileProp, client, details
               {showItemQty && <th className="inv-th inv-th-center">Qty</th>}
               {showRateColumn && <th className="inv-th inv-th-right">Rate</th>}
               {hasAnyDiscount && <th className="inv-th inv-th-right">Disc.</th>}
-              <th className="inv-th inv-th-right">Amount</th>
+              <th className="inv-th inv-th-right">{showGST ? 'Taxable value' : 'Amount'}</th>
             </tr>
           )}
         </thead>
@@ -1449,7 +1451,7 @@ const InvoicePreview = React.forwardRef(({ profile: profileProp, client, details
           {showSystemGeneratedNote && (
             <div className="inv-footer-block inv-system-note">
               <p className="inv-terms" style={{ margin: 0, fontStyle: 'italic' }}>
-                <strong>Note:</strong> This is a system-generated invoice. No signature or stamp is required.
+                <strong>Note:</strong> This invoice was generated electronically.
               </p>
             </div>
           )}
@@ -1500,13 +1502,15 @@ const InvoicePreview = React.forwardRef(({ profile: profileProp, client, details
           const stampImg = profile?.stamp || null;
           const sigMaxHeight = Number(profile?.signatureHeight) || 60;
           const stampMaxHeight = Number(profile?.stampHeight) || 70;
-          if (!showSignature || (!sigImg && !stampImg)) return null;
+          if (!showSignature) return null;
           return (
             <div className="inv-signature">
+              <p className="inv-sig-name">For {sigName || 'Supplier'}</p>
+              {!sigImg && !stampImg && <div style={{ height: 48 }} aria-label="Space for authorised signature" />}
               {showSignatoryText && <p className="inv-sig-label">{getLabel(_ps_labels, 'authorizedSignatory')}</p>}
               <SignatureImages sigImg={sigImg} stampImg={stampImg} sigHeight={sigMaxHeight} stampHeight={stampMaxHeight}
                 layout={profile?.signLayout} gap={8} />
-              <p className="inv-sig-name">{sigName}</p>
+
             </div>
           );
         })()}

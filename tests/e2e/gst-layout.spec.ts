@@ -1,0 +1,25 @@
+import { test, expect } from '@playwright/test';
+import { readFile } from 'node:fs/promises';
+import { createRequire } from 'node:module';
+const require=createRequire(new URL('../../apps/parity/package.json',import.meta.url));
+const {PDFDocument}=require('pdf-lib');
+test('Indian SMB invoice retains required particulars and seller identity',async({page,request},info)=>{
+ const profile={id:'gst-layout-check',businessName:'Sahyadri Tools (Sample)',country:'India',state:'Maharashtra',address:'Sample Industrial Estate, Pune',gstin:'27AAAAA0000A1Z5'};
+ await request.post('/api/profile',{data:profile});
+ await request.post('/api/local-prefs',{data:{set:{gst_printSettings:JSON.stringify({onboardingComplete:true,userColorsEnabled:true,pdfAccent:'#343c34',pdfPrimaryText:'#242824',pdfHeaderBg:'#f4f5f2'}),freegstbill_onboarded:'true'}}});
+ const number='SAMPLE/26-27/01';
+ const options={currency:'INR',paperSize:'a4',pdfStyle:'modern',showHSN:false,showGSTIN:false,showBusinessAddress:false,showInvoiceDate:false,showInvoiceNumber:false,showPlaceOfSupply:false,showClientAddress:false,showState:false,showItemQty:false,showItemUnit:false,showSystemGeneratedNote:true};
+ const bill={id:number,invoiceNumber:number,invoiceDate:'2026-11-01',invoiceType:'tax-invoice',clientName:'Sample Buyer',totalAmount:1180,totalTaxAmount:180,status:'unpaid',data:{profile,client:{name:'Sample Buyer',address:'Sample Market Road, Mumbai',state:'Maharashtra',gstin:'27BBBBB1111B1Z1'},details:{invoiceNumber:number,invoiceDate:'2026-11-01',placeOfSupply:'Maharashtra',shipToSameAsBilling:false,shippingAddress:'Sample Warehouse, Nashik',shippingState:'Maharashtra'},items:[{id:'line1',name:'Workshop supplies',hsn:'820559',quantity:2,unit:'Nos',rate:500,taxPercent:18}],totals:{subtotal:1000,taxableAmount:1000,cgst:90,sgst:90,igst:0,totalTaxAmount:180,total:1180,isInterstate:false},invoiceOptions:options,invoiceType:'tax-invoice',customNotes:'SAMPLE ONLY. Fictional identifiers; not valid for tax filing.'}};
+ expect((await request.post('/api/bills',{data:bill})).ok()).toBe(true);
+ await page.goto('/?view=invoices');
+ await page.getByRole('button',{name:`View ${number}`,exact:true}).click();
+ const invoice=page.locator('.invoice-preview-container').last();
+ for(const value of [profile.businessName,profile.gstin,number,'HSN/SAC','820559','Code: 27','Taxable value','Sample Warehouse','CGST','SGST'])await expect(invoice).toContainText(value);
+ await expect(invoice).not.toContainText('No signature');
+ await expect(invoice.getByLabel('Space for authorised signature')).toBeVisible();
+ await invoice.screenshot({path:info.outputPath('gst-standard-invoice.png')});
+ await page.getByRole('button',{name:'Close',exact:true}).click();
+ const downloaded=page.waitForEvent('download');await page.getByRole('button',{name:'All shown (1)',exact:true}).click();
+ const download=await downloaded;const output=info.outputPath('gst-standard-invoice.pdf');await download.saveAs(output);
+ expect((await PDFDocument.load(await readFile(output))).getPageCount()).toBe(1);
+});
