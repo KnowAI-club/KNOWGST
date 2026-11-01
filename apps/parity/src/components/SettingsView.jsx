@@ -1006,7 +1006,7 @@ export default function SettingsView({ onSaved }) {
             Reset to default
           </button>
         </div>
-        <div style={{ marginTop: '1rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '0.75rem' }}>
+        <div style={{ marginTop: '1rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: '0.75rem' }}>
           {FEATURE_GROUPS.map(group => (
             <div key={group.id} className="surface-card">
               <div style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-primary)', marginBottom: '0.15rem' }}>{group.label}</div>
@@ -2050,7 +2050,7 @@ function BackupAndTrashPanel() {
         {backupFolder.error && <p role="alert" style={{ color: 'var(--danger)', fontSize: '0.8rem', margin: '0.35rem 0 0' }}>The last copy failed: {backupFolder.error}. Is the drive connected?</p>}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1rem', marginTop: '1rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))', gap: '1rem', marginTop: '1rem' }}>
         {/* Backups list */}
         <div style={{ padding: '0.85rem', background: 'var(--bg-secondary)', borderRadius: 8 }}>
           <h4 style={{ margin: '0 0 0.5rem', fontSize: '0.9rem' }}>Daily backups ({backups.length})</h4><p className="text-muted">New snapshots include records, settings, saved PDFs and PDF trash. Older data-only snapshots leave existing PDFs unchanged. JSON exports are records-only.</p>

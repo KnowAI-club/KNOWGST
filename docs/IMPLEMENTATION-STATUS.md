@@ -1,3 +1,9 @@
+# Workspace spacing and navigation — 1 November 2026
+
+All 15 main pages share aligned gutters, heading spacing and section gaps. Form controls and actions fit their panels; wide tables retain local scrolling. Settings and Print Settings grids adapt to narrow windows, and the GST summary wraps instead of widening the page. Screen-only rules preserve printed invoice geometry and the KnowAI logo.
+
+The sidebar groups existing destinations under Overview, Sales, Purchases & stock, Accounting & tax, and Workspace. Module visibility, keyboard navigation and auto-hide remain supported. Layout coverage includes 320, 390, 768, 1280, 1440 and 1920 pixel widths, dark mode, report/tax subpages and six entry dialogs. Tests explicitly reset the theme to avoid inheriting state from earlier tests.
+
 # Dashboard increment — 1 November 2026
 
 The new single-user dashboard is implemented with the KnowAI logo, minimal neutral styling, light/dark themes and responsive layouts. A read-only, business-scoped endpoint supplies month/currency-filtered sales and recorded cash movement, current receivables/payables, stock alerts, historical posting review counts and recent activity. Linked receipts are not double-counted. Saved invoice tax and TCS are excluded from sales without recalculating protected financial helpers.

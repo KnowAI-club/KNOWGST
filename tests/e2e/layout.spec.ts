@@ -5,6 +5,7 @@ test.beforeEach(async ({ request }) => {
       set: {
         gst_printSettings: JSON.stringify({ onboardingComplete: true }),
         freegstbill_onboarded: "true",
+        freegstbill_theme: "light",
       },
     },
   });
@@ -27,9 +28,12 @@ const views = [
   "support",
 ];
 for (const viewport of [
+  { width: 1920, height: 1080 },
   { width: 1440, height: 1000 },
+  { width: 1280, height: 800 },
   { width: 768, height: 1024 },
   { width: 390, height: 844 },
+  { width: 320, height: 700 },
 ]) {
   test(`all workspace pages align and contain their content at ${viewport.width}px`, async ({
     page,
@@ -53,6 +57,7 @@ for (const viewport of [
       const box = (await heading.boundingBox())!;
       headingLeft ??= box.x;
       expect(box.x, `${view}: common left edge`).toBe(headingLeft);
+      await expect(page.locator(".workspace-heading")).toHaveCSS("margin-top", "0px");
       const geometry = await page
         .locator(".main-content")
         .evaluate((el) => ({ width: el.clientWidth, scroll: el.scrollWidth }));
@@ -176,4 +181,24 @@ test("entry dialogs keep fields and actions inside the mobile viewport", async (
     }));
     expect(content.scroll, view).toBeLessThanOrEqual(content.width + 1);
   }
+});
+
+test("sidebar groups preserve navigation and remain reachable on short windows", async ({page}) => {
+  await page.setViewportSize({width:1280,height:720});
+  await page.goto('/?view=dashboard');
+  const nav=page.getByRole('navigation',{name:'Main navigation'});
+  for (const label of ['Overview','Sales','Purchases & stock','Accounting & tax','Workspace']) {
+    await expect(nav.getByRole('heading',{name:label,exact:true})).toHaveCount(1);
+  }
+  await expect(nav.getByRole('region',{name:'Sales',exact:true}).getByRole('button',{name:'Invoices',exact:true})).toHaveCount(1);
+  await nav.getByRole('button',{name:'Settings',exact:true}).click();
+  await expect(page.locator('.workspace-heading h1')).toHaveText('Settings');
+  await nav.getByRole('button',{name:'Dashboard',exact:true}).click();
+  await expect(nav.getByRole('button',{name:'Dashboard',exact:true})).toHaveAttribute('aria-current','page');
+  await page.getByRole('button',{name:'Auto-hide menu',exact:true}).click();
+  await page.mouse.move(900, 100);
+  await nav.getByRole('button',{name:'Invoices',exact:true}).focus();
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.workspace-heading h1')).toHaveText('Invoices');
+  await page.getByRole('button',{name:'Auto-hide menu',exact:true}).click();
 });

@@ -133,3 +133,49 @@ html[data-theme=dark] .form-input{background:var(--card-bg);color:var(--text);bo
 .accounting-dialog .table-scroll { margin-top: 20px; }
 .accounting-dialog h3 { margin: 0 0 8px; }
 .accounting-dialog > p { margin: 0 0 16px; }
+
+/* Workspace layout contract: one outer gutter and one gap between sections.
+   Scope to screen chrome; invoice preview and printed documents retain geometry. */
+@media screen {
+  .sidebar { padding:24px 16px; gap:20px; }
+  .sidebar .sidebar-brand { margin:0 8px; flex-shrink:0; }
+  .sidebar .profile-switcher { margin:0 4px; flex-shrink:0; }
+  .sidebar-nav { gap:20px; flex:0 0 auto; }
+  .sidebar-group,.sidebar-utilities { display:flex; flex-direction:column; gap:4px; min-width:0; }
+  .sidebar-group-title { margin:0; padding:0 12px 4px; font-size:10px; font-weight:600; line-height:16px; letter-spacing:.06em; text-transform:uppercase; color:var(--text-muted); }
+  .sidebar .nav-btn { width:100%; padding:10px 12px; gap:10px; flex-shrink:0; text-align:left; }
+  .sidebar .nav-btn > svg { flex-shrink:0; }
+  .sidebar-utilities { margin-top:-16px; }
+  .sidebar .server-status { margin-top:16px; }
+  .app-layout > .main-content { scrollbar-gutter:stable; }
+  .main-content > .knowgst-development,
+  .main-content > .dashboard-overview { width:100%; max-width:1440px; margin-inline:auto; min-width:0; flex-shrink:0; }
+  .main-content > :is(.dashboard-container,.settings-container,.generator-container,.dashboard-overview) > .workspace-heading { margin-block:0; }
+  .main-content > .settings-container { display:flex; flex-direction:column; gap:var(--section-space); }
+  .main-content > .settings-container > :not(.modal-overlay):not(.settings-savebar) { margin-block:0 !important; }
+  .main-content > .generator-container > .workspace-heading { margin-bottom:var(--section-space); }
+  .main-content :is(.workspace-heading-actions,.filters-bar,.table-header,.workspace-toolbar) > * { min-width:0; max-width:100%; }
+  .main-content :is(.workspace-heading-actions,.filters-bar,.table-header,.workspace-toolbar) .btn { white-space:normal; overflow-wrap:anywhere; }
+  .main-content :is(.grid,.stats-grid,.tax-form-grid) > * { min-width:0; }
+  .main-content :is(.form-group,.workspace-heading-copy,.stat-card) { overflow-wrap:anywhere; }
+  .main-content :is(.form-input,.form-select,.form-textarea,.search-box,.search-input,.filter-select,.filter-date) { max-width:100%; min-width:0; }
+  .main-content .table-scroll { overflow-x:auto; overscroll-behavior-x:contain; }
+  .main-content .table-scroll .data-table { width:100%; }
+  .main-content .modal-content { max-width:calc(100vw - 32px); }
+  .main-content .modal-content :is(.flex,.modal-actions) { flex-wrap:wrap; }
+  .workspace-heading .page-subtitle { margin-bottom:0; }
+}
+@media screen and (min-width:769px) {
+  .app-layout.sidebar-autohide > .sidebar:not(:hover):not(:has(:focus-visible)) .sidebar-group-title { font-size:0; padding:0; height:1px; background:var(--border); margin:0 8px 4px; }
+}
+@media screen and (max-width:1100px) and (min-width:769px) {
+  :root { --workspace-gutter:24px; }
+  .workspace-heading-actions { margin-left:0; }
+}
+@media screen and (max-width:768px) {
+  .sidebar { padding:20px 16px; height:100dvh; padding-bottom:max(24px,env(safe-area-inset-bottom)); }
+  .main-content .filters-bar { flex-wrap:wrap; }
+  .main-content .filters-bar > :is(.search-box,.search-input) { flex-basis:100%; }
+  .main-content .modal-content { max-width:calc(100vw - 24px); padding:16px; }
+  .main-content .stat-value { font-size:clamp(18px,5.5vw,24px); overflow-wrap:anywhere; }
+}

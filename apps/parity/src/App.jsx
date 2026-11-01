@@ -878,17 +878,29 @@ function App() {
           )}
         </div>
 
-        <nav className="sidebar-nav">
-          {navItems.map(item => (
-            <button
-              key={item.id}
-              className={`nav-btn ${currentView === item.id ? 'nav-btn-active' : ''}`}
-              onClick={item.onClick || (() => {setDashboardTarget({});setCurrentView(item.id);})}
-            >
-              <item.icon size={18} /> {item.label}
-            </button>
-          ))}
-          <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <nav className="sidebar-nav" aria-label="Main navigation">
+          {[
+            ['Overview', ['dashboard']],
+            ['Sales', ['invoices', 'new', 'clients', 'receipts', 'recurring']],
+            ['Purchases & stock', ['purchases', 'expenses', 'inventory']],
+            ['Accounting & tax', ['reports', 'filing', 'incometax']],
+            ['Workspace', ['guide']],
+          ].map(([label, ids]) => {
+            const items = ids.map(id => navItems.find(item => item.id === id)).filter(Boolean);
+            if (!items.length) return null;
+            return <section className="sidebar-group" aria-label={label} key={label}>
+              <h2 className="sidebar-group-title">{label}</h2>
+              {items.map(item => <button
+                key={item.id}
+                className={`nav-btn ${currentView === item.id ? 'nav-btn-active' : ''}`}
+                aria-current={currentView === item.id ? 'page' : undefined}
+                aria-label={item.label}
+                title={item.label}
+                onClick={item.onClick || (() => {setDashboardTarget({});setCurrentView(item.id);})}
+              ><item.icon size={18} /><span>{item.label}</span></button>)}
+            </section>;
+          })}
+          <div className="sidebar-utilities" role="group" aria-label="Workspace controls">
             {/* Update-available banner — only shows when GitHub has a newer version
                 AND the user hasn't already dismissed THIS specific version. New
                 releases re-show the banner. Click to view notes + update. */}

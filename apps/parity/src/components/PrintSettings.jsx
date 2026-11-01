@@ -730,7 +730,7 @@ export default function PrintSettings() {
           Applies to A4 / A5 / Letter / Legal / thermal — every option here is dynamic (turn on / off any time).
         </p>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: '1rem' }}>
 
           {/* AUTO-PRINT */}
           <SettingGroup title="Auto-print">
