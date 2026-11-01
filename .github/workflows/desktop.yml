@@ -1,8 +1,5 @@
 name: Desktop installers
 on:
-  push:
-    branches: [main]
-    paths: ['apps/**', 'scripts/desktop/**', 'package.json', 'pnpm-lock.yaml', '.github/workflows/desktop.yml']
   workflow_dispatch:
 permissions:
   contents: read
