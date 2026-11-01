@@ -244,3 +244,19 @@ html[data-theme=dark] .form-input{background:var(--card-bg);color:var(--text);bo
   html .app-layout .main-content :is(.form-input,.form-textarea,.search-input,input,textarea)::placeholder { color:var(--text-muted); opacity:1; }
   .app-layout .icon-btn:not(.icon-btn-red):not(.icon-btn-green):not(.icon-btn-blue) { background:var(--bg-secondary); color:var(--text-secondary); }
 }
+/* Device integrations share the workspace's compact form and surface tokens. */
+.integration-settings,.integration-card{min-width:0;overflow-wrap:anywhere}
+.integration-card{border:1px solid var(--border);border-radius:8px;padding:20px;margin-top:16px;background:var(--bg-primary)}
+.integration-heading,.integration-actions,.integration-account{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.integration-actions{justify-content:flex-start;margin-top:12px}.integration-heading h4{margin:0}
+.integration-card p{font-size:13px;color:var(--text-secondary);line-height:1.6;margin:12px 0}
+.integration-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:16px;margin-top:16px}
+.integration-grid label,.integration-assistant label{display:flex;flex-direction:column;gap:8px;min-width:0}
+.integration-account{padding:12px 0;border-top:1px solid var(--border);margin-top:12px;font-size:13px}
+.integration-assistant{margin-top:16px}.integration-assistant label{margin:12px 0}.integration-answer{white-space:pre-wrap;overflow-wrap:anywhere;padding:16px;border:1px solid var(--border);border-radius:8px;margin-top:16px;font-size:14px;line-height:1.6}
+.integration-error{color:var(--danger,#b91c1c)}.integration-settings summary{cursor:pointer;padding:12px 0;font-weight:600}
+.email-document-dialog{width:min(620px,calc(100vw - 32px));max-height:90vh;overflow:auto;padding:24px}
+.email-document-dialog label{display:flex;flex-direction:column;gap:6px;margin:14px 0}.email-document-dialog .form-input{width:100%;min-width:0}
+.receipt-email-capture .receipt-box{padding:32px;font:14px/1.5 Inter,Arial,sans-serif}.receipt-email-capture .receipt-header{padding-bottom:20px;border-bottom:1px solid #d8dcd6;margin-bottom:20px}.receipt-email-capture .receipt-title{font-size:22px;letter-spacing:.04em}.receipt-email-capture .receipt-row{display:flex;justify-content:space-between;gap:24px;padding:10px 0;border-bottom:1px solid #eceee9}.receipt-email-capture .receipt-value{text-align:right;max-width:70%;overflow-wrap:anywhere}.receipt-email-capture .receipt-amount{font-size:28px;font-weight:700;text-align:right;margin-top:20px}.receipt-email-capture .receipt-words{text-align:right}.receipt-email-capture .receipt-footer{display:flex;justify-content:space-between;margin-top:60px}.receipt-email-capture .receipt-sig-line{width:180px;border-bottom:1px solid #666;margin-bottom:8px}
+.integration-settings a,.email-document-dialog a{color:var(--text-primary);font-size:13px;text-decoration:underline;text-decoration-color:var(--border);text-underline-offset:3px}
+.integration-settings a:hover,.email-document-dialog a:hover{text-decoration-color:currentColor}

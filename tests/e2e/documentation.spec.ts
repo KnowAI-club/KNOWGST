@@ -68,6 +68,9 @@ test('capture actual app screens for the published guide',async({page,request})=
   }
   await page.screenshot({path:`${dir}/${name}.png`});
  }
+ await page.goto('/?view=settings');await page.getByRole('navigation',{name:'Settings sections'}).getByRole('link',{name:'Integrations',exact:true}).click();await expect(page.getByRole('navigation',{name:'Settings sections'}).getByRole('link',{name:'Integrations',exact:true})).toHaveAttribute('aria-current','location');await expect(page.locator('#section-integrations').getByRole('button',{name:'Continue with ChatGPT'})).toBeVisible();await page.screenshot({path:`${dir}/integrations.png`});
+ await request.post('/api/integrations/resend',{data:{from:'studio@example.com',name:'Sample Studio',apiKey:'re_fictional_guide_only_123456'}});
+ await page.goto('/?view=invoices');await page.getByRole('row').filter({hasText:'INV/26-27/0001'}).getByRole('button',{name:/^More actions/}).click();await page.getByText('Email PDF with Resend',{exact:true}).click();await expect(page.getByRole('dialog',{name:'Email invoice'}).getByRole('link',{name:/Review PDF/})).toBeVisible();await page.getByRole('dialog').getByLabel('Recipient email').fill('client@example.com');await page.screenshot({path:`${dir}/email-invoice.png`});await page.getByRole('dialog').getByRole('button',{name:'Close',exact:true}).click();
  await page.goto('/?view=purchases');await page.getByRole('button',{name:'Add Purchase',exact:true}).first().click();
  await page.getByPlaceholder(/^(Vendor \/ Supplier name|Type or pick a previous supplier)$/).fill('Sample Supplier');
  await page.getByPlaceholder('Supplier invoice no.').fill('SUP-2026-002');

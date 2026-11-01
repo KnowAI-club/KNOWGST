@@ -1,3 +1,4 @@
+import EmailDocumentDialog from './EmailDocumentDialog';
 import { a4CanvasSlices } from '../utils/pdfPagination';
 import { isLowStock } from '../utils/stockAlerts';
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -1069,6 +1070,9 @@ export default function Dashboard({ onNew, onEdit, onPrint, onDuplicate, onConve
       : 'WhatsApp opened with the invoice details. Download the PDF from the invoice to send the file.', 'info', 7000);
   };
 
+  const [emailDocument,setEmailDocument]=useState(null);
+  const emailPdf = (bill) => setEmailDocument({kind:'invoice',name:bill.invoiceNumber||'invoice',to:bill.data?.client?.email||clients.find(c=>c.name===bill.clientName)?.email||'',subject:`Invoice ${bill.invoiceNumber}`,text:`Hello ${bill.clientName||''},\n\nPlease find your invoice ${bill.invoiceNumber} attached.\n\nThank you.`,buildPdf:()=>generateSingleBillPdfBlob(bill)});
+
   const shareEmail = (bill) => {
     // v1.10.24 — same rich payment status as the WhatsApp share (strip
     // markdown asterisks since mailto: doesn't render them).
@@ -1166,6 +1170,7 @@ export default function Dashboard({ onNew, onEdit, onPrint, onDuplicate, onConve
 
   return (
     <div className="dashboard-container">
+      {emailDocument&&<EmailDocumentDialog document={emailDocument} onClose={()=>setEmailDocument(null)}/>}
       <PageHeader
         compact
         icon="📊"
@@ -1618,7 +1623,8 @@ export default function Dashboard({ onNew, onEdit, onPrint, onDuplicate, onConve
                             // v1.10.12 — reminder for unpaid, partial and overdue bills.
                             { label: status === 'partial' ? 'Reminder (partial pending)' : 'Send reminder', icon: Send, onClick: () => sendReminder({ ...bill, clientPhone: getClientPhone(bill) }),
                               hidden: readOnly || isCancelledBill(bill) || !(isOverdue || status === 'overdue' || status === 'unpaid' || status === 'partial') || !(amountDue(bill) - (bill.paidAmount || 0) > 0.01) },
-                            { label: 'Email', icon: Mail, onClick: () => shareEmail(bill), hidden: readOnly },
+                            { label: 'Email PDF with Resend', icon: Mail, onClick: () => emailPdf(bill), hidden: readOnly },
+                            { label: 'Open email app', icon: Mail, onClick: () => shareEmail(bill), hidden: readOnly },
                             { label: 'Cancel invoice', icon: Ban, tone: 'danger', onClick: () => handleCancelInvoice(bill), hidden: readOnly,
                               title: 'Cancel invoice — keeps the number; Undo from the Status column' },
                           ]} />

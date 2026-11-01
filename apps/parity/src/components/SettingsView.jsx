@@ -1,3 +1,4 @@
+import IntegrationSettings from './IntegrationSettings';
 import PageHeader from './PageHeader';
 import { useState, useEffect, useRef } from 'react';
 import { getProfile, saveProfile, exportAllData, importData, inspectBackup, getTermsTemplates, saveTermsTemplate, deleteTermsTemplate, getAllProfiles, saveBusinessProfile, deleteBusinessProfile, getRegionMode, setRegionMode, getEnabledModules, setEnabledModules, getStockAlertSettings, saveStockAlertSettings, renameNumberSeries, getInvoiceDisplayOptions, saveInvoiceDisplayOptions } from '../store';
@@ -34,6 +35,7 @@ const JUMP_NAV_SECTIONS = [
   ['section-region',   'Region'],
   ['section-lock',     'App lock'],
   ['section-backups',  'Backups'],
+  ['section-integrations', 'Integrations'],
   ['section-cloud',    'Google Drive'],
   ['section-data',     'Import/Export'],
   ['section-updates',  'Updates'],
@@ -45,10 +47,7 @@ export default function SettingsView({ onSaved }) {
     email: '', phone: '', bankName: '', accountNumber: '', ifsc: '',
     logo: '', logoHeight: 48, signature: '', signatureHeight: 60, stamp: '', stampHeight: 70, upiId: '', googleClientId: '', googleDriveFolder: 'GST Billing Invoices',
   });
-  // v1.10.36 — Scroll-spy: which section is currently in the viewport,
-  // so the corresponding pill lights up as the user scrolls. Cheap
-  // IntersectionObserver — a single observer watching all 11 sections;
-  // fires when any crosses the top-of-viewport band.
+  // Track the section under the sticky navigation in the workspace scroll pane.
   const [activeSection, setActiveSection] = useState(JUMP_NAV_SECTIONS[0][0]);
 
   // v1.10.55 — reported (#43, @sangwanmail-eng): "Some time details not save
@@ -126,27 +125,26 @@ export default function SettingsView({ onSaved }) {
   // popup on every exit. The sticky bar already makes unsaved work visible
   // without interrupting anyone.
   useEffect(() => {
-    const els = JUMP_NAV_SECTIONS
-      .map(([id]) => document.getElementById(id))
-      .filter(Boolean);
-    if (!els.length) return;
-    const io = new IntersectionObserver((entries) => {
-      // Multiple sections may be in view at once. Pick the top-most
-      // one that's still intersecting so the highlight tracks the
-      // section the user is actually reading.
-      const visible = entries
-        .filter(e => e.isIntersecting)
-        .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
-      if (visible?.target?.id) setActiveSection(visible.target.id);
-    }, {
-      // Fires when a section enters the top 40% band — feels natural
-      // while scrolling because the section header is usually the
-      // trigger point (not the entire panel).
-      rootMargin: '-10% 0px -50% 0px',
-      threshold: 0.01,
-    });
-    els.forEach(el => io.observe(el));
-    return () => io.disconnect();
+    const root = document.querySelector('.main-content');
+    let frame;
+    const update = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        const top = (root?.getBoundingClientRect().top || 0) + (document.querySelector('.settings-bar')?.getBoundingClientRect().height || 0) + 32;
+        const sections = JUMP_NAV_SECTIONS.map(([id]) => document.getElementById(id)).filter(Boolean)
+          .map(el => ({id:el.id,rect:el.getBoundingClientRect()})).sort((a,b)=>a.rect.top-b.rect.top);
+        const passed = sections.filter(s=>s.rect.top<=top && s.rect.bottom>top);
+        const current = passed.at(-1) || sections.find(s=>s.rect.top>top);
+        if(current) setActiveSection(current.id);
+      });
+    };
+    root?.addEventListener('scroll',update,{passive:true});
+    window.addEventListener('resize',update);
+    const observer = new ResizeObserver(update);
+    const container = document.querySelector('.settings-container');
+    if(container) observer.observe(container);
+    update();
+    return () => {cancelAnimationFrame(frame);root?.removeEventListener('scroll',update);window.removeEventListener('resize',update);observer.disconnect();};
   }, []);
   const [saving, setSaving] = useState(false);
   const [termsTemplates, setTermsTemplates] = useState([]);
@@ -791,7 +789,7 @@ export default function SettingsView({ onSaved }) {
               <li><strong>Invoice Number Settings</strong> — brand prefix, financial-year suffix, padding. Live preview at the bottom.</li>
               <li><strong>Print Settings</strong> — templates, colors, watermark, thermal font size, per-type prefix overrides.</li>
               <li><strong>Backup Management</strong> — daily auto-backups kept 30 days. Restore any date, or Delete to reclaim disk. Trash bin keeps deleted invoices for 30 days.</li>
-              <li><strong>Google Drive</strong> — easiest: install Google Drive for Desktop and sync the Saved Invoices folder. Advanced: connect your own Google Client ID to upload each downloaded invoice PDF.</li>
+              <li><strong>Google Drive</strong> — sync a dedicated secondary backup folder with Drive for Desktop, or use browser OAuth with your own Google Client ID.</li>
               <li><strong>Data Management</strong> — export all or part of your data to one backup file, and import it here or on another computer. Clients and products import from CSV on their own screens.</li>
             </ul>
           </HelpButton>
@@ -824,12 +822,15 @@ export default function SettingsView({ onSaved }) {
               <a key={id} href={`#${id}`} aria-current={active ? 'location' : undefined}
                 onClick={(e) => {
                   e.preventDefault();
+                  setActiveSection(id);
                   const el = document.getElementById(id);
                   // Stop below the sticky bar, not underneath it.
                   if (el) {
                     const offset = saveBarH + 20;
                     el.style.scrollMarginTop = `${offset}px`;
-                    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    el.tabIndex = -1;
+                    el.focus({ preventScroll: true });
+                    el.scrollIntoView({ behavior: 'instant', block: 'start' });
                   }
                 }}
                 style={{
@@ -868,7 +869,7 @@ export default function SettingsView({ onSaved }) {
 
       {/* v1.10.37 — Flex-column wrapper for visual reordering. Each
            section keeps its DOM position (safe for the anchor IDs +
-           scroll-spy IntersectionObserver + tab order for the primary
+           scroll tracking + tab order for the primary
            actions) but the CSS `order:` on each section root controls
            the on-screen sequence. Reported: "if you click on first
            Company it goes down then if you click on Profiles comes up
@@ -1542,11 +1543,13 @@ export default function SettingsView({ onSaved }) {
         )}
       </div>
 
+      <IntegrationSettings />
+
       {/* ---- Cloud Backup ---- */}
-      <div id="section-cloud" className="glass-panel p-6 mb-6" style={{ order: 9 }}>
+      <div id="section-cloud" className="glass-panel p-6 mb-6" style={{ order: 10 }}>
         <h3 className="section-title">Cloud Backup (Google Drive)</h3>
         <p className="page-subtitle mb-4">
-          Auto-sync your invoices to Google Drive — no coding or API setup needed.
+          Use a synced backup folder, or connect Google Drive in your browser.
         </p>
 
         {/* Easy method */}
@@ -1561,21 +1564,22 @@ export default function SettingsView({ onSaved }) {
                 Download Google Drive for Desktop
               </a> (free from Google) and install it
             </li>
-            <li>Sign in with your Google account — a <strong>Google Drive (G:)</strong> folder appears on your PC</li>
-            <li>Move your app's <strong>Saved Invoices</strong> folder into Google Drive, or set Windows to sync it</li>
-            <li>Done! All PDFs automatically sync to your Google Drive cloud</li>
+            <li>Sign in with your Google account — your Drive folder appears in Finder on macOS or File Explorer on Windows</li>
+            <li>In Backups, choose a dedicated folder inside your synced Google Drive folder for secondary backups</li>
+            <li>Create a backup and verify that the snapshot appears in Google Drive</li>
           </ol>
           <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.75rem', marginBottom: 0 }}>
-            Your invoices will be accessible from any device, phone, or computer via drive.google.com. No API key needed.
+            Drive for Desktop syncs the backup folder. This does not synchronize your active workspace between devices. No API key is needed for folder sync.
           </p>
         </div>
 
         {/* Advanced API method - collapsible */}
         <details style={{ fontSize: '0.85rem' }}>
           <summary style={{ cursor: 'pointer', color: 'var(--text-muted)', fontSize: '0.82rem', padding: '0.5rem 0' }}>
-            Advanced: Direct API Upload (for developers)
+            Browser OAuth: Direct API Upload
           </summary>
           <div style={{ paddingTop: '0.75rem' }}>
+            <p className="field-hint">Browser edition only: use a Web application OAuth client and authorize this exact origin. The packaged desktop app uses a changing local port; use the synced backup folder there. Access tokens remain in memory and expire.</p>
             <div className="grid grid-cols-2 gap-4">
               <div className="form-group full-width">
                 <label className="form-label">Google OAuth Client ID</label>
@@ -1700,7 +1704,7 @@ export default function SettingsView({ onSaved }) {
            Profiles" still lands somewhere sensible. */}
 
       {/* ---- App Updates ---- */}
-      <div id="section-updates" className="glass-panel p-6 mb-6" style={{ order: 11 }}>
+      <div id="section-updates" className="glass-panel p-6 mb-6" style={{ order: 12 }}>
         <h3 className="section-title">App Updates</h3>
         <p className="page-subtitle mb-4">Check if a newer version is available.</p>
         <div className="flex gap-4 items-center">
@@ -1741,7 +1745,7 @@ export default function SettingsView({ onSaved }) {
         )}
       </div>
 
-      <div id="section-data" className="glass-panel p-6 mb-6" style={{ order: 10 }}>
+      <div id="section-data" className="glass-panel p-6 mb-6" style={{ order: 11 }}>
         <h3 className="section-title">Data Management</h3>
 
         {/* Privacy notice — uses the global .notice .notice-info utility so dark/light look identical to every other info card. */}

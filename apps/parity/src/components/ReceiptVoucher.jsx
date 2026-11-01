@@ -1,6 +1,7 @@
+import EmailDocumentDialog from './EmailDocumentDialog';
 import PageHeader from './PageHeader';
 import { useState, useEffect, useRef } from 'react';
-import { Receipt, Plus, Trash2, Search, Printer, Pencil } from 'lucide-react';
+import { Receipt, Plus, Trash2, Search, Printer, Pencil, Mail } from 'lucide-react';
 import { getAllReceipts, saveReceipt, deleteReceipt, getAllBills, getProfile, getNextInvoiceNumber } from '../store';
 import { formatCurrency, numberToWords, belongsToProfile, isUnassignedToBusiness, countsAsSales, businessKeyOf, localToday, amountDue, paymentStatusFor, isCancelledBill } from '../utils';
 import UnassignedBanner from './UnassignedBanner';
@@ -34,6 +35,22 @@ export default function ReceiptVoucher() {
   const [previewReceipt, setPreviewReceipt] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const receiptRef = useRef(null);
+  const [emailDocument,setEmailDocument]=useState(null);
+  async function receiptPdf(receipt){
+    setPreviewReceipt(receipt);
+    await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(()=>setTimeout(r,100))));
+    try {
+      await document.fonts.ready;
+      const html2canvas=(await import('html2canvas')).default;
+      const {jsPDF}=await import('jspdf');
+      const canvas=await html2canvas(receiptRef.current,{scale:2,backgroundColor:'#ffffff',logging:false});
+      const doc=new jsPDF({unit:'mm',format:'a4',compress:true});
+      const width=190;
+      for(let offset=0,page=0;offset<canvas.height;page++){const part=document.createElement('canvas');part.width=canvas.width;part.height=Math.min(canvas.height-offset,Math.floor(277*canvas.width/width));part.getContext('2d').drawImage(canvas,0,offset,canvas.width,part.height,0,0,canvas.width,part.height);if(page)doc.addPage();doc.addImage(part.toDataURL('image/jpeg',.95),'JPEG',10,10,width,part.height*width/canvas.width);offset+=part.height;}
+      return doc.output('blob');
+    }finally{setPreviewReceipt(null);}
+  }
+  const emailReceipt=rcp=>setEmailDocument({kind:'receipt',name:rcp.receiptNo||'receipt',to:bills.find(b=>b.invoiceNumber===rcp.againstInvoice)?.data?.client?.email||'',subject:`Payment receipt ${rcp.receiptNo}`,text:`Hello ${rcp.clientName||''},\n\nPlease find your payment receipt attached.\n\nThank you.`,buildPdf:()=>receiptPdf(rcp)});
   // v1.10.74 - the number previewed when the form opened, so save can tell
   // whether the user typed their own.
   const previewedNoRef = useRef('');
@@ -343,14 +360,15 @@ export default function ReceiptVoucher() {
         </div>
       )}
 
+      {emailDocument&&<EmailDocumentDialog document={emailDocument} onClose={()=>setEmailDocument(null)}/>}
       {/* Hidden receipt for printing */}
       {previewReceipt && (
-        <div style={{ position: 'absolute', left: '-9999px' }} ref={receiptRef}>
+        <div className="receipt-email-capture" style={{ position: 'absolute', left: '-9999px',width:720,background:'#fff',color:'#242824' }} ref={receiptRef}>
           <div className="receipt-box">
             <div className="receipt-header">
-              <p className="business-name">{profile.businessName || 'Your Business'}</p>
-              <p className="business-details">{profile.address}</p>
-              {profile.gstin && <p className="business-details">GSTIN: {profile.gstin}</p>}
+              <p className="business-name">{(previewReceipt?.profile||profile).businessName || 'Your Business'}</p>
+              <p className="business-details">{(previewReceipt?.profile||profile).address}</p>
+              {(previewReceipt.profile||profile).gstin && <p className="business-details">GSTIN: {(previewReceipt.profile||profile).gstin}</p>}
               <h2 className="receipt-title">PAYMENT RECEIPT</h2>
             </div>
             <div className="receipt-row"><span className="receipt-label">Receipt No:</span><span className="receipt-value">{previewReceipt.receiptNo}</span></div>
@@ -361,8 +379,8 @@ export default function ReceiptVoucher() {
             <div className="receipt-row"><span className="receipt-label">Payment Mode:</span><span className="receipt-value">{previewReceipt.paymentMode}</span></div>
             {previewReceipt.referenceNo && <div className="receipt-row"><span className="receipt-label">Reference No:</span><span className="receipt-value">{previewReceipt.referenceNo}</span></div>}
             {previewReceipt.againstInvoice && <div className="receipt-row"><span className="receipt-label">Against Invoice:</span><span className="receipt-value">{previewReceipt.againstInvoice}</span></div>}
-            <div className="receipt-amount">{formatCurrency(previewReceipt.amount)}</div>
-            <p className="receipt-words">{numberToWords(previewReceipt.amount)}</p>
+            <div className="receipt-amount">{formatCurrency(previewReceipt.amount,previewReceipt.currency||'INR')}</div>
+            {(!previewReceipt.currency||previewReceipt.currency==='INR')&&<p className="receipt-words">{numberToWords(previewReceipt.amount)}</p>}
             {previewReceipt.note && <p style={{ fontSize: '0.85rem', color: '#64748b' }}>Note: {previewReceipt.note}</p>}
             <div className="receipt-footer">
               <div className="receipt-sig"><div className="receipt-sig-line"></div><span className="receipt-sig-label">Received By</span></div>
@@ -416,6 +434,7 @@ export default function ReceiptVoucher() {
                     <td>
                       <div className="table-actions">
                         <button className="icon-btn icon-btn-blue" onClick={() => printReceipt(rcp)} title="Print"><Printer size={15} /></button>
+                        <button className="icon-btn" onClick={() => emailReceipt(rcp)} title="Email receipt PDF"><Mail size={15} /></button>
                         <button className="icon-btn" onClick={() => openEdit(rcp)} title="Edit"><Pencil size={15} /></button>
                         <button className="icon-btn icon-btn-red" onClick={() => handleDelete(rcp.id)} title="Delete"><Trash2 size={15} /></button>
                       </div>

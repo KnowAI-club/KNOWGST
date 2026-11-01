@@ -1,3 +1,4 @@
+import {integrationRoutes} from './integration-routes.mjs';
 import {dashboardSummary} from './dashboard-summary.mjs';
 import {acquireRuntimeLock} from './runtime-lock.mjs';
 import {initializeAccounting, activeBusiness, businessOf, readAccounting, augmentAccounting, planJournal, planSupplierPayment, previewBackfill, planBackfill, ACCOUNTS} from './accounting.mjs';
@@ -133,6 +134,8 @@ app.use((req, res, next) => {
   if (req.path === LOCAL_PREFS_ROUTE) return next();
   return (req.path === IMPORT_ROUTE ? importBody : jsonBody)(req, res, next);
 });
+
+integrationRoutes(app, RUNTIME_DIR);
 
 // Ensure data directory and sub-directories exist
 const DIRS = ['bills', 'clients', 'templates', 'products', 'expenses', 'recurring', 'receipts', 'profiles', 'purchases'];

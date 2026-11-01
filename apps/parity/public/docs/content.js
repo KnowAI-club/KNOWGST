@@ -10,7 +10,7 @@ export const pages = [
       "Create an invoice, check the preview and save the PDF.",
       "Record purchases and payments, then review your reports."
     ],
-    "notes": "This guide describes the current compatibility edition. Screenshots show the implemented app with fictional records. The dashboard was updated on 1 November 2026; other screens reflect their recorded capture dates. Hosted accounts, AI, bank feeds and packaged desktop installers are not part of this release.",
+    "notes": "This guide shows the implemented KNOWGST app with fictional sample records, refreshed on 1 November 2026. Your business records remain local. Optional ChatGPT and Resend connections use the internet only for the requests you initiate. Bank feeds and automatic tax filing are not included.",
     "screen": "dashboard",
     "view": "dashboard"
   },
@@ -24,7 +24,7 @@ export const pages = [
       "Review numbering, bank details and the modules you want to show.",
       "Save changes. Create a test document and inspect its business details before issuing real invoices."
     ],
-    "notes": "The current app runs locally. Start it from the repository with pnpm dev after installing dependencies. The default address is http://127.0.0.1:4173. This is not hosted authentication.",
+    "notes": "Use the KNOWGST desktop app, or the local development preview started with pnpm dev. This guide uses fictional business data; enter your own verified business details before issuing documents.",
     "screen": "settings",
     "view": "settings"
   },
@@ -129,6 +129,23 @@ export const pages = [
     "view": "receipts"
   },
   {
+    "id": "email-documents",
+    "title": "Email invoices and receipts",
+    "group": "Sales",
+    "intro": "Send a reviewed PDF attachment using your own verified Resend sender.",
+    "screen": "email-invoice",
+    "view": "invoices",
+    "steps": [
+      "Configure Resend under Settings → Integrations. Verify the sender domain in Resend before sending.",
+      "For an invoice, open More actions → Email PDF with Resend. For a receipt, select Email receipt PDF.",
+      "Check the recipient. Linked invoice customer email is prefilled where available; otherwise enter it yourself.",
+      "Open Review PDF to inspect the generated attachment. PDFs larger than 3 MB are rejected.",
+      "Review the subject and message, then select Send email. The app does not send when opening a draft.",
+      "If the network result is unconfirmed, retry the same draft to reuse its request ID. Check Resend before closing and creating another draft."
+    ],
+    "notes": "Accepted by Resend means the provider queued the email; it is not confirmed delivery. Check the Resend dashboard for delivered, bounced or rejected messages. Draft fields lock after the first attempt to keep retries identical. Safe retries expire after 23 hours. The existing Open email app action remains available without Resend."
+  },
+  {
     "id": "recurring",
     "title": "Recurring invoices",
     "group": "Money in",
@@ -223,13 +240,32 @@ export const pages = [
     "group": "Workspace",
     "intro": "Maintain your business profile and local preferences.",
     "steps": [
-      "Open Settings to review business details, invoice preferences and enabled modules.",
-      "Save the changes and inspect a document that uses them.",
-      "Use the backup tools before importing or restoring records."
+      "Use the section navigation to open Company, Print & PDF, Features, Backups, Integrations or Google Drive.",
+      "Save business profile changes with Save changes. Print settings keep their existing save controls.",
+      "Under Integrations, connect your own ChatGPT account or enter a Resend sending key and verified sender. Integration settings save separately from your business profile.",
+      "Use the Google Drive section for browser OAuth or a synced secondary backup folder.",
+      "Review a sample invoice after changing branding, tax details or print layout."
     ],
-    "notes": "The local lock is not multi-user hosted authentication. Do not expose this local service directly to the internet.",
+    "notes": "Connections apply to this device, across its business profiles. Saved secrets are write-only in the UI and excluded from portable backups. A saved Resend key is configured, not proof of delivery. Reconnect integrations when moving devices.",
     "screen": "settings",
     "view": "settings"
+  },
+  {
+    "id": "integrations",
+    "title": "Connect ChatGPT and email",
+    "group": "Workspace",
+    "intro": "Use your own ChatGPT account for read-only AI assistance and Resend to email document PDFs.",
+    "screen": "integrations",
+    "view": "settings",
+    "steps": [
+      "Open Settings → Integrations. Under ChatGPT, select Continue with ChatGPT.",
+      "Complete sign-in and consent in your system browser. Authorize ChatGPT plan usage if your account is eligible, then return to KNOWGST. No API key or shared subscription is required.",
+      "Your account appears after its identity is verified. Use Reconnect, Use account or Sign out to manage saved connections. Manage ChatGPT usage opens the provider’s account limits.",
+      "Expand Ask ChatGPT, load your available models, choose one and enter a question. Only your typed question is sent; invoices, customer lists and books are not attached automatically.",
+      "For email, create a Resend sending-access API key for your verified domain. Enter sender name, sender email, optional reply-to and API key; select Save email settings.",
+      "Open an invoice’s More actions → Email PDF with Resend, or a receipt’s Email receipt PDF button. Review the PDF, recipient, subject and message, then select Send email."
+    ],
+    "notes": "ChatGPT OAuth supports eligible open-source/local-app plan usage; account permissions and availability are controlled by OpenAI. AI cannot edit your books or file returns. Resend uses an API key, not ChatGPT OAuth. Credentials are stored in owner-protected device files outside portable backups; this is not an encrypted vault. No live provider account is connected by default."
   },
   {
     "id": "backups",
