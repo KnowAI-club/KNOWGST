@@ -40,3 +40,8 @@
 - Post saved INR sales, credit notes, invoice-linked collections/refunds and gross paid expenses atomically with their source records.
 - Preserve source history with linked reversals on corrections, cancellations, deletion and restoration; guard duplicate saves and stale expense edits.
 - Keep the current interface and KnowAI branding. Historical backfill, standalone receipt accounting, FX and period closing remain outside this increment.
+
+### Standalone receipts and historical backfill
+- Post standalone INR receipts to unallocated customer receipts, with atomic link/unlink and reversal handling that avoids duplicate cash.
+- Add a reviewed historical backfill with source-history exclusion, stale-preview rejection, replay protection, explicit manual-journal review and source/PDF preservation.
+- Preserve existing navigation, spacing and KnowAI branding; extend the Accounts & history tabs.

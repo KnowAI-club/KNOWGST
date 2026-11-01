@@ -93,6 +93,7 @@ export const ACCOUNTS = [
   ["2000", "Supplier payables", "liability"],
   ["2100", "Output tax", "liability"],
   ["2200", "TCS payable", "liability"],
+  ["2300", "Unallocated customer receipts", "liability"],
   ["3000", "Opening equity", "equity"],
   ["4000", "Sales", "income"],
   ["5000", "Purchases (gross; tax unclassified)", "expense"],
@@ -227,7 +228,7 @@ export function assertStockOwner(root, product, businessId) {
 }
 // Source snapshots are reconciled against active entries, never edited in place.
 // A retry or a metadata-only change therefore cannot duplicate a posting.
-function sourcePostings(collection, record) {
+function sourcePostings(collection, record, bills = []) {
   if (!record) return [];
   const unit =
     record.currency || record.data?.invoiceOptions?.currency || "INR";
@@ -239,6 +240,28 @@ function sourcePostings(collection, record) {
       result.push({ key, date: date(day), memo, currency: unit, lines });
   };
   const line = (account, debit, credit = 0) => ({ account, debit, credit });
+  if (collection === "receipts") {
+    // A linked receipt is represented by the invoice payment, never twice.
+    if (
+      record.billId ||
+      record.againstInvoice ||
+      bills.some((b) =>
+        (b.payments || b.data?.payments || []).some(
+          (p) =>
+            p.id === record.id ||
+            (record.receiptNo && p.receiptNo === record.receiptNo),
+        ),
+      )
+    )
+      return [];
+    if (record.amount === undefined || !record.date) return [];
+    const amount = minor(record.amount);
+    add("receipt", record.date, `Receipt: ${record.receiptNo || record.id}`, [
+      line("1000", amount),
+      line("2300", 0, amount),
+    ]);
+    return result;
+  }
   if (collection === "expenses") {
     if (record.amount === undefined || !record.date) return [];
     const amount = minor(record.amount);
@@ -305,8 +328,10 @@ function sourcePostings(collection, record) {
   });
   return result;
 }
-function reconcileSource(state, collection, old, next) {
-  const source = `${collection === "bills" ? "sale" : "expense"}:${(next || old).id}`;
+const sourceOf = (collection, record) =>
+  `${{ bills: "sale", expenses: "expense", receipts: "receipt" }[collection]}:${record.id}`;
+function reconcileSource(state, collection, old, next, bills = []) {
+  const source = sourceOf(collection, next || old);
 
   const reversed = new Set(
     state.entries.map((e) => e.reversalOf).filter(Boolean),
@@ -326,10 +351,13 @@ function reconcileSource(state, collection, old, next) {
         !(next.invoiceDate || next.data?.details?.invoiceDate))
     )
       fail("A posted invoice must retain its amount and date.", 400);
-    if (collection === "expenses" && (next.amount === undefined || !next.date))
+    if (
+      ["expenses", "receipts"].includes(collection) &&
+      (next.amount === undefined || !next.date)
+    )
       fail("A posted expense must retain its amount and date.", 400);
   }
-  const desired = sourcePostings(collection, next);
+  const desired = sourcePostings(collection, next, bills);
   const fingerprint = (p) =>
     hash({
       key: p.key || p.sourceKey,
@@ -376,6 +404,13 @@ export function augmentAccounting(
         );
       return states.get(id);
     };
+  const bills = new Map(records(root, "bills").map((b) => [b.id, b]));
+  for (const [file, next] of writes)
+    if (path.basename(path.dirname(file)) === "bills") {
+      const old = readRecord(file);
+      if (old) bills.delete(old.id);
+      if (next) bills.set(next.id, next);
+    }
   for (const [file, next] of [...writes]) {
     const dir = path.basename(path.dirname(file));
     if (
@@ -420,12 +455,13 @@ export function augmentAccounting(
         ...new Set([...Object.keys(old || {}), ...Object.keys(next || {})]),
       ].filter((k) => hash(old?.[k] ?? null) !== hash(next?.[k] ?? null)),
     });
-    if (dir === "bills" || dir === "expenses") {
+    if (["bills", "expenses", "receipts"].includes(dir)) {
       const previousOwner = businessOf(root, old),
         nextOwner = businessOf(root, next);
       if (previousOwner && next && previousOwner !== nextOwner)
         fail("Posted document business cannot change.");
-      if (nextOwner || previousOwner) reconcileSource(state, dir, old, next);
+      if (nextOwner || previousOwner)
+        reconcileSource(state, dir, old, next, [...bills.values()]);
     }
     if (dir === "products") {
       if (old?.businessId && old.businessId !== id)
@@ -463,6 +499,44 @@ export function augmentAccounting(
           "This purchase has posted accounts. Use a correcting journal; its original amount and supplier are locked.",
         );
     }
+  }
+  // Invoice edits can adopt a pre-existing standalone receipt without changing
+  // its payload (legacy/raw save path). Reconcile that dependent source too.
+  const affectedPayments = [];
+  for (const [file, next] of writes)
+    if (path.basename(path.dirname(file)) === "bills") {
+      for (const b of [readRecord(file), next])
+        if (b) affectedPayments.push(...(b.payments || b.data?.payments || []));
+    }
+  for (const receipt of records(root, "receipts")) {
+    if (
+      !affectedPayments.some(
+        (p) =>
+          p.id === receipt.id ||
+          (receipt.receiptNo && p.receiptNo === receipt.receiptNo),
+      )
+    )
+      continue;
+    const file = path.join(
+      root,
+      "receipts",
+      receipt.id.replace(/[/\\:*?"<>|]/g, "_") + ".json",
+    );
+    if (writes.has(file)) continue;
+    const owner = businessOf(root, receipt);
+    if (!owner) continue;
+    const linked = [...bills.values()].filter((b) =>
+      (b.payments || b.data?.payments || []).some(
+        (p) =>
+          p.id === receipt.id ||
+          (receipt.receiptNo && p.receiptNo === receipt.receiptNo),
+      ),
+    );
+    if (linked.some((b) => businessOf(root, b) !== owner))
+      fail("Receipt payment belongs to another business.");
+    reconcileSource(stateFor(owner), "receipts", receipt, receipt, [
+      ...bills.values(),
+    ]);
   }
   for (const [id, state] of states) writes.set(stateFile(root, id), state);
   return writes;
@@ -580,4 +654,249 @@ export function planSupplierPayment(root, businessId, input) {
     ]),
     result: { payment, purchase: updated },
   };
+}
+
+// Backfill is explicit and source-linked. It never rewrites source documents,
+// replays stock, invents old cash receipts or reopens a source already in history.
+export function previewBackfill(root, businessId) {
+  const state = readAccounting(root, businessId),
+    bills = records(root, "bills");
+  const collections = {
+    bills,
+    expenses: records(root, "expenses"),
+    receipts: records(root, "receipts"),
+  };
+  const rows = [];
+  const history = new Set(state.entries.map((e) => e.source).filter(Boolean));
+  const paymentsFor = (id, receiptNo) =>
+    bills.filter((b) =>
+      (b.payments || b.data?.payments || []).some(
+        (p) => (id && p.id === id) || (receiptNo && p.receiptNo === receiptNo),
+      ),
+    );
+  for (const [collection, items] of Object.entries(collections))
+    for (const record of items) {
+      const owner = businessOf(root, record);
+      if (owner && owner !== businessId) continue;
+      const row = {
+        collection,
+        id: record.id,
+        label:
+          record.invoiceNumber ||
+          record.description ||
+          record.receiptNo ||
+          record.id,
+        status: "review",
+        reason: "",
+        postings: [],
+      };
+      rows.push(row);
+      if (!owner) {
+        row.reason = "Assign this record to a business first.";
+        continue;
+      }
+      if (history.has(sourceOf(collection, record))) {
+        row.status = "posted";
+        row.reason =
+          "Source already has journal history; it will not be posted again.";
+        continue;
+      }
+      try {
+        const number =
+          collection === "bills"
+            ? record.invoiceNumber
+            : collection === "receipts"
+              ? record.receiptNo
+              : record.invoiceNo;
+        if (
+          number &&
+          items.filter(
+            (r) =>
+              businessOf(root, r) === businessId &&
+              (collection === "bills"
+                ? r.invoiceNumber
+                : collection === "receipts"
+                  ? r.receiptNo
+                  : r.invoiceNo) === number &&
+              (collection !== "expenses" ||
+                (r.vendorGstin || r.vendorName) ===
+                  (record.vendorGstin || record.vendorName)),
+          ).length > 1
+        )
+          throw Error("Duplicate document reference needs review.");
+        if (
+          (record.currency ||
+            record.data?.invoiceOptions?.currency ||
+            "INR") !== "INR"
+        )
+          throw Error(
+            "Foreign-currency accounting requires an exchange-rate policy.",
+          );
+        if (collection === "bills") {
+          const type =
+            record.invoiceType || record.data?.invoiceType || "tax-invoice";
+          if (
+            ![
+              "tax-invoice",
+              "bill-of-supply",
+              "composition",
+              "credit-note",
+            ].includes(type) ||
+            record.status === "draft" ||
+            record.convertedTo
+          ) {
+            row.status = "excluded";
+            row.reason = "Not a sales document.";
+            continue;
+          }
+          if (
+            record.totalAmount === undefined ||
+            !(record.invoiceDate || record.data?.details?.invoiceDate)
+          )
+            throw Error("Missing invoice amount or date.");
+          if (
+            ["tax-invoice", "credit-note"].includes(type) &&
+            record.totalTaxAmount === undefined &&
+            record.data?.totals?.totalTaxAmount === undefined
+          )
+            throw Error(
+              "Missing saved tax total; review rather than recalculate historical tax.",
+            );
+          const payments = record.payments || record.data?.payments || [];
+          if (!Array.isArray(payments)) throw Error("Invalid payment history.");
+          if (payments.some((p) => String(p.mode).startsWith("credit-")))
+            throw Error(
+              "Review legacy customer-credit allocations before backfill.",
+            );
+          const paid = payments.reduce(
+            (n, p) => n + Math.round(Number(p.amount) * 100),
+            0,
+          );
+          if (!Number.isSafeInteger(paid))
+            throw Error("Invalid payment history.");
+          if (
+            record.paidAmount !== undefined &&
+            Math.round(Number(record.paidAmount) * 100) !== paid
+          )
+            throw Error("Paid amount does not reconcile with payment history.");
+          if (["paid", "partial"].includes(record.status) && !payments.length)
+            throw Error("Paid status has no supporting payment history.");
+          for (const p of payments) {
+            if (!p.date)
+              throw Error(
+                "Payment date is missing; review the historical collection.",
+              );
+            if (paymentsFor(p.id, p.receiptNo).length > 1)
+              throw Error("Payment identifier appears on multiple invoices.");
+            const mirrors = collections.receipts.filter(
+              (r) =>
+                r.id === p.id || (p.receiptNo && r.receiptNo === p.receiptNo),
+            );
+            if (
+              mirrors.length > 1 ||
+              mirrors.some(
+                (r) =>
+                  businessOf(root, r) !== businessId ||
+                  Number(r.amount) !== Number(p.amount) ||
+                  (r.billId && r.billId !== record.id),
+              )
+            )
+              throw Error("Receipt and invoice payment history disagree.");
+          }
+        } else {
+          if (record.amount === undefined || !record.date)
+            throw Error("Missing amount or date.");
+          if (!minor(record.amount)) throw Error("Amount must be positive.");
+          if (collection === "receipts") {
+            const linked = paymentsFor(record.id, record.receiptNo);
+            if (
+              linked.length === 1 &&
+              businessOf(root, linked[0]) === businessId
+            ) {
+              row.status = "excluded";
+              row.reason =
+                "Represented by the invoice payment; not posted separately.";
+              continue;
+            }
+            if (record.billId || record.againstInvoice || linked.length)
+              throw Error(
+                "Invoice reference/payment link needs reconciliation.",
+              );
+          }
+        }
+        const postings = sourcePostings(collection, record, bills);
+        // Validate every line and date before presenting an eligible candidate.
+        const trial = { ...state, entries: [] };
+        for (const p of postings)
+          entry(trial, { ...p, id: crypto.randomUUID() });
+        row.postings = postings;
+        row.status = postings.length ? "ready" : "excluded";
+        row.reason = postings.length
+          ? "Ready for source-linked posting."
+          : "No financial posting required.";
+      } catch (error) {
+        row.reason = error.message;
+      }
+    }
+  rows.sort((a, b) =>
+    (a.collection + ":" + a.id).localeCompare(b.collection + ":" + b.id),
+  );
+  return {
+    businessId,
+    token: hash({
+      businessId,
+      state,
+      collections,
+      profiles: records(root, "profiles"),
+      active: activeBusiness(root),
+    }),
+    rows,
+    ready: rows.filter((r) => r.status === "ready").length,
+    review: rows.filter((r) => r.status === "review").length,
+    manualEntries: state.entries.filter((e) => !e.source).length,
+  };
+}
+export function planBackfill(root, businessId, input) {
+  validateObject(input);
+  const state = readAccounting(root, businessId);
+  const completed = state.audit.find(
+    (a) =>
+      a.action === "accounting.backfilled" && a.previewToken === input.token,
+  );
+  if (completed)
+    return {
+      writes: new Map(),
+      result: { ...completed.result, replayed: true },
+    };
+  const preview = previewBackfill(root, businessId);
+  if (typeof input.token !== "string" || input.token !== preview.token)
+    fail("Records changed since preview. Review a fresh backfill preview.");
+  if (input.reviewedManualEntries !== true)
+    fail("Review existing manual journals before applying backfill.", 400);
+  const start = state.entries.length;
+  for (const row of preview.rows.filter((r) => r.status === "ready")) {
+    for (const p of row.postings) {
+      const saved = entry(state, {
+        ...p,
+        id: crypto.randomUUID(),
+        source: sourceOf(row.collection, row),
+      });
+      saved.sourceKey = p.key;
+    }
+  }
+  const result = {
+    postedRecords: preview.ready,
+    postedEntries: state.entries.length - start,
+    review: preview.review,
+  };
+  state.audit.push({
+    id: crypto.randomUUID(),
+    action: "accounting.backfilled",
+    entityLabel: "Reviewed historical backfill",
+    actor: "local-session",
+    at: new Date().toISOString(),
+    previewToken: input.token,
+    result,
+  });
+  return { writes: new Map([[stateFile(root, businessId), state]]), result };
 }

@@ -1,5 +1,5 @@
 import {acquireRuntimeLock} from './runtime-lock.mjs';
-import {initializeAccounting, activeBusiness, businessOf, readAccounting, augmentAccounting, planJournal, planSupplierPayment, ACCOUNTS} from './accounting.mjs';
+import {initializeAccounting, activeBusiness, businessOf, readAccounting, augmentAccounting, planJournal, planSupplierPayment, previewBackfill, planBackfill, ACCOUNTS} from './accounting.mjs';
 import {openRecordDatabase, withDatabaseClosed, storeFor} from './sqlite-storage.mjs';
 import { planReceipt, planPurchase, planInvoiceTrash, planRecurringTemplate, commitWorkflow, recordPath, cleanRecord } from './workflow-transactions.mjs';
 import { commitFileBatch, recoverFileTransaction } from './file-transactions.mjs';
@@ -475,6 +475,8 @@ app.delete('/api/products/:id', (req,res)=>{
 function requireBusiness(){const id=activeBusiness(DATA_DIR)?.id;if(!id)throw storageError('Complete business setup first.','bad-request',400);return id;}
 app.get('/api/accounting',(_req,res)=>{const state=readAccounting(DATA_DIR,requireBusiness());res.json({...state,accounts:ACCOUNTS});});
 app.post('/api/accounting/journal',(req,res)=>{requireSnapshotIdle();res.json(runRecordTransaction(planJournal(DATA_DIR,requireBusiness(),req.body)));});
+app.get('/api/accounting/backfill',(req,res)=>res.json(previewBackfill(DATA_DIR,requireBusiness())));
+app.post('/api/accounting/backfill',(req,res)=>{requireSnapshotIdle();res.json(runRecordTransaction(planBackfill(DATA_DIR,requireBusiness(),req.body)));});
 app.post('/api/accounting/supplier-payments',(req,res)=>{requireSnapshotIdle();res.json(runRecordTransaction(planSupplierPayment(DATA_DIR,requireBusiness(),req.body)));});
 
 // ========================
@@ -545,12 +547,16 @@ app.get('/api/receipts', (req, res) => {
 app.post('/api/receipts', (req, res) => {
   requireSnapshotIdle();
   const receipt = { ...req.body, id: req.body.id || 'rcp_' + crypto.randomUUID() };
+  const businessId=requireBusiness(),old=readRecord(recordPath(DATA_DIR,'receipts',receipt.id));
+  for(const record of [old,receipt]){const owner=businessOf(DATA_DIR,record);if(owner&&owner!==businessId)throw storageError('Receipt belongs to another business.','conflict',409);}
+  receipt.businessId=businessId;
   res.json(runRecordTransaction(planReceipt(DATA_DIR, receipt)));
 });
 app.delete('/api/receipts/:id', (req, res) => {
   requireSnapshotIdle();
   const old = readJSON(recordPath(DATA_DIR,'receipts',req.params.id));
   if (!old) return res.json({success:true});
+  const owner=businessOf(DATA_DIR,old);if(owner&&owner!==requireBusiness())throw storageError('Receipt belongs to another business.','conflict',409);
   res.json(runRecordTransaction(planReceipt(DATA_DIR, { ...old, _revision: req.headers['if-match'] }, {remove:true})));
 });
 

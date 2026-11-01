@@ -17,8 +17,10 @@ import {
   readAccounting,
   augmentAccounting,
   initializeAccounting,
+  previewBackfill,
+  planBackfill,
 } from "../accounting.mjs";
-import { planPurchase } from "../workflow-transactions.mjs";
+import { planPurchase, planReceipt } from "../workflow-transactions.mjs";
 import { planInvoices, invoiceRevision } from "../invoice-transactions.mjs";
 import {
   createVerifiedBackup,
@@ -600,5 +602,284 @@ test("automatic postings stay business-scoped and cannot be manually relocated",
         writes: new Map([[f.file("bills", b.id), { ...b, businessId: "B" }]]),
       }),
     /moved between/,
+  );
+});
+
+test("standalone receipts post, edit, link, unlink and delete without double cash", (t) => {
+  const f = setup(t),
+    initial = {
+      id: "standalone",
+      businessId: "A",
+      date: "2026-11-01",
+      amount: 50,
+      clientName: "Customer",
+      receiptNo: "R-1",
+    };
+  let r = f.commit(planReceipt(f.root, initial)).receipt;
+  let state = () => readAccounting(f.root, "A");
+  assert.equal(accountBalance(state(), "1000"), 5000);
+  assert.equal(accountBalance(state(), "2300"), -5000);
+  f.commit(planReceipt(f.root, r));
+  assert.equal(state().entries.length, 1);
+  r = f.commit(planReceipt(f.root, { ...r, amount: 60 })).receipt;
+  assert.equal(accountBalance(state(), "1000"), 6000);
+  assert.equal(state().entries.length, 3);
+  const b = saleFixture({ clientName: "Customer" });
+  f.commit({ writes: new Map([[f.file("bills", b.id), b]]) });
+  r = f.commit(planReceipt(f.root, { ...r, againstInvoice: b.id })).receipt;
+  assert.equal(accountBalance(state(), "1000"), 6000);
+  assert.equal(accountBalance(state(), "2300"), 0);
+  assert.equal(accountBalance(state(), "1100"), 5800);
+  r = f.commit(planReceipt(f.root, { ...r, againstInvoice: "" })).receipt;
+  assert.equal(accountBalance(state(), "1000"), 6000);
+  assert.equal(accountBalance(state(), "2300"), -6000);
+  assert.equal(accountBalance(state(), "1100"), 11800);
+  f.commit(planReceipt(f.root, r, { remove: true }));
+  assert.equal(accountBalance(state(), "1000"), 0);
+  assert.equal(accountBalance(state(), "2300"), 0);
+  f.commit(planReceipt(f.root, r, { remove: true }));
+  balanced(state());
+});
+test("backfill previews eligibility, skips ambiguous data and never changes source records", (t) => {
+  const f = setup(t),
+    b = saleFixture();
+  f.write("bills", b.id, b);
+  f.write("expenses", "old-e", {
+    id: "old-e",
+    businessId: "A",
+    date: "2026-10-15",
+    amount: 20,
+  });
+  f.write("receipts", "old-r", {
+    id: "old-r",
+    businessId: "A",
+    date: "2026-10-15",
+    amount: 30,
+  });
+  f.write(
+    "bills",
+    "bad-paid",
+    saleFixture({
+      id: "bad-paid",
+      invoiceNumber: "BAD-PAID",
+      paidAmount: 50,
+      status: "partial",
+    }),
+  );
+  f.write(
+    "bills",
+    "unknown-tax",
+    saleFixture({
+      id: "unknown-tax",
+      invoiceNumber: "UNKNOWN-TAX",
+      totalTaxAmount: undefined,
+      data: {},
+    }),
+  );
+  f.write("expenses", "unowned", {
+    id: "unowned",
+    date: "2026-10-15",
+    amount: 30,
+  });
+  f.write("expenses", "foreign", {
+    id: "foreign",
+    businessId: "A",
+    date: "2026-10-15",
+    amount: 30,
+    currency: "USD",
+  });
+  const before = f.db.rows();
+  const preview = previewBackfill(f.root, "A");
+  assert.equal(preview.ready, 3);
+  assert.equal(preview.review, 4);
+  assert.equal(readAccounting(f.root, "A").entries.length, 0);
+  assert.throws(
+    () => planBackfill(f.root, "A", { token: preview.token }),
+    /manual journals/,
+  );
+  const input = { token: preview.token, reviewedManualEntries: true };
+  const result = f.commit(planBackfill(f.root, "A", input));
+  assert.equal(result.postedRecords, 3);
+  assert.equal(accountBalance(readAccounting(f.root, "A"), "1000"), 1000);
+  assert.deepEqual(
+    f.db.rows().filter((r) => !r.path.startsWith("accounting/")),
+    before.filter((r) => !r.path.startsWith("accounting/")),
+  );
+  assert.equal(f.commit(planBackfill(f.root, "A", input)).replayed, true);
+  assert.equal(previewBackfill(f.root, "A").ready, 0);
+  // Deleted/reversed historical sources are never resurrected by a backfill retry.
+  f.commit({ writes: new Map([[f.file("bills", b.id), null]]) });
+  f.write("bills", b.id, b);
+  assert.equal(
+    previewBackfill(f.root, "A").rows.find((r) => r.id === b.id).status,
+    "posted",
+  );
+});
+test("backfill rejects stale previews and rolls back source journals and audit together", (t) => {
+  const f = setup(t),
+    b = saleFixture();
+  f.write("bills", b.id, b);
+  const first = previewBackfill(f.root, "A");
+  f.write("bills", b.id, { ...b, totalAmount: 236 });
+  assert.throws(
+    () =>
+      planBackfill(f.root, "A", {
+        token: first.token,
+        reviewedManualEntries: true,
+      }),
+    /changed since/,
+  );
+  const preview = previewBackfill(f.root, "A"),
+    plan = planBackfill(f.root, "A", {
+      token: preview.token,
+      reviewedManualEntries: true,
+    });
+  assert.throws(
+    () =>
+      commitJsonBatch(f.root, plan.writes, {
+        beforeInstall() {
+          throw Error("rollback");
+        },
+      }),
+    /rollback/,
+  );
+  assert.equal(readAccounting(f.root, "A").entries.length, 0);
+  assert.equal(readAccounting(f.root, "A").audit.length, 0);
+  f.commit(
+    planBackfill(f.root, "A", {
+      token: preview.token,
+      reviewedManualEntries: true,
+    }),
+  );
+  assert.equal(readAccounting(f.root, "A").entries.length, 1);
+});
+test("backfill recognizes mirrored receipts and duplicate references without inventing cash", (t) => {
+  const f = setup(t),
+    b = saleFixture({
+      payments: [{ id: "mirror", amount: 50, date: "2026-10-30" }],
+      paidAmount: 50,
+    });
+  f.write("bills", b.id, b);
+  f.write("receipts", "mirror", {
+    id: "mirror",
+    businessId: "A",
+    amount: 50,
+    date: "2026-10-30",
+  });
+  let p = previewBackfill(f.root, "A");
+  assert.equal(p.ready, 1);
+  assert.equal(p.rows.find((r) => r.id === "mirror").status, "excluded");
+  f.commit(
+    planBackfill(f.root, "A", { token: p.token, reviewedManualEntries: true }),
+  );
+  assert.equal(accountBalance(readAccounting(f.root, "A"), "1000"), 5000);
+  f.write(
+    "bills",
+    "dupe1",
+    saleFixture({ id: "dupe1", invoiceNumber: "DUPLICATE" }),
+  );
+  f.write(
+    "bills",
+    "dupe2",
+    saleFixture({ id: "dupe2", invoiceNumber: "DUPLICATE" }),
+  );
+  p = previewBackfill(f.root, "A");
+  assert.equal(
+    p.rows.filter((r) => r.reason.includes("Duplicate document")).length,
+    2,
+  );
+  f.write(
+    "bills",
+    "legacy",
+    saleFixture({
+      id: "legacy",
+      invoiceNumber: "LEGACY",
+      payments: [{ receiptNo: "LEGACY-R", amount: 10, date: "2026-10-30" }],
+    }),
+  );
+  f.write("receipts", "legacy-r", {
+    id: "legacy-r",
+    businessId: "A",
+    receiptNo: "LEGACY-R",
+    amount: 10,
+    date: "2026-10-30",
+  });
+  p = previewBackfill(f.root, "A");
+  assert.equal(p.rows.find((r) => r.id === "legacy-r").status, "excluded");
+  f.commit(
+    planBackfill(f.root, "A", { token: p.token, reviewedManualEntries: true }),
+  );
+  assert.equal(accountBalance(readAccounting(f.root, "A"), "1000"), 6000);
+});
+test("complete backup restores standalone receipt and backfill history with replay protection", (t) => {
+  const f = setup(t);
+  f.write("bills", "old", saleFixture({ id: "old" }));
+  const p = previewBackfill(f.root, "A"),
+    input = { token: p.token, reviewedManualEntries: true };
+  f.commit(planBackfill(f.root, "A", input));
+  let r = f.commit(
+    planReceipt(f.root, {
+      id: "restore-r",
+      businessId: "A",
+      date: "2026-11-01",
+      amount: 25,
+    }),
+  ).receipt;
+  const original = readAccounting(f.root, "A");
+  const pdf = path.join(f.runtime, "Saved Invoices"),
+    trash = path.join(f.runtime, "Trash");
+  fs.mkdirSync(pdf);
+  fs.mkdirSync(trash);
+  fs.writeFileSync(path.join(pdf, "old.pdf"), "original");
+  const backup = path.join(f.runtime, "full");
+  createVerifiedBackup(f.root, backup, { pdfDir: pdf, trashDir: trash });
+  f.commit(planReceipt(f.root, r, { remove: true }));
+  fs.writeFileSync(path.join(pdf, "old.pdf"), "changed");
+  withDatabaseClosed(f.root, () =>
+    restoreVerifiedBackup(f.root, backup, { pdfDir: pdf, trashDir: trash }),
+  );
+  f.reopen();
+  assert.deepEqual(readAccounting(f.root, "A"), original);
+  assert.equal(fs.readFileSync(path.join(pdf, "old.pdf"), "utf8"), "original");
+  assert.equal(f.commit(planBackfill(f.root, "A", input)).replayed, true);
+  r = {
+    ...f.read("receipts", "restore-r"),
+    _revision: invoiceRevision(f.read("receipts", "restore-r")),
+  };
+  f.commit(planReceipt(f.root, r, { remove: true }));
+  assert.equal(accountBalance(readAccounting(f.root, "A"), "2300"), 0);
+});
+
+test("invoice-side adoption of an existing standalone receipt cannot double count cash", (t) => {
+  const f = setup(t),
+    r = f.commit(
+      planReceipt(f.root, {
+        id: "adopt",
+        businessId: "A",
+        date: "2026-11-01",
+        amount: 50,
+      }),
+    ).receipt;
+  const b = saleFixture({ payments: [{ id: r.id, amount: 50, date: r.date }] });
+  // Raw legacy invoice edits do not necessarily rewrite the mirrored receipt.
+  f.commit({ writes: new Map([[f.file("bills", b.id), b]]) });
+  assert.equal(accountBalance(readAccounting(f.root, "A"), "1000"), 5000);
+  assert.equal(accountBalance(readAccounting(f.root, "A"), "2300"), 0);
+  f.commit({
+    writes: new Map([[f.file("bills", b.id), { ...b, payments: [] }]]),
+  });
+  assert.equal(accountBalance(readAccounting(f.root, "A"), "1000"), 5000);
+  assert.equal(accountBalance(readAccounting(f.root, "A"), "2300"), -5000);
+  assert.throws(
+    () =>
+      f.commit({
+        writes: new Map([
+          [
+            f.file("bills", "foreign"),
+            { ...b, id: "foreign", businessId: "B" },
+          ],
+        ]),
+      }),
+    /another business/,
   );
 });

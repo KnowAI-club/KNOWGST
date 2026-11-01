@@ -16,6 +16,92 @@ test.beforeEach(async ({ request }) => {
     },
   });
 });
+test("historical backfill review posts legacy records once and rejects stale previews", async ({
+  page,
+  request,
+}) => {
+  const legacyProfile = {
+    id: "legacy-backfill-ui",
+    businessName: "Backfill legacy",
+    country: "India",
+    state: "Maharashtra",
+  };
+  // Import an unresolved historical owner before any books are posted, then
+  // restore that business identity. This uses the real portable-import path.
+  const legacy = {
+    id: "backfill-legacy-ui",
+    date: "2026-10-10",
+    amount: 15,
+    ownerName: legacyProfile.businessName,
+  };
+  expect(
+    (await request.post("/api/import", { data: { expenses: [legacy] } })).ok(),
+  ).toBe(true);
+  await request.post("/api/profile", { data: legacyProfile });
+  const initial = await (await request.get("/api/accounting/backfill")).json();
+  expect(initial.ready).toBe(1);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/?view=reports");
+  await page
+    .getByRole("button", { name: "Accounts & history", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Historical backfill", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Review older records", exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: "Post 1 eligible records", exact: true }),
+  ).toBeDisabled();
+  await page
+    .getByLabel(
+      "I reviewed the proposed entries and checked that manual journals do not already cover these records.",
+    )
+    .check();
+  await page
+    .getByRole("button", { name: "Post 1 eligible records", exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: "Post 1 eligible records", exact: true }),
+  ).toHaveCount(0);
+  const state = await (await request.get("/api/accounting")).json();
+  expect(
+    state.entries.filter((e: any) => e.source === "expense:backfill-legacy-ui"),
+  ).toHaveLength(1);
+  const replay = await request.post("/api/accounting/backfill", {
+    data: { token: initial.token, reviewedManualEntries: true },
+  });
+  expect((await replay.json()).replayed).toBe(true);
+  await page
+    .getByRole("button", { name: "Review older records", exact: true })
+    .click();
+  await expect(
+    page.locator("tr").filter({ hasText: "backfill-legacy-ui" }),
+  ).toContainText("posted");
+  const fresh = await (await request.get("/api/accounting/backfill")).json();
+  expect(
+    (
+      await request.post("/api/expenses", {
+        data: { id: "new-backfill-check", amount: 10, date: "2026-11-01" },
+      })
+    ).ok(),
+  ).toBe(true);
+  expect(
+    (
+      await request.post("/api/accounting/backfill", {
+        data: { token: fresh.token, reviewedManualEntries: true },
+      })
+    ).status(),
+  ).toBe(409);
+  await expect(page.locator(".toast-item")).toHaveCount(0);
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
+  await page.screenshot({
+    path: "test-results/backfill-review-mobile.png",
+    fullPage: true,
+  });
+});
+
 test("post and reverse a journal through the current report UI", async ({
   page,
   request,
@@ -386,4 +472,92 @@ test("expense form edits and deletes reverse postings; stale and cross-business 
       .filter((l: any) => l.account === "5100")
       .reduce((n: number, l: any) => n + l.debit - l.credit, 0),
   ).toBe(0);
+});
+
+test("standalone receipt posts once and linking, unlinking and deletion preserve cash", async ({
+  page,
+  request,
+}) => {
+  const date = new Date().toISOString().slice(0, 10);
+  let response = await request.post("/api/receipts", {
+    data: {
+      id: "standalone-account-ui",
+      receiptNo: "STANDALONE-UI",
+      date,
+      amount: 50,
+      clientName: "Receipt client",
+      ownerName: profile.businessName,
+    },
+  });
+  expect(response.ok()).toBe(true);
+  let receipt = (await response.json()).receipt;
+  const balance = async (account: string) => {
+    const s = await (await request.get("/api/accounting")).json();
+    return s.entries
+      .filter(
+        (e: any) =>
+          e.source === "receipt:standalone-account-ui" ||
+          e.source === "sale:receipt-link-ui",
+      )
+      .flatMap((e: any) => e.lines)
+      .filter((l: any) => l.account === account)
+      .reduce((n: number, l: any) => n + l.debit - l.credit, 0);
+  };
+  expect(await balance("2300")).toBe(-5000);
+  expect((await request.post("/api/receipts", { data: receipt })).ok()).toBe(
+    true,
+  );
+  expect(await balance("1000")).toBe(5000);
+  expect(
+    (
+      await request.post("/api/invoice-transactions", {
+        data: {
+          operations: [
+            {
+              bill: {
+                id: "receipt-link-ui",
+                invoiceNumber: "RECEIPT-LINK",
+                invoiceDate: date,
+                invoiceType: "tax-invoice",
+                totalAmount: 118,
+                totalTaxAmount: 18,
+                clientName: "Receipt client",
+                data: { profile, items: [] },
+              },
+            },
+          ],
+        },
+      })
+    ).ok(),
+  ).toBe(true);
+  response = await request.post("/api/receipts", {
+    data: { ...receipt, againstInvoice: "receipt-link-ui" },
+  });
+  expect(response.ok()).toBe(true);
+  receipt = (await response.json()).receipt;
+  expect(await balance("1000")).toBe(5000);
+  expect(await balance("2300")).toBe(0);
+  response = await request.post("/api/receipts", {
+    data: { ...receipt, againstInvoice: "" },
+  });
+  expect(response.ok()).toBe(true);
+  receipt = (await response.json()).receipt;
+  expect(await balance("1000")).toBe(5000);
+  expect(await balance("2300")).toBe(-5000);
+  await page.goto("/?view=reports");
+  await page
+    .getByRole("button", { name: "Accounts & history", exact: true })
+    .click();
+  await expect(
+    page.locator("tr").filter({ hasText: "Receipt: STANDALONE-UI" }).first(),
+  ).toBeVisible();
+  expect(
+    (
+      await request.delete(`/api/receipts/${receipt.id}`, {
+        headers: { "If-Match": receipt._revision },
+      })
+    ).ok(),
+  ).toBe(true);
+  expect(await balance("1000")).toBe(0);
+  expect(await balance("2300")).toBe(0);
 });

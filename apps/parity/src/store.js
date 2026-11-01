@@ -574,3 +574,6 @@ export const postJournal=data=>apiFetch(`${API}/accounting/journal`,{method:'POS
 export const postSupplierPayment=data=>apiFetch(`${API}/accounting/supplier-payments`,{method:'POST',body:JSON.stringify(data)});
 export const getUnassignedProducts=()=>apiFetch(`${API}/products?unassigned=1`);
 export const assignProduct=product=>apiFetch(`${API}/products/${encodeURIComponent(product.id)}/assign`,{method:'POST',body:JSON.stringify({revision:product._revision})});
+
+export const getBackfillPreview=()=>apiFetch(`${API}/accounting/backfill`);
+export const applyBackfill=data=>apiFetch(`${API}/accounting/backfill`,{method:"POST",body:JSON.stringify(data)});

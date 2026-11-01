@@ -1,3 +1,4 @@
+import AccountingBackfill from "./AccountingBackfill";
 import useDialogFocus from "./useDialogFocus";
 import { useEffect, useState } from "react";
 import { getAccounting, postJournal } from "../store";
@@ -54,8 +55,8 @@ export default function AccountingPanel() {
         <div>
           <h3>Accounts & history</h3>
           <p className="text-muted">
-            INR sales, linked payments and expenses post when saved. Changes
-            create linked reversals. Older untouched records are not backfilled;
+            INR sales, receipts and expenses post when saved. Changes create
+            linked reversals. Review older records in Historical backfill;
             expense GST remains unclassified.
           </p>
         </div>
@@ -72,6 +73,7 @@ export default function AccountingPanel() {
           ["balances", "Account balances"],
           ["audit", "Audit trail"],
           ["stock", "Stock movements"],
+          ["backfill", "Historical backfill"],
         ].map(([id, label]) => (
           <button
             key={id}
@@ -82,6 +84,7 @@ export default function AccountingPanel() {
           </button>
         ))}
       </div>
+      {tab === "backfill" && <AccountingBackfill onApplied={load} />}
       {tab === "journal" && (
         <div className="table-scroll">
           <table className="data-table">

@@ -91,15 +91,27 @@ export function planReceipt(root, input, { remove = false } = {}) {
     (!Number.isFinite(Number(receipt.amount)) || Number(receipt.amount) <= 0)
   )
     fail("Enter a positive receipt amount", "bad-request", 400);
-  const bills = all(root, "bills");
+  const bills = all(root, "bills"),
+    receiptBusiness = businessOf(root, receipt);
   const resolve = (r) => {
     const ref = String(r?.againstInvoice || "").trim();
     if (!ref) return null;
     const matches = bills.filter(
       (b) =>
         (b.id === ref || b.invoiceNumber === ref) &&
+        (!receiptBusiness || businessOf(root, b) === receiptBusiness) &&
         (!owner(r) || owner(r) === owner(b)),
     );
+    if (
+      !matches.length &&
+      receiptBusiness &&
+      bills.some(
+        (b) =>
+          (b.id === ref || b.invoiceNumber === ref) &&
+          businessOf(root, b) !== receiptBusiness,
+      )
+    )
+      fail("Invoice reference belongs to another business.");
     if (matches.length > 1)
       fail("Invoice reference is ambiguous. Choose a business and invoice.");
     return matches[0] || null;
@@ -147,6 +159,8 @@ export function planReceipt(root, input, { remove = false } = {}) {
       });
     }
     if (!previous && target?.id !== bill.id) continue;
+    if (receiptBusiness && businessOf(root, bill) !== receiptBusiness)
+      fail("Receipt payment belongs to another business.");
     // A receipt cannot withdraw cash already allocated to another invoice.
     if (kept.some((p) => p.mode === "credit-transferred-out")) {
       const owed =
