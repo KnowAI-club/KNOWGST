@@ -51,9 +51,19 @@ function addCanvasAsA4Pages(doc, canvas, startOnNewPage, breaks = []) {
 function safeBreaks(el, canvas) {
   const top = el.getBoundingClientRect().top;
   const scale = canvas.height / Math.max(1, el.getBoundingClientRect().height);
-  return [...el.querySelectorAll('tr, .inv-footer-block, [data-pdf-page-boundary], .inv-signature')]
-    .map((n) => Math.round((n.getBoundingClientRect().bottom - top) * scale))
-    .filter((b) => b > 0 && b < canvas.height)
+  const capacity = canvas.width * 297 / 210;
+  // Keep the closing totals, tax summary and signature together whenever
+  // the whole group fits on one page. Long terms can still paginate.
+  const closing = [...el.querySelectorAll('.inv-closing')].map(n => {
+    const r = n.getBoundingClientRect();
+    return [(r.top - top) * scale, (r.bottom - top) * scale];
+  }).filter(([a, b]) => b - a < capacity);
+  return [...el.querySelectorAll('tr, .inv-footer-block, [data-pdf-page-boundary], .inv-signature, .inv-closing')]
+    .flatMap(n => {
+      const r = n.getBoundingClientRect();
+      return [Math.round((r.top - top) * scale), Math.round((r.bottom - top) * scale)];
+    })
+    .filter(b => b > 0 && b < canvas.height && !closing.some(([a, z]) => b > a + 1 && b < z - 1))
     .sort((a, b) => a - b);
 }
 

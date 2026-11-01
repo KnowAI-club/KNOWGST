@@ -131,9 +131,9 @@ const InvoicePreview = React.forwardRef(({ profile: profileProp, client, details
   const _ps_dc = _ps;
   // v1.9.3 — same settings alias used by getLabel() calls throughout the JSX
   const _ps_labels = _ps_dc;
-  // v1.10.74 - "Total Due" follows the label language; English keeps "Total Due" (preset says "Total").
+  // The document total is independent of payments already received.
   const _totalLabel = getLabel(_ps_labels, 'total');
-  const totalDueLabel = _totalLabel === 'Total' ? 'Total Due' : _totalLabel;
+  const totalDueLabel = _totalLabel === 'Total' ? 'Invoice total' : _totalLabel;
   const dualCurrencyOn = _ps_dc.dualCurrencyEnabled && currencySymbol === 'INR' && _ps_dc.dualCurrencyCode && Number(_ps_dc.dualCurrencyRate) > 0;
   const fmtDualSecondary = (amount) => {
     if (!dualCurrencyOn || _ps_dc.dualCurrencyPosition !== 'below') return '';
@@ -250,45 +250,35 @@ const InvoicePreview = React.forwardRef(({ profile: profileProp, client, details
 
   // Header renderers per style
   const renderModernHeader = () => (
-    <>
-      <div style={{ background: '#ffffff', borderBottom: '1px solid #dfe2dc', padding: '1.5rem 2rem', color: '#242824', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1.5rem' }}>
-        <div style={{ order: 2, textAlign: 'right' }}>
-          {showLogo && profile?.logo && (
-            <img src={profile.logo} alt="Logo" style={{ maxHeight: `${profile.logoHeight || 48}px`, maxWidth: '180px', objectFit: 'contain', marginBottom: '0.5rem', display: 'block' }} />
-          )}
-          <h1 style={{ fontSize: '1.4rem', fontWeight: 600, margin: 0, letterSpacing: '-0.02em' }}>{customTitle}</h1>
-          {invoiceType === 'proforma' && (
-            <p style={{ fontSize: '0.7rem', color: '#626862', fontStyle: 'italic', margin: '0.25rem 0 0' }}>For estimation purposes only</p>
-          )}
-        </div>
-        <div style={{ order: 1, textAlign: 'left' }}>
-          {showBusinessName && <h2 style={{ fontSize: '1.15rem', fontWeight: 700, margin: '0 0 0.25rem' }}>{profile?.businessName || 'Your Business'}</h2>}
-          <div style={{ fontSize: '0.7rem', color: '#626862', lineHeight: 1.6 }}>
-            {showBusinessAddress && profile?.address && <p style={{ margin: 0 }}>{profile.address}</p>}
-            {showBusinessAddress && (profile?.city || profile?.pin) && <p style={{ margin: 0 }}>{[profile.city, profile.pin].filter(Boolean).join(' - ')}</p>}
-            {showState && profile?.state && <p style={{ margin: 0 }}>{stateLabel(profile.state)}</p>}
-            {showGSTIN && profile?.gstin && <p style={{ margin: 0 }}>{getCountryConfig(profile?.country).taxIdLabel}: {profile.gstin}</p>}
-            {showBusinessEmail && profile?.email && <p style={{ margin: 0 }}>{profile.email}</p>}
-            {showBusinessPhone && profile?.phone && <p style={{ margin: 0 }}>Ph: {profile.phone}</p>}
-          </div>
+    <header className="inv-standard-header">
+      <div className="inv-standard-seller">
+        {showLogo && profile?.logo && <img className="inv-standard-logo" src={profile.logo} alt="Business logo" style={{ maxHeight: `${profile.logoHeight || 48}px` }} />}
+        {showBusinessName && <h2>{profile?.businessName || 'Your Business'}</h2>}
+        <div className="inv-standard-contact">
+          {showBusinessAddress && profile?.address && <p>{profile.address}</p>}
+          {showBusinessAddress && (profile?.city || profile?.pin) && <p>{[profile.city, profile.pin].filter(Boolean).join(' – ')}</p>}
+          {showState && profile?.state && <p>{stateLabel(profile.state)}</p>}
+          {showGSTIN && profile?.gstin && <p className="inv-standard-gstin">{getCountryConfig(profile?.country).taxIdLabel}: {profile.gstin}</p>}
+          {showBusinessEmail && profile?.email && <p>{profile.email}</p>}
+          {showBusinessPhone && profile?.phone && <p>Phone: {profile.phone}</p>}
         </div>
       </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.75rem 2rem', background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-        <div style={{ display: 'flex', gap: '1.5rem', fontSize: '0.78rem' }}>
-          {showInvoiceNumber && <span><strong style={{ color: '#64748b' }}>No.</strong> {details?.invoiceNumber}</span>}
-          {showInvoiceDate && <span><strong style={{ color: '#64748b' }}>Date</strong> {details?.invoiceDate ? fmtDate(details.invoiceDate) : ''}</span>}
-          {showDueDate && details?.dueDate && <span><strong style={{ color: '#64748b' }}>Due</strong> {fmtDate(details.dueDate)}</span>}
-          {showReverseChargeLine && <span><strong style={{ color: '#64748b' }}>Reverse Charge</strong> {reverseChargeText}</span>}
-        </div>
-        {invoiceType === 'credit-note' && details?.originalInvoiceRef && (
-          <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Against: <strong style={{ color: '#334155' }}>{details.originalInvoiceRef}</strong></span>
-        )}
+      <div className="inv-standard-reference">
+        <h1>{customTitle}</h1>
+        <dl>
+          {showInvoiceNumber && <><dt>Invoice no.</dt><dd>{details?.invoiceNumber}</dd></>}
+          {showInvoiceDate && <><dt>Invoice date</dt><dd>{details?.invoiceDate ? fmtDate(details.invoiceDate) : ''}</dd></>}
+          {showDueDate && details?.dueDate && <><dt>Due date</dt><dd>{fmtDate(details.dueDate)}</dd></>}
+          {showReverseChargeLine && <><dt>Reverse charge</dt><dd>{reverseChargeText}</dd></>}
+          {invoiceType === 'credit-note' && details?.originalInvoiceRef && <><dt>Original invoice</dt><dd>{details.originalInvoiceRef}</dd></>}
+        </dl>
+        {invoiceType === 'proforma' && <p className="inv-standard-note">For estimation only · Not a tax invoice</p>}
       </div>
-    </>
+    </header>
   );
 
   const renderMinimalHeader = () => (
-    <div style={{ padding: '2rem 2rem 1rem' }}>
+    <div className="inv-minimal-header">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem' }}>
         <div>
           {showLogo && profile?.logo && (
@@ -628,6 +618,13 @@ const InvoicePreview = React.forwardRef(({ profile: profileProp, client, details
           )}
           {client?.gstin && <div>{cap('GSTIN: ' + client.gstin)}</div>}
           {client?.phone && <div>{cap('Ph: ' + client.phone)}</div>}
+          {showClientAddress && client?.address && <div>{cap(client.address)}</div>}
+          {showClientAddress && (client?.city || client?.pin) && <div>{cap([client.city, client.pin].filter(Boolean).join(' - '))}</div>}
+          {showState && client?.state && <div>{cap(stateLabel(client.state))}</div>}
+          {showPlaceOfSupply && (details?.placeOfSupply || client?.state) && <div>{cap('Place of supply: ' + stateLabel(details?.placeOfSupply || client?.state))}</div>}
+          {details?.shipToSameAsBilling === false && <div>{cap('Ship to: ' + [details.shippingAddress, details.shippingCity, details.shippingPin, stateLabel(details.shippingState)].filter(Boolean).join(', '))}</div>}
+          {invoiceType === 'credit-note' && details?.originalInvoiceRef && <div>{cap('Against invoice: ' + details.originalInvoiceRef)}</div>}
+
         </div>
 
         {/* ================= ITEMS =================
@@ -655,7 +652,7 @@ const InvoicePreview = React.forwardRef(({ profile: profileProp, client, details
                 const qty = Number(item.quantity) || 0;
                 const rate = Number(item.rate) || 0;
                 const tax = showGST && item.taxPercent > 0 ? ` +${item.taxPercent}%` : '';
-                const hsnBit = showHSN && item.hsn && !isVeryNarrow ? '  |  HSN ' + item.hsn : '';
+                const hsnBit = showHSN && item.hsn ? '  |  HSN ' + item.hsn : '';
                 return (
                   <div key={idx} style={{ marginBottom: 5, fontSize: '0.95em' }}>
                     <div style={{ fontWeight: strongWeight, wordBreak: 'break-word' }}>
@@ -683,9 +680,9 @@ const InvoicePreview = React.forwardRef(({ profile: profileProp, client, details
              Grid with fixed-width right column so every amount aligns
              vertically (Subtotal / CGST / SGST / Total all rightmost x). */}
         {(() => {
-          const totalsColMm = isNarrow ? 18 : paperCfg.widthMm < 100 ? 24 : 30;
-          const gridCols = `1fr ${totalsColMm}mm`;
-          const rowStyle = { display: 'grid', gridTemplateColumns: gridCols, gap: '4px' };
+          // Let the amount column accommodate the enlarged total instead of
+          // clipping it at a fixed millimetre width on 80mm receipts.
+          const rowStyle = { display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', gap: '4px', overflowWrap: 'anywhere' };
           const amt = (n) => currencySymbol + (Number(n) || 0).toFixed(2);
           return (
             <div style={{ padding: secPad, fontSize: '1em', fontWeight: baseWeight, ...dashLine }}>
@@ -1213,6 +1210,7 @@ const InvoicePreview = React.forwardRef(({ profile: profileProp, client, details
       </table>
 
       {/* Totals section */}
+      <div className="inv-closing">
       <div className="inv-totals-section" style={pdfStyle !== 'classic' ? { padding: '1rem 2rem' } : {}}>
         <div className="inv-words">
           {showAmountWords && (
@@ -1340,7 +1338,7 @@ const InvoicePreview = React.forwardRef(({ profile: profileProp, client, details
       </div>
 
       {(showHsnSummary && hsnRows.length > 0) || (showTaxInWords && totalTax > 0) ? (
-        <div style={{ margin: pdfStyle === 'classic' ? '0 0 0.75rem' : '0 2rem 0.75rem', fontSize: '0.75rem' }}>
+        <div className="inv-tax-summary" style={{ fontSize: '0.75rem' }}>
           {showHsnSummary && hsnRows.length > 0 && (
             <HsnSummaryTable ctx={{ hsnRows, isIndia, isInterstate, taxLabel, totals }} />
           )}
@@ -1514,6 +1512,7 @@ const InvoicePreview = React.forwardRef(({ profile: profileProp, client, details
             </div>
           );
         })()}
+      </div>
       </div>
       </>)}
 

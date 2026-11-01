@@ -2019,21 +2019,16 @@ a:focus-visible {
   color: var(--pdf-primary-text, #0f172a) !important;
 }
 
-/* v1.9.12 — Template-corporate has a hardcoded dark navy gradient header.
-   User colors were forcing the title/business-name/meta text to
-   --pdf-primary-text (also dark), producing dark-on-dark invisibility.
-   Force header text to the accent-text color (white by default) when
-   the template paints a dark header. Higher specificity than the plain
-   `.invoice-preview-container[data-user-colors="1"] .inv-title` rule. */
+/* The Corporate header is white; retain dark text even with user colours enabled. */
 .invoice-preview-container[data-user-colors="1"].template-corporate .inv-title,
 .invoice-preview-container[data-user-colors="1"].template-corporate .inv-business-name,
 .invoice-preview-container[data-user-colors="1"].template-corporate .inv-meta-value,
 .invoice-preview-container[data-user-colors="1"].template-corporate .inv-business-details p,
 .invoice-preview-container[data-user-colors="1"].template-corporate .inv-header * {
-  color: #ffffff !important;
+  color: #202520 !important;
 }
 .invoice-preview-container[data-user-colors="1"].template-corporate .inv-meta-label {
-  color: #cbd5e1 !important;
+  color: #596159 !important;
 }
 /* Same treatment for template-modern which paints its own coloured header
    block via the JSX renderModernHeader (background: accent). */
@@ -3495,3 +3490,72 @@ html:not([data-theme="dark"]) .mobile-topbar-btn { background: rgba(15, 23, 42, 
 /* Neutral supply labels remain legible in colour and monochrome print. */
 .invoice-preview-container .inv-tax-badge { background: #f1f3ef; color: #343c34; border: 1px solid #dfe2dc; }
 .invoice-preview-container .inv-signature { min-width: 180px; break-inside: avoid; }
+
+/* Print document grid. Sheet invoices use typographic hierarchy, not UI cards. */
+.invoice-preview-container:not(.paper-thermal) {
+  box-sizing: border-box;
+  padding: 36px 40px;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  color: #202520;
+  font-size: 12px;
+  --pdf-primary-text: #202520;
+  --pdf-muted-text: #596159;
+  --pdf-accent: #303830;
+  --pdf-accent-rgb: 48, 56, 48;
+  --pdf-header-bg: #f3f4f1;
+  --pdf-divider: #d5d9d2;
+}
+.inv-standard-header { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 32px; padding-bottom: 24px; border-bottom: 1.5px solid #303830; }
+.inv-standard-seller h2 { margin: 0 0 8px; font-size: 21px; line-height: 1.25; font-weight: 650; letter-spacing: -0.3px; overflow-wrap: anywhere; }
+.inv-standard-contact { font-size: 11px; line-height: 1.6; color: #596159; }
+.inv-standard-contact p { margin: 0; }
+.inv-standard-gstin { margin-top: 6px !important; color: #202520; font-weight: 600; }
+.inv-standard-logo { max-width: 140px; object-fit: contain; object-position: left; margin-bottom: 12px; }
+.inv-standard-reference h1 { margin: 0 0 16px; font-size: 18px; font-weight: 600; text-align: right; letter-spacing: 0.7px; }
+.inv-standard-reference dl { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 14px; margin: 0; font-size: 11px; }
+.inv-standard-reference dt { color: #596159; }
+.inv-standard-reference dd { margin: 0; text-align: right; font-weight: 600; overflow-wrap: anywhere; }
+.inv-standard-note { font-size: 10px; color: #596159; text-align: right; margin-top: 12px; }
+.invoice-preview-container:not(.paper-thermal) .inv-parties { margin: 0 !important; padding: 22px 0 !important; background: white !important; border: 0 !important; border-radius: 0 !important; gap: 24px; align-items: start; }
+.invoice-preview-container:not(.paper-thermal) .inv-party { min-width: 0; overflow-wrap: anywhere; }
+.invoice-preview-container:not(.paper-thermal) .inv-party-right { justify-content: flex-start; }
+.invoice-preview-container:not(.paper-thermal) .inv-section-label { font-size: 9px !important; line-height: 1.4; letter-spacing: 0.7px !important; font-weight: 600 !important; color: #596159 !important; border: 0 !important; margin-bottom: 8px; }
+.invoice-preview-container:not(.paper-thermal) .inv-party-name { font-size: 12px; font-weight: 650; margin-bottom: 5px; }
+.invoice-preview-container:not(.paper-thermal) .inv-party-details { font-size: 11px; line-height: 1.6; }
+.invoice-preview-container:not(.paper-thermal) .inv-tax-badge { background: none !important; color: #596159 !important; border: 0 !important; border-radius: 0; padding: 0; font-size: 10px; margin-top: 5px; }
+.invoice-preview-container:not(.paper-thermal) .inv-table { margin: 0 !important; width: 100% !important; border-top: 1px solid #303830; }
+.invoice-preview-container:not(.paper-thermal) .inv-table .inv-th { font-size: 9px; line-height: 1.4; font-weight: 600; padding: 7px 5px; letter-spacing: 0.15px; }
+.invoice-preview-container:not(.paper-thermal) .inv-table .inv-td { padding: 9px 5px; font-size: 10px; line-height: 1.5; border-bottom: 1px solid #e5e7e2; font-variant-numeric: tabular-nums; }
+.invoice-preview-container:not(.paper-thermal) .inv-tr-even { background: none; }
+.invoice-preview-container:not(.paper-thermal) .inv-totals-section { padding: 20px 0 !important; gap: 28px; }
+.invoice-preview-container:not(.paper-thermal) .inv-totals { width: 245px; flex-shrink: 0; font-size: 11px; font-variant-numeric: tabular-nums; }
+.invoice-preview-container:not(.paper-thermal) .inv-total-final { background: none !important; color: #202520 !important; border: 0 !important; border-top: 1.5px solid #303830 !important; border-bottom: 1px solid #d5d9d2 !important; border-radius: 0 !important; padding: 12px 0 !important; margin-top: 10px; }
+.invoice-preview-container:not(.paper-thermal) .inv-footer { margin: 4px 0 0 !important; padding: 20px 0 0 !important; border-top: 1px solid #d5d9d2; gap: 32px; }
+.invoice-preview-container:not(.paper-thermal) .inv-footer-block { background: none !important; border: 0 !important; border-radius: 0 !important; padding: 0 !important; margin-bottom: 16px; }
+.invoice-preview-container:not(.paper-thermal) .inv-terms { font-size: 10px; line-height: 1.6; color: #596159; }
+.invoice-preview-container:not(.paper-thermal) .inv-signature { min-width: 175px; font-size: 11px; }
+.invoice-preview-container:not(.paper-thermal) .inv-sig-label { color: #596159; font-size: 10px; }
+/* Legacy formal layouts use the same neutral print palette. */
+.invoice-preview-container.template-corporate .inv-header { background: white !important; padding: 0 0 20px !important; border-bottom: 1.5px solid #303830; }
+.invoice-preview-container.template-corporate .inv-header * { color: #202520 !important; }
+.invoice-preview-container.template-corporate .inv-section-label { color: #596159 !important; }
+.invoice-preview-container.template-minimalist .inv-header { padding: 0 0 20px !important; }
+
+.invoice-preview-container:not(.paper-thermal) .inv-total-row { padding: 4px 0; font-size: 11px; color: #596159 !important; }
+.invoice-preview-container:not(.paper-thermal) .inv-total-row span { color: inherit !important; }
+.invoice-preview-container:not(.paper-thermal) .inv-total-final { color: #202520 !important; font-size: 15px; }
+.invoice-preview-container:not(.paper-thermal) .inv-footer-details,
+.invoice-preview-container:not(.paper-thermal) .inv-footer-details p { color: #596159 !important; font-size: 10px; line-height: 1.5; }
+.invoice-preview-container:not(.paper-thermal) .inv-tax-summary { margin: 0 0 16px; }
+.invoice-preview-container:not(.paper-thermal) .inv-tax-summary table { width: 100%; border-collapse: collapse; font-size: 10px; }
+.invoice-preview-container:not(.paper-thermal) .inv-footer { padding-top: 14px !important; }
+.invoice-preview-container:not(.paper-thermal) .inv-footer-block { margin-bottom: 10px; }
+
+.invoice-preview-container:not(.paper-thermal) .inv-minimal-header { padding: 0; }
+.invoice-preview-container:not(.paper-thermal) .inv-header { padding: 0 0 18px; margin: 0; }
+.invoice-preview-container:not(.paper-thermal) .inv-words-text { font-size: 11px; font-style: normal; color: #596159; }
+.invoice-preview-container:not(.paper-thermal) .inv-tr-even { background: white !important; }
+
+.invoice-preview-container:not(.paper-thermal) .grid-inv { padding: 0 !important; color: #202520 !important; }

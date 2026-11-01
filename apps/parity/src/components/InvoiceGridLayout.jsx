@@ -217,6 +217,7 @@ function TallyLayout({ ctx }) {
     ['Dispatched through', orderMap.dispatchedThrough, 'Destination', orderMap.destination],
   ];
   const extraRef = [
+    details?.originalInvoiceRef && ['Against Invoice', details.originalInvoiceRef],
     orderMap.vehicleNo && ['Vehicle No.', orderMap.vehicleNo],
     orderMap.revisionNo && ['Revision No.', orderMap.revisionNo],
     (orderMap.periodFrom || orderMap.periodTo) && ['Service Period', [orderMap.periodFrom, orderMap.periodTo].filter(Boolean).join(' to ')],
@@ -224,19 +225,13 @@ function TallyLayout({ ctx }) {
     ctx.showReverseChargeLine && ['Reverse Charge', ctx.reverseChargeText],
     t.placeOfSupply && ctx.placeOfSupply && ['Place of Supply', stateWithCode(ctx.placeOfSupply)],
   ].filter(Boolean);
-  const refCell = (k, v) => (
-    <td style={{ ...cell, width: '25%', height: 34 }}>
-      <div style={small}>{k}</div>
-      <div>{v || ''}</div>
-    </td>
-  );
   const rows = taxRows(ctx);
   const units = [...new Set(items.map((i) => i.unit || ''))];
   const totalQty = roundQty(items.reduce((s, i) => s + (Number(i.quantity) || 0), 0)); // #96: 0.1 + 0.2 printed as 0.30000000000000004
   const showQtyTotal = units.length === 1 && t.itemQty;
   // Sl No + Description + Amount, plus the optional columns.
   const colCount = 3 + (t.hsn ? 1 : 0) + (t.itemQty ? 1 : 0) + (t.rate ? 2 : 0) + (ctx.hasAnyDiscount ? 1 : 0);
-  const spacer = Math.max(0, 260 - items.length * 26 - rows.length * 20);
+  const spacer = Math.max(0, 120 - items.length * 26 - rows.length * 20);
 
   return (
     <div className="grid-inv grid-inv-tally" style={{ padding: '7mm 8mm', color: '#111827', fontSize: '0.78rem', lineHeight: 1.35 }}>
@@ -244,31 +239,21 @@ function TallyLayout({ ctx }) {
       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
         <tbody>
           <tr {...blockProps}>
-            <td style={{ ...cell, width: '50%' }} rowSpan={4}><SellerBlock ctx={ctx} tally /></td>
-            {refCell(...refBoxes[0].slice(0, 2))}{refCell(...refBoxes[0].slice(2))}
+            <td style={{ ...cell, width: '50%' }}><SellerBlock ctx={ctx} tally /></td>
+            <td style={cell}>
+              {refBoxes.flatMap(([k, v, k2, v2]) => [[k, v], [k2, v2]]).filter(([, v]) => v).map(([k, v], i) => (
+                <div key={`${k}-${i}`} style={{ marginBottom: 4 }}><span style={small}>{k}: </span><strong>{v}</strong></div>
+              ))}
+            </td>
           </tr>
-          {refBoxes.slice(1, 4).map((r) => (
-            <tr key={r[0]} {...blockProps}>{refCell(r[0], r[1])}{refCell(r[2], r[3])}</tr>
-          ))}
           <tr {...blockProps}>
-            <td style={cell} rowSpan={3 + (extraRef.length ? 1 : 0)}>
+            <td style={cell}>
               {shipTo && <><PartyBlock ctx={ctx} heading="Consignee (Ship to)" party={shipTo} /><div style={{ height: 6 }} /></>}
               <PartyBlock ctx={ctx} heading="Buyer (Bill to)" party={client} withContact />
             </td>
-            {refCell(refBoxes[4][0], refBoxes[4][1])}{refCell(refBoxes[4][2], refBoxes[4][3])}
-          </tr>
-          <tr {...blockProps}>{refCell(refBoxes[5][0], refBoxes[5][1])}{refCell(refBoxes[5][2], refBoxes[5][3])}</tr>
-          {extraRef.length > 0 && (
-            <tr {...blockProps}>
-              <td style={cell} colSpan={2}>
-                {extraRef.map(([k, v]) => <div key={k}><span style={small}>{k}: </span><strong>{v}</strong></div>)}
-              </td>
-            </tr>
-          )}
-          <tr {...blockProps}>
-            <td style={{ ...cell, height: 48 }} colSpan={2}>
-              <div style={small}>Terms of Delivery</div>
-              <div>{orderMap.deliveryTerms || ''}</div>
+            <td style={cell}>
+              {extraRef.map(([k, v]) => <div key={k} style={{ marginBottom: 4 }}><span style={small}>{k}: </span><strong>{v}</strong></div>)}
+              {orderMap.deliveryTerms && <div><span style={small}>Terms of Delivery: </span>{orderMap.deliveryTerms}</div>}
             </td>
           </tr>
         </tbody>
@@ -436,10 +421,10 @@ function BoxedLayout({ ctx }) {
                   <>
                     {shipTo.address && <div style={{ whiteSpace: 'pre-line' }}>{shipTo.address}</div>}
                     {(shipTo.city || shipTo.pin) && <div>{[shipTo.city, shipTo.pin].filter(Boolean).join(' - ')}</div>}
-                    {shipTo.state && <div>State: {shipTo.state}</div>}
+                    {shipTo.state && <div>State: {stateWithCode(shipTo.state)}</div>}
                   </>
                 ) : <div style={small}>Same as billing address</div>}
-                {t.placeOfSupply && ctx.placeOfSupply && <div style={{ marginTop: 6 }}><span style={label}>Place of Supply:</span> {ctx.placeOfSupply}</div>}
+                {t.placeOfSupply && ctx.placeOfSupply && <div style={{ marginTop: 6 }}><span style={label}>Place of Supply:</span> {stateWithCode(ctx.placeOfSupply)}</div>}
               </td>
             </tr>
           </tbody>

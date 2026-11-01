@@ -2272,6 +2272,14 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
         // must end at those blocks' edges, never through one.
         '.inv-footer-block, .inv-signature, .inv-totals, [data-pdf-page-boundary], img'
       )].map(span);
+      container.querySelectorAll('.inv-closing').forEach(el => {
+        const range = span(el);
+        const pageHeight = container.getBoundingClientRect().width * pdfPageHeight / pdfWidth;
+        if (range[1] - range[0] < pageHeight) {
+          edges.push(...range);
+          keepWhole.push(range);
+        }
+      });
       return safePageBoundaries(edges, keepWhole);
     };
     // v1.10.70 - hide the extra pages BEFORE measuring, not after. The
