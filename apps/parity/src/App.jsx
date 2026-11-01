@@ -18,6 +18,7 @@ import { isModuleEnabled, getUpcomingFilings, countsAsSales, localToday, toLocal
 // Result: smaller initial JS payload; each heavy view chunk-caches
 // once fetched.
 import Dashboard from './components/Dashboard';
+import DashboardOverview from './components/DashboardOverview';
 import InvoiceGenerator from './components/InvoiceGenerator';
 import SetupWizard from './components/SetupWizard';
 import ToastContainer, { toast } from './components/Toast';
@@ -73,7 +74,7 @@ function App() {
       const params = new URLSearchParams(window.location.search);
       const v = params.get('view');
       // v1.10.74 - 'controlpanel' added so ?view=controlpanel deep links work too.
-      const valid = ['dashboard', 'new', 'clients', 'inventory', 'expenses', 'purchases', 'recurring', 'receipts', 'reports', 'filing', 'incometax', 'settings', 'controlpanel', 'support'];
+      const valid = ['dashboard', 'invoices', 'new', 'clients', 'inventory', 'expenses', 'purchases', 'recurring', 'receipts', 'reports', 'filing', 'incometax', 'settings', 'controlpanel', 'support'];
       if (v && valid.includes(v)) {
         // Strip the query string so a refresh doesn't keep snapping back to
         // the shortcut target — only the *first* navigation honours it.
@@ -518,7 +519,7 @@ function App() {
   // If the user just disabled the module backing the current view, kick them to dashboard
   // so they don't land on an empty page after toggling.
   useEffect(() => {
-    const map = { new: 'invoicing', clients: 'clients', inventory: 'inventory', expenses: 'expenses', purchases: 'purchases', recurring: 'recurring', receipts: 'receipts', reports: 'reports', filing: 'gstReturns' };
+    const map = { invoices:'invoicing', new: 'invoicing', clients: 'clients', inventory: 'inventory', expenses: 'expenses', purchases: 'purchases', recurring: 'recurring', receipts: 'receipts', reports: 'reports', filing: 'gstReturns' };
     const moduleForView = map[currentView];
     if (moduleForView && !isModuleEnabled(moduleForView, enabledModules)) {
       setCurrentView('dashboard');
@@ -526,8 +527,11 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentView, JSON.stringify(enabledModules)]);
 
+  const [dashboardTarget,setDashboardTarget]=useState({});
+  const navigateDashboard=(view,options={})=>{setDashboardTarget(options);setCurrentView(view);};
   const navItems = [
     { id: 'dashboard', icon: Home, label: 'Dashboard', module: 'dashboard' },
+    { id: 'invoices', icon: FileText, label: 'Invoices', module: 'invoicing' },
     { id: 'new', icon: Plus, label: 'New Invoice', onClick: handleNewInvoice, module: 'invoicing' },
     { id: 'clients', icon: Users, label: 'Clients', module: 'clients' },
     { id: 'inventory', icon: Package, label: 'Products', module: 'inventory' },
@@ -787,7 +791,7 @@ function App() {
   })();
 
   return (
-    <div className={`app-layout${sidebarAutoHide ? ' sidebar-autohide' : ''}`}>
+    <div className={`app-layout${currentView === 'dashboard' ? ' overview-mode' : ''}${sidebarAutoHide ? ' sidebar-autohide' : ''}`}>
       {showWizard && <SetupWizard onClose={() => setShowWizard(false)} />}
       {showResumeSetupPill && (
         <button type="button"
@@ -879,7 +883,7 @@ function App() {
             <button
               key={item.id}
               className={`nav-btn ${currentView === item.id ? 'nav-btn-active' : ''}`}
-              onClick={item.onClick || (() => setCurrentView(item.id))}
+              onClick={item.onClick || (() => {setDashboardTarget({});setCurrentView(item.id);})}
             >
               <item.icon size={18} /> {item.label}
             </button>
@@ -991,8 +995,9 @@ function App() {
       )}
       <div className="main-content" data-view={currentView}>
         <div className="knowgst-development">KNOWGST · Compatibility preview. Imported workflows are under regression and tax-rule review.</div>
-        {currentView === 'dashboard' && (
-          <Dashboard onNew={handleNewInvoice} onEdit={handleEditInvoice} onPrint={handlePrintInvoice} onDuplicate={handleDuplicateInvoice} onConvert={handleConvertToInvoice} onOpenProducts={() => setCurrentView('inventory')} onOpenSettings={() => setCurrentView('settings')} onOpenGuide={openDocs} onOpenSupport={() => setCurrentView('support')} activeProfile={profile} />
+        {currentView === 'dashboard' && <DashboardOverview activeProfile={profile} onNavigate={navigateDashboard} onNew={handleNewInvoice} />}
+        {currentView === 'invoices' && (
+          <Dashboard initialSearch={dashboardTarget.search || ''} initialStatus={dashboardTarget.status || 'all'} onNew={handleNewInvoice} onEdit={handleEditInvoice} onPrint={handlePrintInvoice} onDuplicate={handleDuplicateInvoice} onConvert={handleConvertToInvoice} onOpenProducts={() => setCurrentView('inventory')} onOpenSettings={() => setCurrentView('settings')} onOpenGuide={openDocs} onOpenSupport={() => setCurrentView('support')} activeProfile={profile} />
         )}
         {currentView === 'new' && (
           <InvoiceGenerator
@@ -1028,7 +1033,7 @@ function App() {
           <ReceiptVoucher key={businessKey} />
         )}
         {currentView === 'reports' && (
-          <ReportsView key={businessKey} />
+          <ReportsView key={businessKey} initialTab={dashboardTarget.tab} />
         )}
         {currentView === 'filing' && (
           <GSTReturns key={businessKey} />

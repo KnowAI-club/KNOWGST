@@ -20,10 +20,10 @@ const MONTHS = [
 
 const getBillCurrency = billCurrency;
 
-export default function ReportsView() {
+export default function ReportsView({initialTab}) {
   const [bills, setBills] = useState([]);
   const [expenses, setExpenses] = useState([]);
-  const [activeTab, setActiveTab] = useState('pl');
+  const [activeTab, setActiveTab] = useState(initialTab === 'backfill' ? 'accounting' : 'pl');
   const [filterMode, setFilterMode] = useState('fy');
   const [fyFilter, setFyFilter] = useState('');
   const [monthFilter, setMonthFilter] = useState('');
@@ -227,7 +227,7 @@ export default function ReportsView() {
         </button>
       </div>
 
-      {activeTab === 'accounting' && <AccountingPanel />}
+      {activeTab === 'accounting' && <AccountingPanel initialTab={initialTab === 'backfill' ? 'backfill' : undefined} />}
       {/* v1.10.74 - Period + Currency Selector, shared by P&L, Client Analytics
           and Product Performance (they all read the same period/currency). */}
       {activeTab !== 'accounting' && activeTab !== 'aging' && activeTab !== 'party' && activeTab !== 'stock' && (

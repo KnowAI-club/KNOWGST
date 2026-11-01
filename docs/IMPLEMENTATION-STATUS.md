@@ -1,3 +1,13 @@
+# Dashboard increment — 1 November 2026
+
+The new single-user dashboard is implemented with the KnowAI logo, minimal neutral styling, light/dark themes and responsive layouts. A read-only, business-scoped endpoint supplies month/currency-filtered sales and recorded cash movement, current receivables/payables, stock alerts, historical posting review counts and recent activity. Linked receipts are not double-counted. Saved invoice tax and TCS are excluded from sales without recalculating protected financial helpers.
+
+Current balances cover all dates, not historical month-end snapshots. Supplier balances include accounting-managed purchases only. Recorded money movement excludes manual journals and untracked purchase payments; it is not bank balance or profit. Backup presence is not an integrity certification. Unassigned data and invalid values are disclosed.
+
+The complete existing document workflows remain on the separate **Invoices** page. Activity rows open a contextual inspector and source register. Accounting review links open the existing historical backfill page.
+
+Verification: 89 service/storage tests and the existing financial regression scripts passed, along with 12 prototype tests. The full browser suite passed 63 active tests (one opt-in documentation capture skipped). The documentation capture passed separately; the final two dashboard tests passed again after correcting mobile screenshot timing. Source checks and the production build passed. These are local browser/service checks, not packaged Mac/Windows acceptance tests. The sections below record earlier increments and retain their original dates and scope.
+
 # Implementation status — 29 October 2026
 
 The primary app now integrates the original Free GST modules in KNOWGST's minimal interface. This replaces the limited prototype as the default development preview. The original checkout and its data were not modified.

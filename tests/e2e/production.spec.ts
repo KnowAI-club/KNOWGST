@@ -95,7 +95,7 @@ test("action menu keyboard navigation returns focus and WhatsApp uses the saved 
       return null;
     }) as any;
   });
-  await page.goto("/?view=dashboard");
+  await page.goto("/?view=invoices");
   const button = page.getByRole("button", {
     name: "More actions for SHARE-1",
     exact: true,
@@ -236,7 +236,7 @@ test("dashboard payment commits its receipt without moving stock again", async (
     data: { operations: [{ bill }] },
   });
   expect(created.ok()).toBeTruthy();
-  await page.goto("/");
+  await page.goto("/?view=invoices");
   const row = page.getByRole("row").filter({ hasText: "ATOMIC-1" });
   await row.getByTitle("Payment", { exact: true }).click();
   const modal = page
@@ -292,7 +292,7 @@ test("stale payment window shows a conflict and preserves the newer payment", as
       data: { operations: [{ bill }] },
     })
   ).json();
-  await page.goto("/");
+  await page.goto("/?view=invoices");
   await page
     .getByRole("row")
     .filter({ hasText: "STALE-1" })

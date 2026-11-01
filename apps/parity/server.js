@@ -1,3 +1,4 @@
+import {dashboardSummary} from './dashboard-summary.mjs';
 import {acquireRuntimeLock} from './runtime-lock.mjs';
 import {initializeAccounting, activeBusiness, businessOf, readAccounting, augmentAccounting, planJournal, planSupplierPayment, previewBackfill, planBackfill, ACCOUNTS} from './accounting.mjs';
 import {openRecordDatabase, withDatabaseClosed, storeFor} from './sqlite-storage.mjs';
@@ -475,6 +476,17 @@ app.delete('/api/products/:id', (req,res)=>{
 function requireBusiness(){const id=activeBusiness(DATA_DIR)?.id;if(!id)throw storageError('Complete business setup first.','bad-request',400);return id;}
 app.get('/api/accounting',(_req,res)=>{const state=readAccounting(DATA_DIR,requireBusiness());res.json({...state,accounts:ACCOUNTS});});
 app.post('/api/accounting/journal',(req,res)=>{requireSnapshotIdle();res.json(runRecordTransaction(planJournal(DATA_DIR,requireBusiness(),req.body)));});
+app.get('/api/dashboard',(req,res)=>{
+  const profile=activeBusiness(DATA_DIR),businessId=profile?.id;
+  const month=req.query.month || localToday().slice(0,7),currency=req.query.currency || 'INR';
+  if(typeof month!=='string'||!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)||Number(month.slice(0,4))<1900||typeof currency!=='string'||!/^[A-Z]{3}$/.test(currency))throw storageError('Choose a valid month and currency.','bad-request',400);
+  let unassigned=0;const scoped=dir=>readAllFromDir(dir).filter(r=>{const owner=businessOf(DATA_DIR,r);if(!owner)unassigned++;return !!businessId&&owner===businessId;});
+  const result=dashboardSummary({bills:scoped('bills'),receipts:scoped('receipts'),expenses:scoped('expenses'),purchases:scoped('purchases'),products:scoped('products'),accounting:businessId?readAccounting(DATA_DIR,businessId):{},month,currency,today:localToday(),stockSettings:readRecord(META_PATH)?.stockAlertSettings || {}});
+  const coverage=businessId?previewBackfill(DATA_DIR,businessId):null;
+  let backup=null,backupUnavailable=false;
+  try{ensureDir(BACKUPS_DIR);const extra=extraBackupsDir(),dates=new Set(fs.readdirSync(BACKUPS_DIR).filter(n=>DATE_DIR.test(n)));if(extra&&fs.existsSync(extra))for(const n of fs.readdirSync(extra))if(DATE_DIR.test(n))dates.add(n);const latest=[...dates].sort().at(-1);if(latest)backup={date:latest,createdAt:fs.statSync(backupSourceDir(latest)).mtime.toISOString()};}catch{backupUnavailable=true;}
+  res.json({...result,businessId,businessName:profile?.businessName||'',unassigned,coverage:coverage?{ready:coverage.ready,review:coverage.review}:null,backup,backupUnavailable});
+});
 app.get('/api/accounting/backfill',(req,res)=>res.json(previewBackfill(DATA_DIR,requireBusiness())));
 app.post('/api/accounting/backfill',(req,res)=>{requireSnapshotIdle();res.json(runRecordTransaction(planBackfill(DATA_DIR,requireBusiness(),req.body)));});
 app.post('/api/accounting/supplier-payments',(req,res)=>{requireSnapshotIdle();res.json(runRecordTransaction(planSupplierPayment(DATA_DIR,requireBusiness(),req.body)));});

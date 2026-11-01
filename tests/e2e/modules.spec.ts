@@ -6,7 +6,7 @@ test.beforeEach(async ({request}) => {
   await request.post('/api/local-prefs',{data:{set:{gst_printSettings:JSON.stringify({onboardingComplete:true}),freegstbill_onboarded:'true'}}});
 });
 const modules = [
-  ['dashboard','Dashboard'], ['new','New Invoice'], ['clients','Clients'], ['inventory','Products'], ['expenses','Expenses'], ['purchases','Purchases'],
+  ['dashboard','Dashboard'], ['invoices','Invoices'], ['new','New Invoice'], ['clients','Clients'], ['inventory','Products'], ['expenses','Expenses'], ['purchases','Purchases'],
   ['recurring','Recurring'], ['receipts','Receipts'], ['reports','Reports'], ['filing','GST Returns'], ['incometax','Income Tax'], ['settings','Settings'], ['controlpanel','Control Panel'], ['support','About KNOWGST'],
 ];
 for (const [view,title] of modules) test(`${title} module loads without browser errors`,async ({page})=>{
@@ -51,7 +51,7 @@ test('invoice saves legacy calculated totals and survives reload',async ({page,r
   const bills=await (await request.get('/api/bills')).json();
   expect(bills.find((b:{clientName:string})=>b.clientName==='Invoice Test Client').totalAmount).toBe(118);
   await page.reload();
-  await page.goto('/?view=dashboard');
+  await page.goto('/?view=invoices');
   await expect(page.locator('.main-content')).toContainText('Invoice Test Client');
 });
 

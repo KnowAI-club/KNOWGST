@@ -14,9 +14,9 @@ const blank = () => ({
     { account: "3000", debit: "", credit: "" },
   ],
 });
-export default function AccountingPanel() {
+export default function AccountingPanel({initialTab}) {
   const [data, setData] = useState(null),
-    [tab, setTab] = useState("journal"),
+    [tab, setTab] = useState(initialTab || "journal"),
     [form, setForm] = useState(null),
     [busy, setBusy] = useState(false);
   useDialogFocus(!!form, () => {

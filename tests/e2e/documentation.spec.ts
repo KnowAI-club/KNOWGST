@@ -51,12 +51,12 @@ test('capture actual app screens for the published guide',async({page,request})=
  await page.route('**/api/recurring',r=>r.fulfill({json:[]}));
  await page.route('**/api/bills',r=>r.fulfill({json:[{id:'guide-invoice',invoiceNumber:'INV/26-27/0001',invoiceDate:today,clientName:'Sample Client',invoiceType:'tax-invoice',totalAmount:5900,totalTaxAmount:900,status:'unpaid',paidAmount:0,currency:'INR',data:{profile,client:{name:'Sample Client',state:'Maharashtra',country:'India'},details:{invoiceDate:today},invoiceType:'tax-invoice',invoiceOptions:{currency:'INR'},items:[{name:'Design services',quantity:1,rate:5000,taxPercent:18}],totals:{subtotal:5000,taxableAmount:5000,total:5900,totalTaxAmount:900,cgst:450,sgst:450,igst:0}}}]}));
  const dir='apps/parity/public/docs/screenshots';await mkdir(dir,{recursive:true});
- const screens=[['dashboard','dashboard'],['invoice','new'],['clients','clients'],['products','inventory'],['purchases','purchases'],['expenses','expenses'],['receipts','receipts'],['recurring','recurring'],['reports','reports'],['gst','filing'],['income-tax','incometax'],['settings','settings'],['control-panel','controlpanel']];
+ const screens=[['dashboard','dashboard'],['invoice-register','invoices'],['invoice','new'],['clients','clients'],['products','inventory'],['purchases','purchases'],['expenses','expenses'],['receipts','receipts'],['recurring','recurring'],['reports','reports'],['gst','filing'],['income-tax','incometax'],['settings','settings'],['control-panel','controlpanel']];
  const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
  for(const [name,view] of screens){
   await page.goto(`/?view=${view}`);await expect(page.locator('.main-content')).toBeVisible();
   await expect(page.getByText('Loading…',{exact:true})).toHaveCount(0);await page.evaluate(()=>document.fonts.ready);
-  const loaded:Record<string,string>={dashboard:'INV/26-27/0001',clients:'Sample Client',inventory:'Design services',purchases:'SUP-2026-001',expenses:'Workspace subscription'};
+  const loaded:Record<string,string>={dashboard:'Recent activity',invoices:'INV/26-27/0001',clients:'Sample Client',inventory:'Design services',purchases:'SUP-2026-001',expenses:'Workspace subscription'};
   if(loaded[view!]) await expect(page.locator('.main-content')).toContainText(loaded[view!]!);
   if(view==='new'){
    await page.getByPlaceholder('Type client name to search or add new').fill('Sample Client');

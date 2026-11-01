@@ -33,7 +33,7 @@ for(const [type,label,prefix,total] of types) test(`${type}: create, PDF, persis
   expect(bill.totalAmount).toBe(total);expect(bill.data.invoiceType).toBe(type);
   expect(bill.data.items[0].name).toBe('Parity service');
   if(type==='credit-note') expect(bill.data.details.originalInvoiceRef).toBe('INV/26-27/0001');
-  await page.reload(); await page.goto('/?view=dashboard');
+  await page.reload(); await page.goto('/?view=invoices');
   await expect(page.locator('.main-content')).toContainText(`Parity ${type}`);
 });
 

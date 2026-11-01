@@ -201,7 +201,7 @@ function ReceiptModal({ target, onClose }) {
   );
 }
 
-export default function Dashboard({ onNew, onEdit, onPrint, onDuplicate, onConvert, onOpenProducts, onOpenSettings, onOpenGuide, onOpenSupport, activeProfile }) {
+export default function Dashboard({ onNew, onEdit, onPrint, onDuplicate, onConvert, onOpenProducts, onOpenSettings, onOpenGuide, onOpenSupport, activeProfile, initialSearch = '', initialStatus = 'all' }) {
   // v1.10.64 — requested (#55, @sangwanmail-eng): "An invoice belonging to one
   // company should not appear under the other."
   //
@@ -258,9 +258,9 @@ export default function Dashboard({ onNew, onEdit, onPrint, onDuplicate, onConve
     }
     return { byCurrency, count };
   }, [bills]);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(initialSearch);
   const [typeFilter, setTypeFilter] = useState('all');
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState(initialStatus);
   const [fyFilter, setFyFilter] = useState('all');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -1164,10 +1164,10 @@ export default function Dashboard({ onNew, onEdit, onPrint, onDuplicate, onConve
       <PageHeader
         compact
         icon="📊"
-        title="Dashboard"
-        subtitle="Overview of your invoices"
+        title="Invoices"
+        subtitle="Manage invoices, payments and document actions"
         meta={`${bills.length} invoice${bills.length === 1 ? '' : 's'}`}>
-        <HelpButton title="Dashboard — how to use" doc="dashboard">
+        <HelpButton title="Invoices — how to use" doc="invoice-register">
           <ul style={{ paddingLeft: '1.1rem', margin: 0 }}>
             <li><strong>New Invoice</strong> — start a fresh tax invoice / proforma / credit note / bill of supply / delivery challan.</li>
             <li><strong>Filter row</strong> — search by client name or invoice number; filter by financial year, type, status and date range. <strong>Columns</strong> picks what the list shows.</li>
@@ -1319,7 +1319,7 @@ export default function Dashboard({ onNew, onEdit, onPrint, onDuplicate, onConve
         <div className="stat-card">
           <div className="stat-icon stat-icon-green"><TrendingUp size={22} /></div>
           <div style={{ flex: 1 }}>
-            <p className="stat-label">Tax Collected</p>
+            <p className="stat-label">Invoice tax</p>
             {Object.entries(stats.byCurrency).map(([cur, v]) => (
               <div key={cur} className="stat-value stat-value-green" style={{ fontSize: Object.keys(stats.byCurrency).length > 1 ? '1.1rem' : undefined }}>
                 {formatCurrency(v.tax, cur)}

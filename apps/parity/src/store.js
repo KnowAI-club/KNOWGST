@@ -577,3 +577,4 @@ export const assignProduct=product=>apiFetch(`${API}/products/${encodeURICompone
 
 export const getBackfillPreview=()=>apiFetch(`${API}/accounting/backfill`);
 export const applyBackfill=data=>apiFetch(`${API}/accounting/backfill`,{method:"POST",body:JSON.stringify(data)});
+export const getDashboardSummary=(month,currency)=>apiFetch(`${API}/dashboard?${new URLSearchParams({month,currency})}`);

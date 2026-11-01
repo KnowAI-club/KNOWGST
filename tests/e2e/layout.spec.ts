@@ -11,6 +11,7 @@ test.beforeEach(async ({ request }) => {
 });
 const views = [
   "dashboard",
+  "invoices",
   "new",
   "clients",
   "inventory",

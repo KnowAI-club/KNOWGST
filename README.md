@@ -21,9 +21,11 @@ Dashboard, seven invoice/document types and PDF output, clients, inventory, purc
 
 The approved minimal interface uses neutral surfaces, Inter, restrained blue accents and light/dark themes. See [implementation status](docs/IMPLEMENTATION-STATUS.md) for test coverage and remaining boundaries.
 
+The dashboard reads business-scoped records with month and currency filters, sales excluding GST/TCS, recorded money movement, current customer/supplier balances, an attention queue and a searchable activity inspector. The full document workflow remains under **Invoices**. Balances cover all dates; the money-movement chart excludes manual journals and untracked purchase payments and is not a bank balance.
+
 ## User guide
 
-Open **User Guide** in the app, or visit http://127.0.0.1:4173/docs/. The guide includes 20 topics and actual screenshots of the implemented interface using sample records. [Guide maintenance](docs/USER-GUIDE.md) · [Complete backup and restore](docs/BACKUP-RESTORE.md) · [Tax-rule review](docs/TAX-RULE-REVIEW.md).
+Open **User Guide** in the app, or visit http://127.0.0.1:4173/docs/. The guide includes 21 topics and actual screenshots of the implemented interface using sample records. [Guide maintenance](docs/USER-GUIDE.md) · [Complete backup and restore](docs/BACKUP-RESTORE.md) · [Tax-rule review](docs/TAX-RULE-REVIEW.md).
 
 ## Validate
 

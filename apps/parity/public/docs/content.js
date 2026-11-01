@@ -10,7 +10,7 @@ export const pages = [
       "Create an invoice, check the preview and save the PDF.",
       "Record purchases and payments, then review your reports."
     ],
-    "notes": "This guide describes the current compatibility edition. Screenshots show the actual app with fictional records, captured on 29 October 2026. Hosted accounts, AI, bank feeds and packaged macOS installers are not part of this release.",
+    "notes": "This guide describes the current compatibility edition. Screenshots show the implemented app with fictional records. The dashboard was updated on 1 November 2026; other screens reflect their recorded capture dates. Hosted accounts, AI, bank feeds and packaged desktop installers are not part of this release.",
     "screen": "dashboard",
     "view": "dashboard"
   },
@@ -37,7 +37,7 @@ export const pages = [
       "Open New Invoice and choose Tax Invoice, Quotation, Proforma / Estimate, Bill of Supply, Composition, Credit Note or Delivery Challan.",
       "Enter the client, address, state, invoice date and supply details. Add a reference when creating a credit note.",
       "Add each item, quantity, rate, discount and GST rate. Confirm the tax split and total.",
-      "Inspect the preview, then choose Save & Download. Confirm the record appears on Dashboard and the downloaded PDF opens."
+      "Inspect the preview, then choose Save & Download. Confirm the record appears in Invoices and the downloaded PDF opens."
     ],
     "notes": "HSN descriptions are historical hints. They do not certify the applicable rate. Enter the verified rate for your supply; changing an HSN code no longer overwrites your selection.",
     "screen": "invoice",
@@ -45,17 +45,32 @@ export const pages = [
   },
   {
     "id": "dashboard",
+    "title": "Understand your dashboard",
+    "group": "Start here",
+    "intro": "Review the selected business, recorded money movement and work needing attention.",
+    "steps": [
+      "Choose a month and currency. Sales exclude GST and TCS; money received includes recorded inflows in that month.",
+      "Customer and supplier balances are current across all dates. Supplier balances include accounting-managed purchases only.",
+      "Use the attention queue to review overdue invoices, unallocated receipts, low stock and historical accounting records.",
+      "Filter recent activity or open a row to inspect it, then open its source register. Use Invoices for editing, payments and printing."
+    ],
+    "notes": "Recorded money movement is not a bank balance or profit. Manual journals and untracked purchase payments are excluded. Invoice tax is not a filed return. A backup date does not verify its integrity. Unassigned records are excluded and flagged.",
+    "screen": "dashboard",
+    "view": "dashboard"
+  },
+  {
+    "id": "invoice-register",
     "title": "Find and manage invoices",
     "group": "Sales",
-    "intro": "Dashboard brings saved documents and collection information into one place.",
+    "intro": "Invoices brings saved documents and collection information into one place.",
     "steps": [
       "Use the document list and filters to find a customer or invoice.",
       "Open the relevant row action to view, edit, print or duplicate a document.",
       "Review payment and cancellation status before relying on report totals."
     ],
     "notes": "Quotations, estimates and delivery challans are not sales revenue. Credit notes reduce sales. Keep supporting records for corrections.",
-    "screen": "dashboard",
-    "view": "dashboard"
+    "screen": "invoice-register",
+    "view": "invoices"
   },
   {
     "id": "print-settings",
@@ -121,7 +136,7 @@ export const pages = [
     "steps": [
       "Open Recurring and choose New Template.",
       "Enter customer and item details, the schedule and its start or end conditions.",
-      "Save the template. Use its generation control when due, and review the resulting invoice on Dashboard.",
+      "Save the template. Use its generation control when due, and review the resulting invoice in Invoices.",
       "Pause the template when billing should stop."
     ],
     "notes": "Generation is local and depends on the app/service running. This is not an always-on hosted scheduler or an automatic email-delivery service.",
