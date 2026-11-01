@@ -3559,3 +3559,13 @@ html:not([data-theme="dark"]) .mobile-topbar-btn { background: rgba(15, 23, 42, 
 .invoice-preview-container:not(.paper-thermal) .inv-tr-even { background: white !important; }
 
 .invoice-preview-container:not(.paper-thermal) .grid-inv { padding: 0 !important; color: #202520 !important; }
+
+/* Settings cards must adapt to the pane, not a fixed desktop viewport. */
+.print-settings-layout, .print-settings-preview-pane, .print-settings-body > *,
+.print-settings-body input, .print-settings-body select { min-width: 0; }
+.print-settings-preview-pane > div { min-width: 0; }
+.print-settings-body .form-group { min-width: 0; }
+@media (max-width: 600px) {
+  .print-settings-preview-pane { padding: 12px !important; }
+  .print-settings-preview-pane button { min-width: 0; white-space: normal; }
+}

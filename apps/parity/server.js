@@ -1868,6 +1868,10 @@ function gracefulShutdown(signal) {
 }
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+if (process.send) {
+  process.on('message', message => { if (message?.type === 'shutdown') gracefulShutdown('desktop'); });
+  process.on('disconnect', () => gracefulShutdown('parent disconnected'));
+}
 
 // =====================================================
 // Recurring invoices — auto-fire on boot + daily interval

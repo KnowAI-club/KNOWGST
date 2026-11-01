@@ -1,0 +1,45 @@
+module.exports = {
+  appId: "club.knowai.knowgst",
+  productName: "KNOWGST",
+  directories: {
+    app: "apps/desktop",
+    output: "release",
+    buildResources: ".local/desktop/icons",
+  },
+  files: ["main.cjs", "gateway.cjs", "package.json"],
+  asar: true,
+  npmRebuild: false,
+  extraResources: [
+    {
+      from: ".local/desktop/runtime",
+      to: "runtime",
+      filter: ["**/*", "!node_modules/**/*"],
+    },
+    {
+      from: ".local/desktop/runtime/node_modules",
+      to: "runtime/node_modules",
+      filter: ["**/*"],
+    },
+    { from: "LICENSE", to: "LICENSE" },
+    { from: "THIRD-PARTY-NOTICES.md", to: "THIRD-PARTY-NOTICES.md" },
+  ],
+  artifactName: "KNOWGST-${version}-${os}-${arch}.${ext}",
+  mac: {
+    target: ["dmg", "zip"],
+    category: "public.app-category.finance",
+    icon: "icon.icns",
+    identity: null,
+  },
+  win: { target: [{ target: "nsis", arch: ["x64"] }], icon: "icon.ico" },
+  nsis: {
+    oneClick: false,
+    perMachine: false,
+    allowToChangeInstallationDirectory: true,
+    createDesktopShortcut: true,
+    createStartMenuShortcut: true,
+    shortcutName: "KNOWGST",
+    deleteAppDataOnUninstall: false,
+    runAfterFinish: false,
+  },
+  publish: null,
+};

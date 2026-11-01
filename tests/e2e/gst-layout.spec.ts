@@ -12,6 +12,7 @@ test('Indian SMB invoice retains required particulars and seller identity',async
  const bill={id:number,invoiceNumber:number,invoiceDate:'2026-11-01',invoiceType:'tax-invoice',clientName:'Sample Buyer',totalAmount:1180,totalTaxAmount:180,status:'unpaid',data:{profile,client:{name:'Sample Buyer',address:'Sample Market Road, Mumbai',state:'Maharashtra',gstin:'27BBBBB1111B1Z1'},details:{invoiceNumber:number,invoiceDate:'2026-11-01',placeOfSupply:'Maharashtra',shipToSameAsBilling:false,shippingAddress:'Sample Warehouse, Nashik',shippingState:'Maharashtra'},items:[{id:'line1',name:'Workshop supplies',hsn:'820559',quantity:2,unit:'Nos',rate:500,taxPercent:18}],totals:{subtotal:1000,taxableAmount:1000,cgst:90,sgst:90,igst:0,totalTaxAmount:180,total:1180,isInterstate:false},invoiceOptions:options,invoiceType:'tax-invoice',customNotes:'SAMPLE ONLY. Fictional identifiers; not valid for tax filing.'}};
  expect((await request.post('/api/bills',{data:bill})).ok()).toBe(true);
  await page.goto('/?view=invoices');
+ await page.getByPlaceholder('Search client or invoice...').fill(number);
  await page.getByRole('button',{name:`View ${number}`,exact:true}).click();
  const invoice=page.locator('.invoice-preview-container').last();
  for(const value of [profile.businessName,profile.gstin,number,'HSN/SAC','820559','Code: 27','Taxable value','Sample Warehouse','CGST','SGST'])await expect(invoice).toContainText(value);

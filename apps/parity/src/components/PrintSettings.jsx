@@ -33,6 +33,20 @@ const DESIGN_PRESETS = [
 //   ALL CAPS · BOLD everywhere · consistent dark ink · monospace font
 // ============================================================================
 
+function FittedPreview({ children, paperWidth, maxScale = 1 }) {
+  const host = useRef(null);
+  const [width, setWidth] = useState(0);
+  useEffect(() => {
+    const observer = new ResizeObserver(([entry]) => setWidth(entry.contentRect.width));
+    if (host.current) observer.observe(host.current);
+    return () => observer.disconnect();
+  }, []);
+  const scale = width ? Math.min(maxScale, (width - 2) / paperWidth) : 0.25;
+  return <div ref={host} className="fitted-invoice-preview" style={{ width: '100%', minWidth: 0 }}>
+    <div style={{ zoom: Math.max(0.1, scale), width: paperWidth }}>{children}</div>
+  </div>;
+}
+
 export default function PrintSettings() {
   const [settings, setSettings] = useState(getPrintSettings);
   const [showTestPreview, setShowTestPreview] = useState(false);
@@ -242,7 +256,7 @@ export default function PrintSettings() {
       {/* v1.9.8 — Split layout: settings scroll on the left, preview stays sticky on the right */}
       <div className="print-settings-layout" style={{
         display: 'grid',
-        gridTemplateColumns: 'minmax(0, 1fr) minmax(340px, 460px)',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 440px), 1fr))',
         gap: '1.25rem',
         marginTop: '1.25rem',
         alignItems: 'flex-start',
@@ -268,7 +282,7 @@ export default function PrintSettings() {
           <strong style={{ fontSize: '0.9rem' }}>Business type <span style={{ fontSize: '0.65rem', fontWeight: 500, color: 'var(--text-muted)', marginLeft: 6 }}>goods, services and mixed businesses</span></strong>
           <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Sets print defaults, not GST registration or tax rates.</span>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.5rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: '0.5rem' }}>
           {Object.entries(BUSINESS_PRESETS).map(([key, preset]) => {
             const active = settings.activeBusinessPresetId === key;
             return (
@@ -336,7 +350,7 @@ export default function PrintSettings() {
           <strong style={{ fontSize: '0.9rem' }}>Invoice layout <span style={{ fontSize: '0.65rem', fontWeight: 500, color: 'var(--text-muted)', marginLeft: 6 }}>neutral colours · consistent typography</span></strong>
           <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Click a design to start. Edit anything below.</span>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.6rem' }}>
           {DESIGN_PRESETS.map(preset => {
             // v1.9.13 — Multiple presets share the same pdfTemplate value
             // (e.g. Modern, Colorful, and Enterprise all use pdfTemplate:
@@ -458,7 +472,7 @@ export default function PrintSettings() {
            wholesale). Retail + restaurant see it. When no biz preset is
            picked, everyone sees it. */}
       {isVisibleFor(['retail_shop', 'restaurant']) ? (
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))', gap: '1rem' }}>
         {/* TYPOGRAPHY — thermal-only since v1.10.9 */}
         <SettingGroup title="Typography (Thermal receipts)">
           <SelectRow label="Font family" value={settings.fontFamily} onChange={v => set({ fontFamily: v })}
@@ -934,7 +948,7 @@ export default function PrintSettings() {
         </div>
 
         {settings.userColorsEnabled && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem', marginTop: '0.75rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.75rem', marginTop: '0.75rem' }}>
             <ColorRow label="Primary text" value={settings.pdfPrimaryText || '#0f172a'} onChange={v => set({ pdfPrimaryText: v })}
               hint="Main body text — client name, item names, totals." />
             <ColorRow label="Muted text" value={settings.pdfMutedText || '#334155'} onChange={v => set({ pdfMutedText: v })}
@@ -987,7 +1001,7 @@ export default function PrintSettings() {
             ['mr', 'मराठी (Marathi)'],
             ['bn', 'বাংলা (Bengali)'],
           ]} />
-        <div style={{ marginTop: '0.75rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.6rem' }}>
+        <div style={{ marginTop: '0.75rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: '0.6rem' }}>
           <TextRow label='"BILL TO" label' value={settings.labelBillTo} onChange={v => set({ labelBillTo: v })}
             placeholder={LABEL_PRESETS[settings.labelLanguage]?.billTo || LABEL_PRESETS.en.billTo} />
           <TextRow label='"PLACE OF SUPPLY" label' value={settings.labelPlaceOfSupply} onChange={v => set({ labelPlaceOfSupply: v })}
@@ -1012,7 +1026,7 @@ export default function PrintSettings() {
         <h4 style={{ margin: '0 0 0.5rem', fontSize: '0.95rem', color: 'var(--primary)' }}>
           📅 Formatting — date, number, currency
         </h4>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.75rem' }}>
           <SelectRow label="Date format" value={settings.dateFormat} onChange={v => set({ dateFormat: v })}
             options={[
               ['dd-mon-yyyy', '02 Apr 2026 (Indian)'],
@@ -1162,7 +1176,7 @@ export default function PrintSettings() {
           <div style={{ overflow: 'auto', flex: 1, background: '#fff', padding: '0.75rem', borderRadius: 6, minHeight: 200 }}>
             {previewMode === 'both' ? (
               <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
-                <div style={{ zoom: 0.42, minWidth: 0 }}>
+                <FittedPreview paperWidth={794} maxScale={0.5}>
                   <InvoicePreview
                     profile={sample.profile}
                     client={sample.client}
@@ -1173,8 +1187,8 @@ export default function PrintSettings() {
                     options={{ ...previewInvoiceOptions, paperSize: 'a4' }}
                     customTerms="" customNotes="" extraSections={[]}
                   />
-                </div>
-                <div style={{ zoom: 0.85, minWidth: 0 }}>
+                </FittedPreview>
+                <FittedPreview paperWidth={272} maxScale={1}>
                   <InvoicePreview
                     profile={sample.profile}
                     client={sample.client}
@@ -1185,10 +1199,10 @@ export default function PrintSettings() {
                     options={{ ...previewInvoiceOptions, paperSize: 'thermal80' }}
                     customTerms="" customNotes="" extraSections={[]}
                   />
-                </div>
+                </FittedPreview>
               </div>
             ) : previewMode === 'pdf' ? (
-              <div style={{ zoom: 0.5, minWidth: 0 }}>
+              <FittedPreview paperWidth={794} maxScale={0.65}>
                 <InvoicePreview
                   ref={previewRef}
                   profile={sample.profile}
@@ -1200,9 +1214,9 @@ export default function PrintSettings() {
                   options={{ ...previewInvoiceOptions, paperSize: 'a4' }}
                   customTerms="" customNotes="" extraSections={[]}
                 />
-              </div>
+              </FittedPreview>
             ) : (
-              <div style={{ margin: '0 auto', width: 'fit-content' }}>
+              <FittedPreview paperWidth={272} maxScale={1}>
                 <InvoicePreview
                   ref={previewRef}
                   profile={sample.profile}
@@ -1214,7 +1228,7 @@ export default function PrintSettings() {
                   options={{ ...previewInvoiceOptions, paperSize: 'thermal80' }}
                   customTerms="" customNotes="" extraSections={[]}
                 />
-              </div>
+              </FittedPreview>
             )}
           </div>
         </div>

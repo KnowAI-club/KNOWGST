@@ -16,12 +16,18 @@
     "dev:prototype": "tsx scripts/dev.ts",
     "format": "prettier --write .",
     "lint": "turbo run lint",
-    "test": "turbo run test --concurrency=1"
+    "test": "turbo run test --concurrency=1",
+    "desktop:stage": "pnpm --filter @know-gst/parity prepare:sqlite && pnpm --filter @know-gst/parity build && node scripts/desktop/stage.mjs",
+    "desktop:build": "pnpm desktop:stage && electron-builder --config apps/desktop/builder.cjs --publish never",
+    "desktop:test": "node scripts/desktop/smoke.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.64.1",
     "@types/node": "^26.6.6",
+    "electron": "45.2.1",
+    "electron-builder": "26.18.0",
     "prettier": "^3.6.2",
+    "sharp": "0.35.5",
     "tsx": "^4.23.15",
     "turbo": "^2.6.1",
     "typescript": "^5.9.3",
