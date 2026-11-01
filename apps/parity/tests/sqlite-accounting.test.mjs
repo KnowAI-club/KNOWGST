@@ -601,7 +601,7 @@ test("automatic postings stay business-scoped and cannot be manually relocated",
       f.commit({
         writes: new Map([[f.file("bills", b.id), { ...b, businessId: "B" }]]),
       }),
-    /moved between/,
+    /moved between|another business/,
   );
 });
 
@@ -882,4 +882,39 @@ test("invoice-side adoption of an existing standalone receipt cannot double coun
       }),
     /another business/,
   );
+});
+
+test("backfilled legacy ownership survives profile changes without source rewriting", (t) => {
+  const f = setup(t),
+    b = saleFixture({ businessId: undefined, ownerName: "A" });
+  f.write("bills", b.id, b);
+  const preview = previewBackfill(f.root, "A");
+  assert.equal(preview.ready, 1);
+  f.commit(
+    planBackfill(f.root, "A", {
+      token: preview.token,
+      reviewedManualEntries: true,
+    }),
+  );
+  // A new active profile claims the same legacy name. Existing journal ownership
+  // must win even though the historical source had no durable businessId.
+  commitJsonBatch(
+    f.root,
+    new Map([
+      [path.join(f.root, "profile.json"), { id: "B", businessName: "A" }],
+    ]),
+  );
+  const second = previewBackfill(f.root, "B");
+  assert.equal(second.ready, 0);
+  assert.match(second.rows[0].reason, /another business/);
+  assert.throws(
+    () =>
+      f.commit({
+        writes: new Map([
+          [f.file("bills", b.id), { ...b, businessId: "B", note: "Moved" }],
+        ]),
+      }),
+    /another business/,
+  );
+  assert.equal(readAccounting(f.root, "B").entries.length, 0);
 });

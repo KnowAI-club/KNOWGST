@@ -404,6 +404,10 @@ export function augmentAccounting(
         );
       return states.get(id);
     };
+  const recordedOwners = new Map();
+  for (const book of records(root, "accounting"))
+    for (const e of book.entries || [])
+      if (e.source) recordedOwners.set(e.source, book.businessId);
   const bills = new Map(records(root, "bills").map((b) => [b.id, b]));
   for (const [file, next] of writes)
     if (path.basename(path.dirname(file)) === "bills") {
@@ -431,6 +435,13 @@ export function augmentAccounting(
     if (hash(clean(old)) === hash(clean(next))) continue;
     const id = businessOf(root, next) || businessOf(root, old) || businessId;
     if (!id) continue;
+    if (["bills", "expenses", "receipts"].includes(dir)) {
+      const recordedOwner = recordedOwners.get(sourceOf(dir, next || old));
+      if (recordedOwner && recordedOwner !== id)
+        fail(
+          "This source already belongs to another business's accounting history.",
+        );
+    }
     if (old?.businessId && next && old.businessId !== next.businessId)
       fail("Records cannot be moved between businesses.");
     const state = stateFor(id),
@@ -668,6 +679,12 @@ export function previewBackfill(root, businessId) {
   };
   const rows = [];
   const history = new Set(state.entries.map((e) => e.source).filter(Boolean));
+  const foreignHistory = new Set(
+    records(root, "accounting")
+      .filter((book) => book.businessId !== businessId)
+      .flatMap((book) => (book.entries || []).map((e) => e.source))
+      .filter(Boolean),
+  );
   const paymentsFor = (id, receiptNo) =>
     bills.filter((b) =>
       (b.payments || b.data?.payments || []).some(
@@ -693,6 +710,10 @@ export function previewBackfill(root, businessId) {
       rows.push(row);
       if (!owner) {
         row.reason = "Assign this record to a business first.";
+        continue;
+      }
+      if (foreignHistory.has(sourceOf(collection, record))) {
+        row.reason = "Source belongs to another business's accounting history.";
         continue;
       }
       if (history.has(sourceOf(collection, record))) {
@@ -847,6 +868,7 @@ export function previewBackfill(root, businessId) {
       businessId,
       state,
       collections,
+      books: records(root,"accounting"),
       profiles: records(root, "profiles"),
       active: activeBusiness(root),
     }),
