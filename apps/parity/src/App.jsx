@@ -1036,7 +1036,7 @@ function App() {
           <ClientsView onNew={handleNewInvoice} onEdit={handleEditInvoice} onDuplicate={handleDuplicateInvoice} />
         )}
         {currentView === 'inventory' && (
-          <InventoryView />
+          <InventoryView key={businessKey} onOpenSettings={() => setCurrentView('settings')} />
         )}
         {/* v1.10.66 (#64 item 1) — `key={businessKey}` remounts these screens
             when the business changes. Each reads the business once when it

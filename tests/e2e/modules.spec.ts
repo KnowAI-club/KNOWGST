@@ -120,3 +120,25 @@ test('mobile navigation and dark theme work',async ({page,request})=>{
   await expect.poll(()=>page.locator('.sidebar').evaluate(el=>el.getBoundingClientRect().right)).toBeLessThanOrEqual(0);
   await page.screenshot({path:'docs/verification/parity-mobile-dark.png',fullPage:true});
 });
+
+test('products distinguish business setup, request failures and a confirmed empty catalog', async ({page}) => {
+  await page.route('**/api/products*', route => route.fulfill({status:400,json:{error:'Complete business setup first.',code:'bad-request'}}));
+  await page.goto('/?view=inventory');
+  await expect(page.getByRole('heading',{name:'Set up your business first'})).toBeVisible();
+  await expect(page.getByText('No products yet. Add your first product.')).toHaveCount(0);
+  await expect(page.getByRole('button',{name:'Add Product',exact:true})).toBeDisabled();
+  await page.getByRole('button',{name:'Set up business',exact:true}).click();
+  await expect(page.locator('.workspace-heading h1')).toHaveText('Settings');
+  await page.unroute('**/api/products*');
+  await page.route('**/api/products*', route => route.fulfill({status:503,json:{error:'Storage temporarily unavailable'}}));
+  await page.goto('/?view=inventory');
+  await expect(page.getByRole('alert')).toContainText('Products could not load');
+  await expect(page.getByText('No products yet. Add your first product.')).toHaveCount(0);
+  await expect(page.getByRole('button',{name:'CSV',exact:true})).toHaveCount(0);
+  await page.unroute('**/api/products*');
+  await page.route('**/api/products*', route => route.fulfill({json:[]}));
+  await page.getByRole('button',{name:'Retry',exact:true}).click();
+  await expect(page.getByText('No products yet. Add your first product.')).toBeVisible();
+  await expect(page.getByRole('alert')).toHaveCount(0);
+  await expect(page.getByRole('button',{name:'Add Product',exact:true}).first()).toBeEnabled();
+});

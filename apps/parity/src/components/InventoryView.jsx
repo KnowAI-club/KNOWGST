@@ -20,7 +20,11 @@ const emptyForm = {
   name: '', hsn: '', purchasePrice: '', sellingPrice: '', taxPercent: '', unit: 'Pcs', stock: '', description: '',
 };
 
-export default function InventoryView() {
+export default function InventoryView({ onOpenSettings }) {
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
+  const loadSequence = useRef(0);
+  const needsSetup = loadError?.status === 400 && loadError?.message === 'Complete business setup first.';
   const [unassigned,setUnassigned]=useState([]);
   const [products, setProducts] = useState([]);
   const [search, setSearch] = useState('');
@@ -40,12 +44,21 @@ export default function InventoryView() {
   const [stockAlerts, setStockAlerts] = useState({ enabled: true, threshold: 5 });
 
   const loadProducts = async () => {
+    const sequence = ++loadSequence.current;
+    setLoading(true);
+    setLoadError(null);
     try {
-      const data = await getAllProducts();
+      const [data, legacy] = await Promise.all([getAllProducts(), getUnassignedProducts()]);
+      if (sequence !== loadSequence.current) return;
       setProducts(data);
-      setUnassigned(await getUnassignedProducts());
-    } catch {
-      toast('Failed to load products', 'error');
+      setUnassigned(legacy);
+    } catch (error) {
+      if (sequence !== loadSequence.current) return;
+      setProducts([]);
+      setUnassigned([]);
+      setLoadError(error);
+    } finally {
+      if (sequence === loadSequence.current) setLoading(false);
     }
   };
 
@@ -54,6 +67,7 @@ export default function InventoryView() {
     setUnits(getAllUnits());
     getProfile().then(p => { if (p?.country) setProfileCountry(p.country); }).catch(() => {});
     getStockAlertSettings().then(setStockAlerts).catch(() => {});
+    return () => { loadSequence.current++; };
   }, []);
 
   const filtered = search.trim()
@@ -228,14 +242,14 @@ export default function InventoryView() {
           </HelpButton>
         <div className="flex gap-2">
           <input type="file" accept=".csv" ref={csvInputRef} style={{ display: 'none' }} onChange={handleCSVImport} />
-          <button className="btn btn-secondary" onClick={() => csvInputRef.current?.click()}>
+          <button className="btn btn-secondary" onClick={() => csvInputRef.current?.click()} disabled={loading || !!loadError}>
             <Upload size={16} /> Import CSV
           </button>
-          <button className="btn btn-secondary" onClick={() => setBulkEdit(true)} disabled={!products.length || bulkEdit}
+          <button className="btn btn-secondary" onClick={() => setBulkEdit(true)} disabled={loading || !!loadError || !products.length || bulkEdit}
             title="Edit name, HSN, prices, GST %, unit and stock of many products at once">
             <Table2 size={16} /> Bulk edit
           </button>
-          <button className="btn btn-primary" onClick={openAdd}>
+          <button className="btn btn-primary" onClick={openAdd} disabled={loading || !!loadError}>
             <Plus size={18} /> Add Product
           </button>
         </div>
@@ -247,7 +261,7 @@ export default function InventoryView() {
         <div className="search-box" style={{ maxWidth: '400px' }}>
           <Search size={16} className="search-icon" />
           <input type="text" placeholder="Search by name or HSN..." value={search}
-            onChange={e => setSearch(e.target.value)} className="search-input" disabled={bulkEdit}
+            onChange={e => setSearch(e.target.value)} className="search-input" disabled={bulkEdit || loading || !!loadError}
             title={bulkEdit ? 'Save or cancel the bulk edit first' : undefined} />
           {search && <button className="icon-btn" onClick={() => setSearch('')} title="Clear search" aria-label="Clear search"><X size={14} /></button>}
         </div>
@@ -327,20 +341,29 @@ export default function InventoryView() {
       <div className="glass-panel">
         <div className="table-header" style={{ flexWrap: 'wrap', gap: '0.5rem' }}>
           <h3>Products & Services</h3>
-          {!bulkEdit && (
+          {!bulkEdit && !loading && !loadError && (
             <TableExport title="Products" filename="Products"
               headers={['Name', 'HSN/SAC', 'Purchase price', 'Selling price', 'GST %', 'Unit', 'Stock']}
               rows={filtered.map((p) => [p.name, p.hsn || '', Number(p.purchasePrice) || 0, Number(p.sellingPrice ?? p.rate) || 0, Number(p.taxPercent) || 0, p.unit || 'Nos', Number(p.stock) || 0])} />
           )}
         </div>
-        {bulkEdit && filtered.length > 0 ? (
+        {loading ? (
+          <div className="empty-state" role="status"><p>Loading products…</p></div>
+        ) : loadError ? (
+          <div className="empty-state" role={needsSetup ? 'status' : 'alert'}>
+            <Package size={40} />
+            <h3>{needsSetup ? 'Set up your business first' : 'Products could not load'}</h3>
+            <p>{needsSetup ? 'Add your business details before creating or viewing its inventory.' : loadError.message || 'The local service could not load your inventory. Please try again.'}</p>
+            {needsSetup ? <button className="btn btn-primary" onClick={onOpenSettings}>Set up business</button> : <button className="btn btn-secondary" onClick={loadProducts}>Retry</button>}
+          </div>
+        ) : bulkEdit && filtered.length > 0 ? (
           <ProductBulkEdit products={filtered} units={units} onDone={(saved) => { setBulkEdit(false); if (saved) loadProducts(); }} />
         ) : filtered.length === 0 ? (
           <div className="empty-state">
             <Package size={48} />
             <p>{products.length === 0 ? 'No products yet. Add your first product.' : 'No products match your search.'}</p>
             {products.length === 0 && (
-              <button className="btn btn-primary" onClick={openAdd}><Plus size={18} /> Add Product</button>
+              <button className="btn btn-primary" onClick={openAdd} disabled={loading || !!loadError}><Plus size={18} /> Add Product</button>
             )}
           </div>
         ) : (
