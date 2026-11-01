@@ -8,7 +8,7 @@ import { useState } from 'react';
 import { Star, X } from 'lucide-react';
 
 const KEY = 'freegstbill_starBanner';
-const REPO = 'https://github.com/IamRamgarhia/Free-GST-Billing-Software';
+const REPO = 'https://github.com/KnowAI-club/KNOWGST';
 const DAY = 86400000;
 const FIRST_AFTER_DAYS = 3;
 const EVERY_DAYS = 30;
@@ -43,7 +43,7 @@ export default function StarBanner() {
     }}>
       <Star size={18} style={{ color: '#f59e0b', fill: '#f59e0b', flexShrink: 0 }} />
       <span style={{ flex: '1 1 240px' }}>
-        Finding Free GST Billing useful? A star on GitHub helps other businesses find it. It takes one click.
+        Finding KNOWGST useful? A star on GitHub helps other businesses find it. It takes one click.
       </span>
       <a className="btn btn-primary" href={REPO} target="_blank" rel="noopener noreferrer"
         onClick={() => save({ done: true })} style={{ padding: '0.3rem 0.8rem', fontSize: '0.8rem', textDecoration: 'none' }}>

@@ -1176,10 +1176,10 @@ app.get('/api/check-update', async (req, res) => {
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), 4000);
     const [pkgRes, relRes] = await Promise.all([
-      fetch('https://raw.githubusercontent.com/IamRamgarhia/Free-GST-Billing-Software/main/package.json', { signal: ctrl.signal }).catch(() => null),
-      fetch('https://api.github.com/repos/IamRamgarhia/Free-GST-Billing-Software/releases/latest', {
+      fetch('https://raw.githubusercontent.com/KnowAI-club/KNOWGST/main/apps/parity/package.json', { signal: ctrl.signal }).catch(() => null),
+      fetch('https://api.github.com/repos/KnowAI-club/KNOWGST/releases/latest', {
         signal: ctrl.signal,
-        headers: { 'Accept': 'application/vnd.github+json', 'User-Agent': 'FreeGSTBill-update-check' },
+        headers: { 'Accept': 'application/vnd.github+json', 'User-Agent': 'KNOWGST-update-check' },
       }).catch(() => null),
     ]);
     clearTimeout(t);
@@ -1712,7 +1712,7 @@ app.get('{*path}', (req, res) => {
 function servePlaceholder(req, res) {
     if (req.path.startsWith('/api')) return res.status(404).json({ error: 'No such endpoint' });
     res.status(503).send(`<!doctype html>
-<html><head><meta charset="utf-8"><title>Free GST Billing Software — building…</title>
+<html><head><meta charset="utf-8"><title>KNOWGST — building…</title>
 <meta http-equiv="refresh" content="3">
 <style>
   body { font-family: -apple-system, Segoe UI, Inter, sans-serif; max-width: 560px;
@@ -1727,7 +1727,7 @@ function servePlaceholder(req, res) {
   .box { background: #f8fafc; border: 1px solid #e2e8f0; padding: 0.85rem 1rem; border-radius: 8px; margin-top: 1rem; }
 </style></head>
 <body>
-  <h1>Free GST Billing Software</h1>
+  <h1>KNOWGST</h1>
   <p><span class="spinner"></span> The app is still building. This page refreshes every 3 seconds.</p>
   <div class="box">
     <p style="margin:0 0 0.5rem"><strong>Local install?</strong></p>

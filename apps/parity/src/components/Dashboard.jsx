@@ -1,3 +1,5 @@
+import { a4CanvasSlices } from '../utils/pdfPagination';
+import { isLowStock } from '../utils/stockAlerts';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { FileText, Trash2, Plus, IndianRupee, Receipt, Edit3, TrendingUp, Search, Copy, X, CheckCircle, Clock, AlertTriangle, MessageCircle, Mail, StickyNote, Send, Package, Download, Printer, Ban, Undo2, Eye } from 'lucide-react';
 import HelpButton from './HelpButton';
@@ -30,14 +32,8 @@ import { confirmAction } from './ConfirmModal';
 function addCanvasAsA4Pages(doc, canvas, startOnNewPage, breaks = []) {
   const pageW = 210;
   const pageH = 297;
-  const slicePx = Math.floor((canvas.width * pageH) / pageW);
-  for (let y = 0, page = 0; y < canvas.height; page++) {
-    let h = Math.min(slicePx, canvas.height - y);
-    if (y + h < canvas.height) {
-      const cut = breaks.filter((b) => b > y + slicePx * 0.5 && b <= y + slicePx).pop();
-      if (cut) h = cut - y;
-    }
-    if (page > 0 && h < 4) break; // a sliver of white margin is not worth a page
+  const slices = a4CanvasSlices(canvas.width, canvas.height, breaks);
+  for (const [page, { y, height: h }] of slices.entries()) {
     const slice = document.createElement('canvas');
     slice.width = canvas.width;
     slice.height = h;
@@ -46,8 +42,7 @@ function addCanvasAsA4Pages(doc, canvas, startOnNewPage, breaks = []) {
     ctx.fillRect(0, 0, slice.width, slice.height);
     ctx.drawImage(canvas, 0, y, canvas.width, h, 0, 0, canvas.width, h);
     if (page > 0 || startOnNewPage) doc.addPage();
-    doc.addImage(slice.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, pageW, (h * pageW) / canvas.width, undefined, 'FAST');
-    y += h;
+    doc.addImage(slice.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, pageW, Math.min(pageH, (h * pageW) / canvas.width), undefined, 'FAST');
   }
 }
 
@@ -442,7 +437,7 @@ export default function Dashboard({ onNew, onEdit, onPrint, onDuplicate, onConve
       setProductCount(prods.length);
       if (cfg?.enabled === false) { setLowStockProducts([]); return; }
       const threshold = Number(cfg?.threshold ?? 5);
-      setLowStockProducts(prods.filter(p => (p.stock ?? 0) <= threshold));
+      setLowStockProducts(prods.filter(p => isLowStock(p, threshold)));
     });
   }, []);
 
@@ -815,7 +810,7 @@ export default function Dashboard({ onNew, onEdit, onPrint, onDuplicate, onConve
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `freegstbill-bills-${sel.length}-${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `knowgst-bills-${sel.length}-${new Date().toISOString().split('T')[0]}.json`;
     a.click();
     URL.revokeObjectURL(url);
     toast(`Exported ${sel.length} invoice${sel.length !== 1 ? 's' : ''} as JSON`, 'success');
@@ -905,7 +900,7 @@ export default function Dashboard({ onNew, onEdit, onPrint, onDuplicate, onConve
       if (window.__fgsbBulkAbort) { toast(`Aborted after ${ok} of ${sel.length}`, 'warning'); }
       window.__fgsbBulkAbort = false;
       if (ok === 0) { toast('Could not generate any PDFs', 'error'); return; }
-      const filename = `freegstbill-invoices-${ok}-${new Date().toISOString().split('T')[0]}.pdf`;
+      const filename = `knowgst-invoices-${ok}-${new Date().toISOString().split('T')[0]}.pdf`;
       doc.save(filename);
       toast(`Exported ${ok} of ${sel.length} invoices`, 'success');
     } catch (e) {

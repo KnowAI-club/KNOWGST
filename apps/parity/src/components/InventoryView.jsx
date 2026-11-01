@@ -1,3 +1,4 @@
+import { isServiceItem } from '../utils/stockAlerts';
 import {getUnassignedProducts,assignProduct} from '../store';
 import PageHeader from './PageHeader';
 import { useState, useEffect, useRef } from 'react';
@@ -389,7 +390,9 @@ export default function InventoryView({ onOpenSettings }) {
                     <td>{product.taxPercent ? `${product.taxPercent}%` : '-'}</td>
                     <td className="text-muted">{product.unit || 'Nos'}</td>
                     <td>
-                      {(product.stock ?? 0) <= 0 ? (
+                      {isServiceItem(product) || product.trackStock === false ? (
+                        <span className="text-muted">Not tracked</span>
+                      ) : (product.stock ?? 0) <= 0 ? (
                         <span style={{ color: '#dc2626', fontWeight: 600 }}>Out of Stock</span>
                       ) : (stockAlerts.enabled !== false && (product.stock ?? 0) <= Number(stockAlerts.threshold ?? 5)) ? (
                         <span style={{ color: '#d97706', fontWeight: 600 }}>{product.stock}</span>

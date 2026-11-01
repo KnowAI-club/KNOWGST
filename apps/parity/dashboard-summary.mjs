@@ -1,3 +1,4 @@
+import { isLowStock } from './src/utils/stockAlerts.js';
 // Read-only dashboard projection. Every amount is integer minor units and every
 // source is scoped by the caller to one business before reaching this module.
 export function dashboardSummary({
@@ -186,7 +187,7 @@ export function dashboardSummary({
       : products
           .filter(
             (p) =>
-              Number.isFinite(Number(p.stock)) && Number(p.stock) <= threshold,
+              isLowStock(p, threshold),
           )
           .map((p) => ({
             id: p.id,

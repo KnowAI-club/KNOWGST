@@ -550,7 +550,7 @@ export default function SettingsView({ onSaved }) {
   const runExport = async () => {
     try {
       const json = await exportAllData(exportSel);
-      const fileName = `freegstbill-backup-${new Date().toISOString().split('T')[0]}.json`;
+      const fileName = `knowgst-backup-${new Date().toISOString().split('T')[0]}.json`;
 
       // Local download (always)
       const blob = new Blob([json], { type: 'application/json' });
@@ -592,7 +592,7 @@ export default function SettingsView({ onSaved }) {
     try {
       const text = await file.text();
       const inspection = inspectBackup(text);
-      if (!inspection.valid) { toast("This file doesn't look like a Free GST Billing backup.", 'error'); return; }
+      if (!inspection.valid) { toast("This file doesn't look like a KNOWGST-compatible backup.", 'error'); return; }
       setImportInspection(inspection);
       setImportJsonText(text);
       // Auto-tick only the parts that actually have data in the file
@@ -2034,7 +2034,7 @@ function BackupAndTrashPanel() {
         <label className="form-label" htmlFor="backup-folder">Also keep a copy of every daily backup in this folder</label>
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
           <input id="backup-folder" type="text" className="form-input" style={{ flex: 1, minWidth: 220 }}
-            placeholder={'e.g. D:\\FreeGSTBill or E:\\ (a second drive or USB disk)'}
+            placeholder={'e.g. D:\\KNOWGST or E:\\ (a second drive or USB disk)'}
             value={folderInput} onChange={(e) => setFolderInput(e.target.value)} />
           <button type="button" className="btn btn-primary" disabled={folderBusy || folderInput.trim() === (backupFolder.path || '')}
             onClick={() => saveBackupFolder(folderInput.trim())}>Save folder</button>

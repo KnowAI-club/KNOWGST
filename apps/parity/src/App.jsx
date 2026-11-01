@@ -1,3 +1,4 @@
+import { isLowStock } from './utils/stockAlerts';
 import { DOCS_URL } from './utils/documentation';
 import { useState, useEffect, useRef, useMemo, lazy, Suspense } from 'react';
 import { Home, FileText, Settings, Plus, Users, Package, BarChart3, Wallet, RefreshCw, Receipt, BookOpen, Moon, Sun, Download, X, ShoppingCart, ChevronDown, Building2, Pencil, HelpCircle, Search, Command, Bell, Calculator, HardDrive, Menu, Heart } from 'lucide-react';
@@ -224,7 +225,7 @@ function App() {
         const stockThreshold = Number(stockAlertCfg?.threshold ?? 5);
         const lowStock = stockAlertCfg?.enabled === false
           ? []
-          : products.filter(p => (p.stock ?? 999) <= stockThreshold);
+          : products.filter(p => isLowStock(p, stockThreshold));
         const filings = getUpcomingFilings().filter(f => f.daysAway <= 10);
         // Recurring auto-fire breadcrumb — set by server.js processDueRecurring().
         // Only "fresh" (today's) auto-fires count as a notification; older ones
@@ -753,7 +754,7 @@ function App() {
             <p className="server-down-hint">How to start it:</p>
             <ol>
               <li>Double-click <strong>KNOWGST</strong> on your Desktop, then click <strong>Open App</strong></li>
-              <li>Or search <strong>"Free GST Billing"</strong> in the Start Menu</li>
+              <li>Or search <strong>"KNOWGST"</strong> in the Start Menu</li>
             </ol>
           </div>
           <p className="server-down-safe">All your invoices, clients, and data are safely stored on your computer. They are never deleted or shared.</p>
@@ -1271,7 +1272,7 @@ function App() {
               {updateInfo.releaseNotes || (
                 <span style={{ color: 'var(--text-muted)' }}>
                   No release notes available — see the full changelog at{' '}
-                  <a href={updateInfo.releaseUrl || 'https://github.com/IamRamgarhia/Free-GST-Billing-Software/releases'} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)' }}>GitHub Releases</a>.
+                  <a href={updateInfo.releaseUrl || 'https://github.com/KnowAI-club/KNOWGST/releases'} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)' }}>GitHub Releases</a>.
                 </span>
               )}
             </div>
