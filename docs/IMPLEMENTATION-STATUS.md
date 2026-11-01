@@ -1,3 +1,9 @@
+# Shared compact desktop system — 1 November 2026
+
+The dashboard and all workspace pages now use one light/dark palette in `apps/parity/src/knowgst.css`. The dashboard-specific theme overrides were removed. Neutral surfaces and one action accent are shared by navigation, buttons, fields, tables, settings and dialogs; paid/overdue/error and destructive-action colours retain their meanings. KnowAI branding and user-selected invoice-template colours remain separate.
+
+Desktop controls use a 36px baseline; narrow layouts retain 44px controls. Tables share 10px/14px cell padding and tabular numbers, neutral hover/selection states, and local horizontal scrolling. Buttons share radius, hover, disabled and focus treatments. Forms share surfaces, borders, placeholders, focus and invalid states. Reduced-motion preferences disable component transitions. Cross-page browser checks verify palette and primary-button foreground/background tokens in both themes alongside the existing six-width layout and workflow tests.
+
 # Workspace spacing and navigation — 1 November 2026
 
 All 15 main pages share aligned gutters, heading spacing and section gaps. Form controls and actions fit their panels; wide tables retain local scrolling. Settings and Print Settings grids adapt to narrow windows, and the GST summary wraps instead of widening the page. Screen-only rules preserve printed invoice geometry and the KnowAI logo.

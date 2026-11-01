@@ -1519,7 +1519,7 @@ export default function SettingsView({ onSaved }) {
                 <div className="template-card-header">
                   <div>
                     <strong>{bp.businessName}</strong>
-                    {isActive && <span style={{ fontSize: '0.68rem', background: 'var(--primary)', color: '#fff', borderRadius: '4px', padding: '0.1rem 0.4rem', marginLeft: '0.5rem' }}>Active</span>}
+                    {isActive && <span style={{ fontSize: '0.68rem', background: 'var(--primary)', color: 'var(--on-primary)', borderRadius: '4px', padding: '0.1rem 0.4rem', marginLeft: '0.5rem' }}>Active</span>}
                     <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginLeft: '0.5rem' }}>
                       {bp.state}{bp.gstin ? ` | ${bp.gstin}` : ''}
                     </span>

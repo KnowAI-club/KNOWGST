@@ -1484,10 +1484,10 @@ function CustomListEditor({ values, onChange, placeholder }) {
     <div>
       <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap', marginBottom: '0.5rem' }}>
         {(values || []).map((v, i) => (
-          <span key={i} style={{ background: 'var(--primary)', color: '#fff', padding: '0.15rem 0.5rem', borderRadius: 12, fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+          <span key={i} style={{ background: 'var(--primary)', color: 'var(--on-primary)', padding: '0.15rem 0.5rem', borderRadius: 12, fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
             {v}%
             <button type="button" onClick={() => onChange(values.filter((_, j) => j !== i))}
-              style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', padding: 0, fontSize: '0.85rem', lineHeight: 1 }}>×</button>
+              style={{ background: 'transparent', border: 'none', color: 'inherit', cursor: 'pointer', padding: 0, fontSize: '0.85rem', lineHeight: 1 }}>×</button>
           </span>
         ))}
       </div>

@@ -307,7 +307,7 @@ export default function WelcomeGuide({ onComplete }) {
                   { num: '4', title: 'File GST returns', desc: 'Download the GSTR-1 JSON from GST Returns and upload it on the GST portal. The Filing Guide tab there walks you through it.' },
                 ].map((item) => (
                   <div key={item.num} style={{ display: 'flex', gap: '1rem', padding: '0.75rem 0', borderBottom: '1px solid var(--border-color)' }}>
-                    <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'var(--primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem', fontWeight: 700, flexShrink: 0 }}>
+                    <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'var(--primary)', color: 'var(--on-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem', fontWeight: 700, flexShrink: 0 }}>
                       {item.num}
                     </div>
                     <div>

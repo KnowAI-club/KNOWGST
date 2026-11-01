@@ -217,3 +217,37 @@ test("sidebar groups collapse, keep the active route open and support keyboard n
   await expect(page.locator('.workspace-heading h1')).toHaveText('Invoices');
   await page.getByRole('button',{name:'Auto-hide menu',exact:true}).click();
 });
+
+test("every page uses the shared compact palette in both themes", async ({page},testInfo) => {
+  test.setTimeout(120000);
+  for (const theme of ['light','dark']) {
+    if (theme === 'dark') {
+      await page.getByRole('button',{name:'Dark Mode',exact:true}).click();
+      await expect(page.locator('html')).toHaveAttribute('data-theme','dark');
+    }
+    let reference:unknown;
+    for (const view of views) {
+      await page.goto(`/?view=${view}`);
+      await expect(page.locator('.workspace-heading h1')).toBeVisible();
+      await expect(page.locator('html')).toHaveAttribute('data-theme',theme);
+      const palette=await page.locator('.main-content').evaluate(el=>{
+        const s=getComputedStyle(el);
+        return ['--primary','--on-primary','--bg','--card-bg','--text','--border'].map(t=>s.getPropertyValue(t).trim());
+      });
+      reference ??= palette;
+      expect(palette,`${theme}/${view}: shared tokens`).toEqual(reference);
+      if (view === 'settings' || view === 'invoices') await page.screenshot({path:testInfo.outputPath(`${theme}-${view}.png`)});
+      const primary=page.locator('.main-content .btn-primary:visible').first();
+      if(await primary.count()) {
+        const colors=await primary.evaluate(el=>{
+          const s=getComputedStyle(el);const probe=document.createElement('span');
+          probe.style.color='var(--on-primary)';el.appendChild(probe);
+          const foreground=getComputedStyle(probe).color;probe.style.color='var(--primary)';
+          const background=getComputedStyle(probe).color;probe.remove();
+          return {actual:[s.color,s.backgroundColor],expected:[foreground,background]};
+        });
+        await expect.poll(() => primary.evaluate(el => { const s=getComputedStyle(el); return [s.color,s.backgroundColor]; }), {message:`${theme}/${view}: primary button contrast`}).toEqual(colors.expected);
+      }
+    }
+  }
+});
