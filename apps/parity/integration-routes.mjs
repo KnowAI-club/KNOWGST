@@ -1,3 +1,5 @@
+import { categoryAssistant } from "./ai-categorization.mjs";
+import { emailDraftAssistant } from "./ai-email-draft.mjs";
 import { recordAssistant } from "./ai-records.mjs";
 import { extractBill } from "./ocr-extraction.mjs";
 import { aiWorkspace } from "./ai-workspace.mjs";
@@ -45,8 +47,14 @@ export function integrationRoutes(app, runtime, readSummary, readModule) {
   route("get", "/chatgpt/models", () => chat.models());
   route("post", "/chatgpt/ocr", (b) => extractBill(chat, b));
   route("post", "/chatgpt/ask", (b) => chat.ask(b));
-  if (readModule)
-    route("post", "/ai/records", recordAssistant({ chat, readModule }));
+  const askRecords = readModule
+    ? recordAssistant({ chat, readModule })
+    : undefined;
+  if (askRecords) {
+    route("post", "/ai/records", askRecords);
+    route("post", "/ai/categorize", categoryAssistant({ chat, readModule }));
+  }
+  route("post", "/ai/email-draft", emailDraftAssistant({ chat }));
   if (readSummary) {
     const assistant = aiWorkspace({ readSummary, chat });
     route("post", "/ai/preview", (b) => assistant.preview(b));
@@ -55,4 +63,5 @@ export function integrationRoutes(app, runtime, readSummary, readModule) {
   route("post", "/resend", (b) => mail.configure(b));
   route("post", "/resend/disconnect", () => mail.disconnect());
   route("post", "/resend/send", (b) => mail.send(b));
+  return { askRecords };
 }

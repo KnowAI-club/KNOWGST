@@ -1,137 +1,263 @@
 import { useEffect, useRef, useState } from "react";
+import {
+  ArrowUp,
+  Plus,
+  Copy,
+  SlidersHorizontal,
+  ArrowUpRight,
+} from "lucide-react";
 import PageHeader from "./PageHeader";
 import { integrationRequest as api } from "../services/integrations";
+import { askChat } from "../services/ai-chat";
 import { localToday } from "../utils";
 import "./ai-workspace.css";
+const titles = {
+  monthly: "Monthly review",
+  review: "Bookkeeping review",
+  collections: "Payment reminder drafts",
+};
+const routes = {
+  bills: "invoices",
+  products: "inventory",
+  journal: "reports",
+  audit: "reports",
+  stockMovements: "reports",
+  supplierPayments: "purchases",
+  profile: "settings",
+  clients: "clients",
+  purchases: "purchases",
+  expenses: "expenses",
+  receipts: "receipts",
+  recurring: "recurring",
+};
 export default function AiWorkspace({ activeProfile, onNavigate }) {
-  const [task, setTask] = useState("monthly"),
+  const [messages, setMessages] = useState([]),
+    [draft, setDraft] = useState(""),
+    [models, setModels] = useState([]),
+    [model, setModel] = useState("");
+  const [ready, setReady] = useState(false);
+  const [busy, setBusy] = useState(false),
+    [progress, setProgress] = useState(""),
+    [error, setError] = useState(""),
+    [access, setAccess] = useState(false);
+  const [toolsOpen, setToolsOpen] = useState(false),
+    [task, setTask] = useState("monthly"),
     [month, setMonth] = useState(localToday().slice(0, 7)),
     [currency, setCurrency] = useState("INR");
-  const [models, setModels] = useState([]),
-    [model, setModel] = useState(""),
-    [snapshot, setSnapshot] = useState(null),
-    [consent, setConsent] = useState(false);
-  const [answer, setAnswer] = useState(""),
-    [error, setError] = useState(""),
-    [busy, setBusy] = useState(false);
-  const [recordQuestion, setRecordQuestion] = useState("");
-  const [recordConsent, setRecordConsent] = useState(false);
-  const [sources, setSources] = useState([]);
-  const [coverage, setCoverage] = useState(null);
-  const generation = useRef(0);
-  useEffect(() => {
-    let cancelled = false;
-    ++generation.current;
-    setSources([]);
-    setCoverage(null);
-    setRecordConsent(false);
+  const [snapshot, setSnapshot] = useState(null),
+    [summaryConsent, setSummaryConsent] = useState(false);
+  const generation = useRef(0),
+    requestLock = useRef(false),
+    conversation = useRef(null),
+    aborter = useRef(null),
+    account = useRef(undefined),
+    log = useRef(null),
+    composer = useRef(null);
+  function reset() {
+    generation.current++;
+    aborter.current?.abort();
+    requestLock.current = false;
+    conversation.current = null;
+    setMessages([]);
+    setDraft("");
     setSnapshot(null);
-    setConsent(false);
-    setAnswer("");
-    setError("");
+    setSummaryConsent(false);
+    setAccess(false);
     setBusy(false);
-    api("/chatgpt/models")
-      .then((items) => {
-        if (cancelled) return;
-        setModels(items);
-        setModel(items[0]?.id || "");
+    setError("");
+    setProgress("");
+  }
+  useEffect(() => {
+    reset();
+    setReady(false);
+    setModels([]);
+    setModel("");
+    account.current = undefined;
+    let alive = true;
+    if (!activeProfile?.id) return;
+    Promise.all([api("/chatgpt/models"), api()])
+      .then(([list, status]) => {
+        if (!alive) return;
+        account.current = status.chatgpt.active;
+        setModels(list);
+        setModel(list[0]?.id || "");
+        setReady(true);
       })
       .catch((e) => {
-        if (!cancelled) setError(e.message);
+        if (alive) setError(e.message);
       });
     return () => {
-      cancelled = true;
+      alive = false;
       generation.current++;
+      aborter.current?.abort();
     };
   }, [activeProfile?.id]);
-  function change(setter, value) {
-    generation.current++;
-    setter(value);
-    setSources([]);
-    setCoverage(null);
-    setRecordConsent(false);
-    setSnapshot(null);
-    setConsent(false);
-    setAnswer("");
-    setError("");
-    setBusy(false);
+  useEffect(() => {
+    if (log.current) log.current.scrollTop = log.current.scrollHeight;
+  }, [messages, busy, snapshot]);
+  async function verifyAccount(version) {
+    const status = await api();
+    if (version !== generation.current) return;
+    if (
+      account.current !== undefined &&
+      account.current !== status.chatgpt.active
+    ) {
+      reset();
+      account.current = status.chatgpt.active;
+      setError(
+        "ChatGPT account changed. Start a new chat with the selected account.",
+      );
+      throw new Error(
+        "ChatGPT account changed. Start a new chat with the selected account.",
+      );
+    }
+    account.current = status.chatgpt.active;
   }
-  async function run(send) {
-    const g = generation.current;
+  function append(message) {
+    setMessages((previous) => [...previous, message].slice(-60));
+  }
+  async function send(event) {
+    event?.preventDefault();
+    const question = draft.trim();
+    if (
+      requestLock.current ||
+      !ready ||
+      !question ||
+      !access ||
+      !model ||
+      !activeProfile?.id
+    )
+      return;
+    requestLock.current = true;
     setBusy(true);
     setError("");
-    setAnswer("");
-    setSources([]);
-    setCoverage(null);
+    setProgress("Connecting to your business…");
+    const version = generation.current,
+      messageId = crypto.randomUUID();
     try {
-      if (send) {
+      await verifyAccount(version);
+      if (version !== generation.current) return;
+      setDraft("");
+      append({ id: messageId, role: "user", text: question });
+      aborter.current = new AbortController();
+      const result = await askChat(
+        {
+          businessId: activeProfile.id,
+          question,
+          model,
+          consent: true,
+          ...(conversation.current
+            ? { conversationId: conversation.current }
+            : {}),
+        },
+        {
+          signal: aborter.current.signal,
+          onStatus: (message) => {
+            if (version === generation.current) setProgress(message);
+          },
+        },
+      );
+      if (version !== generation.current) return;
+      conversation.current = result.conversationId || null;
+      append({ id: crypto.randomUUID(), role: "assistant", ...result });
+    } catch (e) {
+      if (version === generation.current) {
+        setError(e.message);
+        setDraft(question);
+        setMessages((previous) =>
+          previous.filter((message) => message.id !== messageId),
+        );
+      }
+    } finally {
+      if (version === generation.current) {
+        requestLock.current = false;
+        setBusy(false);
+        setProgress("");
+        composer.current?.focus();
+      }
+    }
+  }
+  async function summary(sendNow) {
+    if (requestLock.current) return;
+    requestLock.current = true;
+    setBusy(true);
+    setError("");
+    const version = generation.current;
+    try {
+      await verifyAccount(version);
+      if (version !== generation.current) return;
+      if (sendNow) {
         const result = await api("/ai/analyze", {
           snapshotId: snapshot.id,
-          consent,
+          consent: summaryConsent,
           model,
         });
-        if (g === generation.current) {
-          setAnswer(result.text);
-          setSnapshot(null);
-          setConsent(false);
-        }
+        if (version !== generation.current) return;
+        append({
+          id: crypto.randomUUID(),
+          role: "user",
+          text: `${titles[task]} · ${month} · ${currency}`,
+        });
+        append({
+          id: crypto.randomUUID(),
+          role: "assistant",
+          ...result,
+          kind: "snapshot",
+        });
+        conversation.current = null;
+        setSnapshot(null);
+        setSummaryConsent(false);
+        setToolsOpen(false);
       } else {
         const result = await api("/ai/preview", {
-          businessId: activeProfile?.id,
+          businessId: activeProfile.id,
           task,
           month,
           currency,
         });
-        if (g === generation.current) {
-          setSnapshot(result);
-          setConsent(false);
-        }
+        if (version !== generation.current) return;
+        setSnapshot(result);
+        setSummaryConsent(false);
       }
     } catch (e) {
-      if (g === generation.current) {
+      if (version === generation.current) {
         setError(e.message);
-        if (send) {
+        if (sendNow) {
           setSnapshot(null);
-          setConsent(false);
+          setSummaryConsent(false);
         }
       }
     } finally {
-      if (g === generation.current) setBusy(false);
-    }
-  }
-  async function askRecords() {
-    const g = generation.current;
-    setBusy(true);
-    setError("");
-    setAnswer("");
-    setSources([]);
-    setCoverage(null);
-    setRecordConsent(false);
-    try {
-      const result = await api("/ai/records", {
-        businessId: activeProfile?.id,
-        question: recordQuestion,
-        consent: recordConsent,
-        model,
-      });
-      if (g === generation.current) {
-        setAnswer(result.text);
-        setSources(result.sources);
-        setCoverage(result.coverage);
+      if (version === generation.current) {
+        requestLock.current = false;
+        setBusy(false);
       }
-    } catch (e) {
-      if (g === generation.current) setError(e.message);
-    } finally {
-      if (g === generation.current) setBusy(false);
     }
   }
-
+  function option(setter, value) {
+    setter(value);
+    setSnapshot(null);
+    setSummaryConsent(false);
+  }
+  const starter = (question) => {
+    setDraft(question);
+    composer.current?.focus();
+  };
   return (
-    <div className="ai-workspace">
+    <div className="ai-workspace ai-chat">
       <PageHeader
         title="AI assistant"
-        subtitle="Understand your books. Prepare your next step."
+        subtitle={activeProfile?.businessName || "Your business workspace"}
       >
+        <button
+          className="btn btn-secondary"
+          onClick={() => {
+            reset();
+            composer.current?.focus();
+          }}
+        >
+          <Plus size={15} /> New chat
+        </button>
         <button
           className="btn btn-secondary"
           onClick={() => onNavigate("settings")}
@@ -139,217 +265,317 @@ export default function AiWorkspace({ activeProfile, onNavigate }) {
           Connection settings
         </button>
       </PageHeader>
-      <div className="card ai-panel">
-        <h2>What would you like help with?</h2>
-        <div className="ai-fields">
-          <label>
-            Task
-            <select
-              value={task}
-              onChange={(e) => change(setTask, e.target.value)}
-            >
-              <option value="monthly">Monthly review</option>
-              <option value="review">Bookkeeping review</option>
-              <option value="collections">Payment reminder drafts</option>
-            </select>
-          </label>
-          <label>
-            Month
-            <input
-              type="month"
-              value={month}
-              onChange={(e) => change(setMonth, e.target.value)}
-            />
-          </label>
-          <label>
-            Currency
-            <input
-              value={currency}
-              maxLength={3}
-              onChange={(e) =>
-                change(setCurrency, e.target.value.toUpperCase())
-              }
-            />
-          </label>
-          <label>
-            ChatGPT model
-            <select
-              value={model}
-              onChange={(e) => change(setModel, e.target.value)}
-            >
-              <option value="" disabled>
-                Select a model
+      <div className="ai-chat-toolbar">
+        <label className="ai-model-label">
+          Model
+          <select
+            aria-label="ChatGPT model"
+            disabled={busy}
+            value={model}
+            onChange={(e) => {
+              reset();
+              setModel(e.target.value);
+            }}
+          >
+            <option value="" disabled>
+              Connect ChatGPT to begin
+            </option>
+            {models.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.name}
               </option>
-              {models.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.name}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-        <p>
-          Uses your connected ChatGPT account. The summary tasks share aggregate
-          totals and review counts only. Record questions below can share
-          relevant business records with your approval. Drafts use placeholders
-          and are never sent automatically.
-        </p>
+            ))}
+          </select>
+        </label>
+        <span className="ai-readonly">Read-only assistance</span>
         <button
-          className="btn btn-primary"
-          disabled={busy || !activeProfile?.id}
-          onClick={() => run(false)}
+          className="btn btn-secondary"
+          aria-expanded={toolsOpen}
+          aria-controls="ai-review-tools"
+          onClick={() => setToolsOpen((v) => !v)}
         >
-          {busy ? "Working…" : "Preview data to share"}
+          <SlidersHorizontal size={14} /> Reviews & drafts
         </button>
       </div>
-      <section className="card ai-panel">
-        <h2>Ask about your business records</h2>
-        <p>
-          Find an invoice, client, product, purchase, expense, receipt,
-          recurring schedule, journal, stock movement or audit record in this
-          business. AI searches one module per question and reads up to five
-          matching records. Ask for a specific reference for the clearest
-          answer.
-        </p>
-        <label>
-          Question
+      {toolsOpen && (
+        <section
+          id="ai-review-tools"
+          className="ai-review-tools"
+          aria-label="Reviews and drafts"
+        >
+          <div className="ai-fields">
+            <label>
+              Task
+              <select
+                disabled={busy}
+                value={task}
+                onChange={(e) => option(setTask, e.target.value)}
+              >
+                {Object.entries(titles).map(([key, title]) => (
+                  <option key={key} value={key}>
+                    {title}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Month
+              <input
+                type="month"
+                disabled={busy}
+                value={month}
+                onChange={(e) => option(setMonth, e.target.value)}
+              />
+            </label>
+            <label>
+              Currency
+              <input
+                maxLength={3}
+                disabled={busy}
+                value={currency}
+                onChange={(e) =>
+                  option(setCurrency, e.target.value.toUpperCase())
+                }
+              />
+            </label>
+            <button
+              className="btn btn-secondary"
+              disabled={busy || !activeProfile?.id}
+              onClick={() => summary(false)}
+            >
+              Preview data to share
+            </button>
+          </div>
+          <p className="ai-caption">
+            These one-off reviews use your saved totals. Preview the summary
+            before sharing.
+          </p>
+          {snapshot && (
+            <div className="ai-summary-preview">
+              <details>
+                <summary>Review what ChatGPT will receive</summary>
+                <pre>{snapshot.prompt}</pre>
+              </details>
+              <label className="ai-consent">
+                <input
+                  type="checkbox"
+                  disabled={busy}
+                  checked={summaryConsent}
+                  onChange={(e) => setSummaryConsent(e.target.checked)}
+                />{" "}
+                Send this summary to ChatGPT for this request
+              </label>
+              <button
+                className="btn btn-primary"
+                disabled={busy || !model || !summaryConsent}
+                onClick={() => summary(true)}
+              >
+                Generate {task === "collections" ? "drafts" : "review"}
+              </button>
+            </div>
+          )}
+        </section>
+      )}
+      <div
+        className="ai-conversation"
+        ref={log}
+        role="log"
+        aria-label="Conversation"
+        aria-live="polite"
+        aria-relevant="additions"
+        tabIndex={0}
+      >
+        {!messages.length && !busy && (
+          <div className="ai-chat-empty">
+            <span className="knowai-symbol" aria-hidden="true" />
+            <h2>What would you like to know?</h2>
+            <p>
+              Ask about an invoice, a payment, or a product.
+              <br />
+              I’ll look up the records and show you the sources.
+            </p>
+            <div className="ai-starters">
+              <button
+                onClick={() =>
+                  starter("Show me recent invoices that need attention.")
+                }
+                type="button"
+              >
+                Review recent invoices <ArrowUpRight size={14} />
+              </button>
+              <button
+                onClick={() => starter("Find products with low stock.")}
+                type="button"
+              >
+                Check my products <ArrowUpRight size={14} />
+              </button>
+              <button
+                onClick={() => {
+                  setTask("monthly");
+                  setToolsOpen(true);
+                }}
+                type="button"
+              >
+                Review this month <ArrowUpRight size={14} />
+              </button>
+            </div>
+          </div>
+        )}
+        {messages.map((message) => (
+          <article
+            className={`ai-message ai-message-${message.role}`}
+            key={message.id}
+            aria-label={
+              message.role === "user" ? "Your message" : "Assistant reply"
+            }
+          >
+            <div className="ai-message-author">
+              {message.role === "user" ? (
+                "You"
+              ) : (
+                <>
+                  <span className="knowai-symbol" aria-hidden="true" /> KNOWGST
+                </>
+              )}
+            </div>
+            <div
+              className={
+                message.role === "assistant" ? "ai-answer" : "ai-question"
+              }
+            >
+              {message.text}
+            </div>
+            {message.coverage && (
+              <p className="ai-caption">
+                Source coverage: {message.coverage.returned} of{" "}
+                {message.coverage.total} matching {message.coverage.module}{" "}
+                records.
+                {message.coverage.more
+                  ? " More matches exist; narrow the question for detail."
+                  : ""}
+              </p>
+            )}
+            {message.sources?.length > 0 && (
+              <details className="ai-sources">
+                <summary>Sources · {message.sources.length}</summary>
+                <ul>
+                  {message.sources.map((source, i) => (
+                    <li key={i}>
+                      <span>{source.reference}</span>
+                      <button
+                        className="btn btn-secondary"
+                        onClick={() =>
+                          onNavigate(routes[source.module] || "reports", {
+                            search: source.reference,
+                          })
+                        }
+                      >
+                        Open source register <ArrowUpRight size={12} />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            )}
+            {message.kind === "snapshot" && (
+              <p className="ai-caption">
+                Snapshot review · Start a specific record question below to
+                investigate further.
+              </p>
+            )}
+            {message.role === "assistant" && (
+              <button
+                className="ai-copy"
+                aria-label="Copy reply"
+                onClick={() =>
+                  navigator.clipboard
+                    .writeText(message.text)
+                    .catch(() =>
+                      setError(
+                        "Copy failed. Select and copy the reply manually.",
+                      ),
+                    )
+                }
+              >
+                <Copy size={13} /> Copy
+              </button>
+            )}
+          </article>
+        ))}
+        {busy && (
+          <div className="ai-chat-progress" role="status">
+            <span className="ai-progress-dot" />
+            {progress || "Preparing your review…"}
+          </div>
+        )}
+      </div>
+      <div className="ai-composer-wrap">
+        {error && (
+          <div className="ai-chat-error" role="alert">
+            {error}{" "}
+            <button className="btn btn-secondary" onClick={() => setError("")}>
+              Dismiss
+            </button>
+          </div>
+        )}
+        <form className="ai-composer" onSubmit={send}>
           <textarea
-            aria-label="Business records question"
+            aria-label="Message"
+            ref={composer}
+            placeholder="Ask about your business…"
             maxLength={1000}
-            disabled={busy}
-            value={recordQuestion}
-            onChange={(e) => {
-              setRecordQuestion(e.target.value);
-              setRecordConsent(false);
+            rows={2}
+            disabled={busy || !ready}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (
+                e.key === "Enter" &&
+                !e.shiftKey &&
+                !e.nativeEvent.isComposing
+              ) {
+                e.preventDefault();
+                send();
+              }
             }}
-            style={{ width: "100%", minHeight: 80 }}
           />
-        </label>
+          <div className="ai-composer-actions">
+            <span>Enter to send · Shift + Enter for a new line</span>
+            <button
+              className="btn btn-primary"
+              type="submit"
+              aria-label="Send message"
+              disabled={
+                busy || !draft.trim() || !access || !model || !activeProfile?.id
+              }
+            >
+              <ArrowUp size={18} />
+            </button>
+          </div>
+        </form>
         <label className="ai-consent">
           <input
             type="checkbox"
-            disabled={busy}
-            checked={recordConsent}
-            onChange={(e) => setRecordConsent(e.target.checked)}
+            checked={access}
+            disabled={busy || !ready}
+            onChange={(e) => setAccess(e.target.checked)}
           />{" "}
-          Allow ChatGPT to search and read relevant records in this business for
-          this question
+          Allow relevant business records to be shared with ChatGPT in this chat
         </label>
-        <p>
-          Relevant record details may be shared, including party and tax
-          information. Credentials, attachments and other businesses are
-          excluded. Nothing is changed.
+        <details className="ai-privacy">
+          <summary>Data access & chat history</summary>
+          <p>
+            Only this business is searched, up to five matching records per
+            question. Party, tax and financial details may be shared;
+            credentials, attachments and other businesses are excluded. Recent
+            questions help resolve follow-ups; records are read again for each
+            answer. History stays in memory and clears when you leave this page,
+            switch business/model or start a new chat. No records are changed.
+          </p>
+        </details>
+        <p className="ai-caption ai-chat-footnote">
+          Verify AI suggestions against your records before acting.
         </p>
-        <button
-          className="btn btn-primary"
-          disabled={busy || !recordConsent || !recordQuestion.trim() || !model}
-          onClick={askRecords}
-        >
-          Ask about records
-        </button>
-      </section>
-      {error && <p role="alert">{error}</p>}
-      {snapshot && (
-        <section className="card ai-panel">
-          <h2>Review what ChatGPT will receive</h2>
-          <p>
-            This exact request expires after five minutes. Changes to your
-            summary require a fresh preview.
-          </p>
-          <pre className="ai-context">{snapshot.prompt}</pre>
-          <label className="ai-consent">
-            <input
-              type="checkbox"
-              checked={consent}
-              onChange={(e) => setConsent(e.target.checked)}
-            />{" "}
-            Send this summary to ChatGPT for this request
-          </label>
-          <button
-            className="btn btn-primary"
-            disabled={!consent || !model || busy}
-            onClick={() => run(true)}
-          >
-            Generate {task === "collections" ? "drafts" : "review"}
-          </button>
-        </section>
-      )}
-      {answer && (
-        <section className="card ai-panel">
-          <h2>
-            {task === "collections"
-              ? "Payment reminder drafts"
-              : "Your AI review"}
-          </h2>
-          <p>
-            AI-generated suggestions. Verify against your records before acting.
-            No records were changed.
-          </p>
-          <div className="ai-answer">{answer}</div>
-          {coverage && (
-            <p>
-              Source coverage: {coverage.returned} of {coverage.total} matching{" "}
-              {coverage.module} records.{" "}
-              {coverage.more
-                ? "More matches exist; ask a narrower question."
-                : ""}
-            </p>
-          )}
-          {sources.length > 0 && (
-            <ul>
-              {sources.map((source, i) => (
-                <li key={i}>
-                  {source.module}: {source.reference}{" "}
-                  <button
-                    className="btn btn-secondary"
-                    onClick={() =>
-                      onNavigate(
-                        {
-                          bills: "invoices",
-                          products: "inventory",
-                          journal: "reports",
-                          audit: "reports",
-                          stockMovements: "reports",
-                          supplierPayments: "purchases",
-                          profile: "settings",
-                        }[source.module] || source.module,
-                        { search: source.reference },
-                      )
-                    }
-                  >
-                    Open source register
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-          <button
-            className="btn btn-secondary"
-            onClick={() =>
-              navigator.clipboard
-                .writeText(answer)
-                .catch(() =>
-                  setError("Copy failed. Select and copy the text manually."),
-                )
-            }
-          >
-            Copy text
-          </button>
-        </section>
-      )}
-      <div className="ai-links">
-        <button
-          className="btn btn-secondary"
-          onClick={() => onNavigate("dashboard")}
-        >
-          Open dashboard
-        </button>
-        <button
-          className="btn btn-secondary"
-          onClick={() => onNavigate("invoices")}
-        >
-          Open invoice register
-        </button>
       </div>
     </div>
   );

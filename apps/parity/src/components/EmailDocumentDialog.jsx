@@ -1,3 +1,4 @@
+import AiEmailDraft from "./AiEmailDraft";
 import { useEffect, useRef, useState } from "react";
 import {
   integrationRequest as api,
@@ -13,14 +14,29 @@ export default function EmailDocumentDialog({ document, onClose }) {
     [attempted, setAttempted] = useState(false),
     [accepted, setAccepted] = useState(false),
     [preview, setPreview] = useState(""),
-    [sender, setSender] = useState(null);
+    [sender, setSender] = useState(null),
+    [aiBusy, setAiBusy] = useState(false);
   const requestId = useRef(crypto.randomUUID()),
-    dialog = useRef(null);
+    dialog = useRef(null),
+    source = useRef(document);
+  source.current = document;
   useEffect(() => {
     let alive = true,
       url;
     const previous = window.document.activeElement;
     dialog.current?.focus();
+    setTo(document.to || "");
+    setSubject(document.subject);
+    setText(document.text);
+    setAttachment(null);
+    setPreview("");
+    setSender(null);
+    setError("");
+    setAttempted(false);
+    setAccepted(false);
+    setAiBusy(false);
+    setBusy(false);
+    requestId.current = crypto.randomUUID();
     api()
       .then((s) => {
         if (alive) setSender(s.resend);
@@ -46,8 +62,10 @@ export default function EmailDocumentDialog({ document, onClose }) {
       if (url) URL.revokeObjectURL(url);
       previous?.focus?.();
     };
-  }, []);
+  }, [document]);
   async function send() {
+    if (busy || aiBusy || accepted) return;
+    const sendingDocument = document;
     setBusy(true);
     setAttempted(true);
     setError("");
@@ -60,11 +78,11 @@ export default function EmailDocumentDialog({ document, onClose }) {
         attachment,
         expectedSender: sender?.from,
       });
-      setAccepted(true);
+      if (source.current === sendingDocument) setAccepted(true);
     } catch (e) {
-      setError(e.message);
+      if (source.current === sendingDocument) setError(e.message);
     } finally {
-      setBusy(false);
+      if (source.current === sendingDocument) setBusy(false);
     }
   }
   function keydown(e) {
@@ -72,7 +90,7 @@ export default function EmailDocumentDialog({ document, onClose }) {
     if (e.key === "Tab") {
       const elements = [
         ...dialog.current.querySelectorAll(
-          "button:not(:disabled),input:not(:disabled),textarea:not(:disabled),a[href]",
+          "button:not(:disabled),input:not(:disabled),textarea:not(:disabled),select:not(:disabled),summary,a[href]",
         ),
       ];
       const first = elements[0],
@@ -157,6 +175,32 @@ export default function EmailDocumentDialog({ document, onClose }) {
                 onChange={(e) => setText(e.target.value)}
               />
             </label>
+            {!attempted && (
+              <AiEmailDraft
+                context={{
+                  kind: document.kind,
+                  reference: document.name || "",
+                  senderName: sender?.name || "",
+                  senderFrom: sender?.from || "",
+                  recipient: to,
+                  subject,
+                  message: text,
+                  documentIdentity: JSON.stringify({
+                    kind: document.kind,
+                    name: document.name,
+                    to: document.to,
+                    subject: document.subject,
+                    text: document.text,
+                  }),
+                }}
+                disabled={attempted || busy || !sender}
+                onBusyChange={setAiBusy}
+                onApply={(draft) => {
+                  setSubject(draft.subject);
+                  setText(draft.message);
+                }}
+              />
+            )}
             {attachment ? (
               <p>
                 <a href={preview} download={attachment.filename}>
@@ -182,6 +226,7 @@ export default function EmailDocumentDialog({ document, onClose }) {
               className="btn btn-primary"
               disabled={
                 busy ||
+                aiBusy ||
                 !sender?.configured ||
                 !attachment ||
                 !to.trim() ||

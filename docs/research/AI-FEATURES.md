@@ -17,7 +17,7 @@ Reviewed 1 November 2026. This document distinguishes implemented features from 
 - **Bookkeeping review:** explain counts requiring manual attention, including overdue invoices, unallocated receipts, low stock, untracked purchases and older-record reconciliation. It does not inspect every underlying entry or certify the books.
 - **Payment reminder drafts:** produce reusable email and short-message templates with placeholders. No recipient identities or individual invoice data are sent; users fill and verify placeholders before using a draft. No automatic sending.
 
-The Overview sidebar opens the AI assistant. Select a task, month, currency and available ChatGPT model. Preview the complete outbound user request, then explicitly consent to one generation. The OAuth adapter also supplies its fixed bookkeeping safety instructions. Outputs are plain text and can be copied; financial records remain unchanged.
+The Overview sidebar opens the chat assistant. For aggregate reviews, open Reviews & drafts, then select a task, month, currency and available ChatGPT model. Preview the complete outbound user request, then explicitly consent to one generation. The OAuth adapter also supplies its fixed bookkeeping safety instructions. Outputs are plain text and can be copied; financial records remain unchanged.
 
 ## Architecture and privacy
 
@@ -53,10 +53,10 @@ Additional references reviewed:
 | Priority | Existing entry point | Proposed assistance | Required foundation / acceptance |
 |---|---|---|---|
 | Implemented in this change | Purchases → Import from image | ChatGPT image extraction; review extracted rows, product links and cess | Explicit image-sharing consent; validated model response; no auto-save; manual-entry fallback |
-| Next | Expense form | Receipt-to-expense draft and category suggestion | Reuse extraction validator; approved category allowlist; duplicate checks; review before posting |
-| Next | Income Tax → Bank CSV import | Explain narration and suggest uncertain categories | Preserve CSV parser and original row; suggest only valid categories; no implied bank reconciliation |
+| Implemented | Expense form | Category suggestions for the current draft | Approved category allowlist; selected-context consent; explicit apply; separate save. Receipt-to-expense extraction remains future work |
+| Implemented | Income Tax → Bank CSV import | Explain narration and suggest categories for up to ten selected rows | Preserve parser and original row; valid categories only; review/apply each row; no implied bank reconciliation |
 | Next | Invoice editor | Convert a plain-language request to an invoice draft | Resolve business/client/products locally, ask about ambiguity, use existing pricing/tax engine |
-| Next | Invoice / receipt email dialog | Contextual payment or document email draft | Preview selected recipient data; edit draft; existing Resend confirmation and idempotency |
+| Implemented | Invoice / receipt email dialog | Contextual payment or document email draft | Preview selected text, excluding recipient and PDF; review/apply; existing Resend send confirmation and idempotency |
 | Later | Reports | Explain movements with links to contributing records | Currency/business isolation; bounded source query; accurate period comparisons |
 | Later | Banking / reconciliation | Propose matches and explain unmatched transactions | Persistent bank transaction IDs, opening/closing balance checks, duplicate prevention and reversible allocations; current tax CSV importer is insufficient |
 | Later | Product catalog | Suggest aliases, duplicate candidates and reorder explanations | Explicit merge approval; preserve stock/history; deterministic reorder calculations |
@@ -81,6 +81,30 @@ Per the user's final direction, scanning is ChatGPT-only. Tesseract, language as
 
 Inference now uses the official `openai` JavaScript SDK (locked to 7.47.0 in the dependency lockfile). The server supplies the user's OAuth access token, uses `store:false` / `stream:true`, disables automatic retries, keeps the 90-second cancellation deadline, checks completion and output size, and translates provider/network errors into actionable messages without exposing credentials. OAuth registration, refresh and model catalog discovery retain their existing protocol implementation. [Official SDK documentation](https://developers.openai.com/api/reference/typescript)
 
-The AI assistant now has a separate, explicitly approved **Ask about your business records** action. It uses a bounded two-request flow: propose a read-only search, validate the module/query, read active-business data locally, then answer from the returned records. Supported modules: invoices, clients, products, purchases, expenses, receipts, recurring schedules, journals, audit, stock movements, supplier payments and business profile. No arbitrary SQL or filesystem paths are accepted. Credentials and document binaries are filtered out. Records can include party names, addresses, GSTIN and financial details; this is distinct from aggregate-only summaries and is disclosed in the UI.
+The AI assistant now uses a chat interface with explicitly approved active-business record access. It uses a bounded two-request flow: propose a read-only search, validate the module/query, read active-business data locally, then answer from the returned records. Supported modules: invoices, clients, products, purchases, expenses, receipts, recurring schedules, journals, audit, stock movements, supplier payments and business profile. No arbitrary SQL or filesystem paths are accepted. Credentials and document binaries are filtered out. Records can include party names, addresses, GSTIN and financial details; this is distinct from aggregate-only summaries and is disclosed in the UI.
 
 Each question reads one module and up to five matches within a bounded context. Sources and coverage are returned separately from model prose. Narrow searches or a known record ID can reach any record in these modules; this is not an exhaustive full-ledger analysis, attachment search or cross-module reconciliation agent. Large records, deep fields and lengthy arrays are bounded. The server rechecks business/account scope and the returned source fingerprint before showing the answer. No financial writes are performed. Broader retrieval, cross-module plans and reviewed write proposals remain roadmap work.
+
+
+## Chat and contextual drafts — 1 November 2026
+
+The browser-to-local-service chat transport uses WebSockets at `/api/ai/chat`. This does not change OpenAI inference into a Realtime API session: the official SDK continues streaming Responses internally, while the local socket sends real request phases and the completed, validated answer. A fresh socket per question prevents automatic replay. Connection failures preserve the typed question for manual retry. New chat, model changes, business changes and navigation discard pending UI results.
+
+The socket requires the app session secret and loopback Host/Origin checks. The dev proxy and desktop gateway enforce their exact app origin before adding/forwarding the secret. Payloads are limited to 8 KB; malformed, concurrent and duplicate requests are rejected. Heartbeats close abandoned sockets. Secrets never appear in browser URLs or JavaScript.
+
+Follow-ups use a server-owned conversation ID, bound to the active business and ChatGPT account. Context expires after 30 minutes, with a bounded conversation cache and at most three recent questions (2,000 serialized characters) plus source IDs. Old answers and financial values are not used as current evidence: every turn searches again and verifies record fingerprints before returning an answer. No client-supplied transcript is trusted.
+
+Expense and selected bank-row category suggestions use the existing category allowlists. Descriptions, amounts, currencies, direction and current categories are previewed before sharing. Model output is validated, unknown categories are rejected, and apply changes only the local draft. Editing a source row or switching business/account invalidates stale suggestions. These suggestions do not determine tax deductibility or GST credit eligibility.
+
+Invoice/receipt email drafting sends only the shown reference, sender name, purpose, subject and message. Recipient addresses and PDF bytes are excluded. Suggestions are validated plain text, require explicit apply, and can be edited before the existing separate Resend send action. Changed document, recipient, draft or account invalidates a pending suggestion. Automated tests never send real email.
+
+Remaining roadmap: natural-language invoice drafts, expense receipt extraction, deterministic bank reconciliation, forecasting, catalog cleanup, and GST validation explanations. They are not represented as completed by the chat or category features.
+
+### Verification of this implementation
+
+On 1 November 2026, all 142 local service unit/integration tests passed, along with the domain/API/web workspace tests, source/type checks and the web production build. The full browser run passed 139 checks with two existing-page timeouts during an interrupted session; both passed in a clean targeted rerun (16 passed, one optional guide-capture test skipped), covering 141 distinct browser checks overall. The new chat, category and email flows passed with simulated provider replies, including invalid socket messages, stale replies, keyboard composition, consent, draft-only apply and account/context changes. Real socket tests also exercised the desktop gateway without launching an installer.
+
+Desktop and 390 px dark chat screenshots were inspected; the guide uses the implemented interface with clearly fictional, simulated content. Dev health and same-origin WebSocket validation were checked at port 4184; forged remote and different-local-port origins were rejected. No live ChatGPT or Resend account was connected in the checked runtime, so live provider inference/email delivery are not claimed. No installer or desktop binary was built.
+
+
+On 2 November, a fresh user-authorized ChatGPT sign-in succeeded and the official SDK completed a live READY-only request using an available model. No business context was included in that test. Sign-in recovery now preserves an unverified public registration ID separately from active credentials, and reports safe stage-specific errors; 13 OAuth/email tests cover this recovery, PKCE, identity checks and redaction. The original generic 400 did not retain enough detail to establish its precise provider cause. Mobile chat now uses natural page flow; all four chat browser tests pass with internal width/text-boundary checks at 320, 390, 480, 800 and 1440 pixels in both themes. Real email delivery remains untested.

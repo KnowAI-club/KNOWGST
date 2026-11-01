@@ -153,7 +153,8 @@ test("OAuth validates callback, uses issued client and PKCE, preserves host and 
       });
     if (url.endsWith("/responses")) {
       lastRequest = JSON.parse(options.body);
-      if(lastRequest.input[0].content==="empty")return new Response('data: {"type":"response.completed"}\n\n');
+      if (lastRequest.input[0].content === "empty")
+        return new Response('data: {"type":"response.completed"}\n\n');
       return new Response(
         'data: {"type":"response.output_text.delta","delta":"Read-only answer"}\n\ndata: {"type":"response.completed"}\n\n',
       );
@@ -196,11 +197,24 @@ test("OAuth validates callback, uses issued client and PKCE, preserves host and 
   assert.equal(lastRequest.stream, true);
   assert.equal(lastRequest.input[0].content, "Explain bookkeeping");
   assert.equal(lastRequest.tools, undefined);
-  await chat.ask({model:"available-model",prompt:"Read invoice"},{image:"data:image/png;base64,test"});
-  assert.deepEqual(lastRequest.input[0].content,[{type:"input_text",text:"Read invoice"},{type:"input_image",image_url:"data:image/png;base64,test",detail:"high"}]);
-  assert.equal(lastRequest.store,false);
-  assert.equal(lastRequest.stream,true);
-  await assert.rejects(chat.ask({model:"available-model",prompt:"empty"}),/no readable answer/);
+  await chat.ask(
+    { model: "available-model", prompt: "Read invoice" },
+    { image: "data:image/png;base64,test" },
+  );
+  assert.deepEqual(lastRequest.input[0].content, [
+    { type: "input_text", text: "Read invoice" },
+    {
+      type: "input_image",
+      image_url: "data:image/png;base64,test",
+      detail: "high",
+    },
+  ]);
+  assert.equal(lastRequest.store, false);
+  assert.equal(lastRequest.stream, true);
+  await assert.rejects(
+    chat.ask({ model: "available-model", prompt: "empty" }),
+    /no readable answer/,
+  );
   authURL = new URL((await chat.start("oaiapp_test")).url);
   assert.equal(authURL.searchParams.get("ext_agent_host_id"), host);
   assert.equal(authURL.searchParams.get("client_id"), "oaiapp_test");
@@ -402,4 +416,173 @@ test("changing Resend credentials cannot replay an uncertain request into anothe
   });
   await assert.rejects(mail.send(input), /configuration or draft changed/);
   assert.equal(calls, 1);
+});
+
+test("OAuth exchange errors name the failing step without exposing provider messages or credentials", async (t) => {
+  const { store } = fixture(t);
+  const chat = chatgptOAuth(store, {
+    fetcher: async () =>
+      new Response(
+        JSON.stringify({
+          error: "invalid_grant",
+          error_description: "code=PRIVATE-CODE verifier=PRIVATE-VERIFIER",
+        }),
+        { status: 400 },
+      ),
+  });
+  t.after(() => chat.cancel());
+  const auth = new URL((await chat.start()).url);
+  const callback = new URL(auth.searchParams.get("redirect_uri"));
+  callback.search = new URLSearchParams({
+    code: "unused-code",
+    state: auth.searchParams.get("state"),
+    client_id: "oaiapp_test",
+  });
+  const result = await fetch(callback),
+    text = await result.text();
+  assert.equal(result.status, 400);
+  assert.match(text, /sign-in exchange.*invalid_grant/);
+  assert.doesNotMatch(text, /PRIVATE|unused-code/);
+  assert.equal(chat.status().active, null);
+  assert.equal(chat.status().accounts.length, 0);
+});
+
+test("failed first code exchange retains only its registration and retries with fresh PKCE after restart", async (t) => {
+  const { dir, store } = fixture(t);
+  let auth,
+    first = true;
+  const fetcher = async (url, options) => {
+    if (String(url).endsWith("/oauth/token")) {
+      const body = new URLSearchParams(options.body);
+      assert.equal(body.get("client_id"), "oaiapp_test");
+      assert.equal(body.get("grant_type"), "authorization_code");
+      assert.equal(body.get("resource"), "https://api.openai.com/v1");
+      assert.equal(
+        body.get("redirect_uri"),
+        auth.searchParams.get("redirect_uri"),
+      );
+      assert.equal(body.has("client_secret"), false);
+      const { createHash } = await import("node:crypto");
+      assert.equal(
+        createHash("sha256")
+          .update(body.get("code_verifier"))
+          .digest("base64url"),
+        auth.searchParams.get("code_challenge"),
+      );
+      if (first) {
+        first = false;
+        return new Response(JSON.stringify({ error: "invalid_grant" }), {
+          status: 400,
+        });
+      }
+      return response({
+        id_token: jwt(identity(auth.searchParams.get("nonce"))),
+        access_token: "access-private",
+        refresh_token: "refresh-private",
+        token_type: "Bearer",
+        expires_in: 3600,
+        scope: "openid resource.invoke chatgpt.tokens.use.direct",
+      });
+    }
+    return response({ keys: [jwk] });
+  };
+  let chat = chatgptOAuth(store, { fetcher });
+  t.after(() => chat.cancel());
+  auth = new URL((await chat.start()).url);
+  const oldChallenge = auth.searchParams.get("code_challenge"),
+    oldState = auth.searchParams.get("state");
+  let callback = new URL(auth.searchParams.get("redirect_uri"));
+  callback.search = new URLSearchParams({
+    code: "first-private-code",
+    state: oldState,
+    client_id: "oaiapp_test",
+  });
+  assert.equal((await fetch(callback)).status, 400);
+  assert.deepEqual(store.get().incompleteChatgptRegistration, {
+    clientId: "oaiapp_test",
+  });
+  assert.equal(chat.status().accounts.length, 0);
+  assert.equal(chat.status().active, null);
+  chat = chatgptOAuth(credentialStore(dir), { fetcher });
+  auth = new URL((await chat.start()).url);
+  assert.equal(auth.searchParams.get("client_id"), "oaiapp_test");
+  assert.equal(auth.searchParams.has("agent_name_hint"), false);
+  assert.notEqual(auth.searchParams.get("code_challenge"), oldChallenge);
+  assert.notEqual(auth.searchParams.get("state"), oldState);
+  callback = new URL(auth.searchParams.get("redirect_uri"));
+  callback.search = new URLSearchParams({
+    code: "fresh-private-code",
+    state: auth.searchParams.get("state"),
+  });
+  assert.equal((await fetch(callback)).status, 200);
+  assert.equal(chat.status().active, "oaiapp_test");
+  assert.equal(
+    credentialStore(dir).get().incompleteChatgptRegistration,
+    undefined,
+  );
+  assert.doesNotMatch(JSON.stringify(chat.status()), /private/);
+});
+
+test("OAuth non-JSON, unknown and oversized error bodies stay bounded and private", async (t) => {
+  const { store } = fixture(t);
+  const bodies = [
+    "not-json PRIVATE-CODE",
+    JSON.stringify({ error: "PRIVATE-CODE" }),
+    JSON.stringify({
+      error: "invalid_grant",
+      description: "PRIVATE-CODE".repeat(2000),
+    }),
+  ];
+  for (const body of bodies) {
+    const chat = chatgptOAuth(store, {
+      fetcher: async () => new Response(body, { status: 400 }),
+    });
+    t.after(() => chat.cancel());
+    const auth = new URL((await chat.start()).url),
+      callback = new URL(auth.searchParams.get("redirect_uri"));
+    callback.search = new URLSearchParams({
+      code: "test",
+      state: auth.searchParams.get("state"),
+      client_id: "oaiapp_test",
+    });
+    const result = await fetch(callback),
+      text = await result.text();
+    assert.equal(result.status, 400);
+    assert.match(text, /sign-in exchange failed \(400\)/);
+    assert.doesNotMatch(text, /PRIVATE|invalid_grant/);
+    assert.equal(chat.status().active, null);
+  }
+});
+
+test("failed new registration leaves a different connected account and its tokens untouched", async (t) => {
+  const { store } = fixture(t);
+  const existing = {
+    clientId: "oaiapp_existing",
+    subject: "existing-subject",
+    accessToken: "keep-private-access",
+    refreshToken: "keep-private-refresh",
+  };
+  store.update((s) => {
+    s.accounts = [existing];
+    s.active = existing.clientId;
+  });
+  const chat = chatgptOAuth(store, {
+    fetcher: async () =>
+      new Response(JSON.stringify({ error: "invalid_grant" }), { status: 400 }),
+  });
+  t.after(() => chat.cancel());
+  const auth = new URL((await chat.start()).url),
+    callback = new URL(auth.searchParams.get("redirect_uri"));
+  callback.search = new URLSearchParams({
+    code: "test",
+    state: auth.searchParams.get("state"),
+    client_id: "oaiapp_new",
+  });
+  assert.equal((await fetch(callback)).status, 400);
+  assert.deepEqual(store.get().accounts, [existing]);
+  assert.equal(chat.status().active, existing.clientId);
+  assert.deepEqual(store.get().incompleteChatgptRegistration, {
+    clientId: "oaiapp_new",
+  });
+  assert.doesNotMatch(JSON.stringify(chat.status()), /private/);
 });

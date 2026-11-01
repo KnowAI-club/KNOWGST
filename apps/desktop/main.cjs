@@ -118,7 +118,12 @@ async function start() {
   session.setPermissionCheckHandler(() => false);
   const trustedContents = new Set([window.webContents.id]);
   session.webRequest.onBeforeSendHeaders(
-    { urls: [gateway.origin + "/*"] },
+    {
+      urls: [
+        gateway.origin + "/*",
+        gateway.origin.replace(/^http/, "ws") + "/*",
+      ],
+    },
     (details, callback) => {
       if (trustedContents.has(details.webContentsId))
         details.requestHeaders["x-knowgst-key"] = secret;
@@ -256,7 +261,7 @@ app.on("before-quit", (event) => {
   if (quitting) return;
   quitting = true;
   event.preventDefault();
-  gateway?.server.close();
+  gateway?.close();
   if (service?.connected) {
     const timer = setTimeout(() => {
       service.kill();

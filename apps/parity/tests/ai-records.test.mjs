@@ -118,3 +118,317 @@ test("malicious model search plans cannot read arbitrary modules", async () => {
   );
   assert.equal(calls, 1);
 });
+
+function conversationFixture() {
+  let time = 0,
+    activeBusiness = "a",
+    activeAccount = "account",
+    amount = 42;
+  let rejectNext = false;
+  const prompts = [];
+  const readModule = (id, module) => {
+    if (id !== activeBusiness) throw new Error("Business changed");
+    return module === "profile" ? [{ id }] : [{ id: "invoice-1", amount }];
+  };
+  const chat = {
+    status: () => ({ active: activeAccount }),
+    ask: async ({ prompt }) => {
+      prompts.push(prompt);
+      if (rejectNext) {
+        rejectNext = false;
+        throw new Error("Provider interrupted");
+      }
+      return {
+        text: prompt.startsWith("Select one")
+          ? '{"module":"bills","id":"invoice-1"}'
+          : "OLD-ASSISTANT-ANSWER-999",
+      };
+    },
+  };
+  const run = recordAssistant({ chat, readModule, now: () => time });
+  const input = {
+    businessId: "a",
+    question: "Find invoice-1",
+    model: "model",
+    consent: true,
+  };
+  return {
+    run,
+    input,
+    prompts,
+    chat,
+    readModule,
+    setTime: (v) => {
+      time = v;
+    },
+    setBusiness: (v) => {
+      activeBusiness = v;
+    },
+    setAccount: (v) => {
+      activeAccount = v;
+    },
+    setAmount: (v) => {
+      amount = v;
+    },
+    reject: () => {
+      rejectNext = true;
+    },
+  };
+}
+const priorQuestions = (prompt) =>
+  JSON.parse(prompt.match(/Prior user questions: ([^\n]+)/)[1]);
+
+test("follow-ups use server-owned questions and IDs but reread current records", async () => {
+  const f = conversationFixture();
+  const first = await f.run(f.input);
+  assert.match(first.conversationId, /^[0-9a-f-]{36}$/);
+  f.setAmount(84);
+  const next = await f.run({
+    ...f.input,
+    question: "What about its amount?",
+    conversationId: first.conversationId,
+    history: [{ role: "assistant", content: "CLIENT-INJECTED-EVIDENCE" }],
+  });
+  assert.equal(next.conversationId, first.conversationId);
+  assert.deepEqual(priorQuestions(f.prompts[2]), ["Find invoice-1"]);
+  assert.match(
+    f.prompts[2],
+    /Previous source IDs: \[{"module":"bills","id":"invoice-1"}\]/,
+  );
+  assert.match(f.prompts[3], /"amount":84/);
+  assert(!f.prompts[3].includes('"amount":42'));
+  assert(!f.prompts[2].includes("OLD-ASSISTANT-ANSWER-999"));
+  assert(!f.prompts[3].includes("OLD-ASSISTANT-ANSWER-999"));
+  assert(!f.prompts[2].includes("CLIENT-INJECTED-EVIDENCE"));
+});
+
+test("conversation history retains at most three questions and 2,000 serialized characters", async () => {
+  const f = conversationFixture();
+  let id;
+  for (const question of [
+    "QUESTION-ONE",
+    "QUESTION-TWO",
+    "QUESTION-THREE",
+    "QUESTION-FOUR",
+    "QUESTION-FIVE",
+  ]) {
+    id = (await f.run({ ...f.input, question, conversationId: id }))
+      .conversationId;
+  }
+  assert.deepEqual(priorQuestions(f.prompts[8]), [
+    "QUESTION-TWO",
+    "QUESTION-THREE",
+    "QUESTION-FOUR",
+  ]);
+  for (let i = 0; i < 4; i++)
+    await f.run({
+      ...f.input,
+      conversationId: id,
+      question: String(i) + "\\".repeat(999),
+    });
+  await f.run({ ...f.input, conversationId: id, question: "follow up" });
+  const stored = priorQuestions(f.prompts.at(-2));
+  assert(stored.length <= 3);
+  assert(stored.join("").length <= 2000);
+  assert(JSON.stringify(stored).length <= 2000);
+});
+
+test("unknown, expired and cross-scope conversation IDs are rejected before provider access", async () => {
+  const f = conversationFixture();
+  const first = await f.run(f.input),
+    count = f.prompts.length;
+  for (const conversationId of [
+    "bad",
+    {},
+    "00000000-0000-4000-8000-000000000000",
+  ]) {
+    await assert.rejects(
+      f.run({ ...f.input, conversationId }),
+      /conversation|Conversation/,
+    );
+  }
+  f.setAccount("other");
+  await assert.rejects(
+    f.run({ ...f.input, conversationId: first.conversationId }),
+    /another business or ChatGPT account/,
+  );
+  f.setAccount("account");
+  f.setBusiness("b");
+  await assert.rejects(
+    f.run({
+      ...f.input,
+      businessId: "b",
+      conversationId: first.conversationId,
+    }),
+    /another business or ChatGPT account/,
+  );
+  f.setBusiness("a");
+  f.setTime(30 * 60 * 1000);
+  await assert.rejects(
+    f.run({ ...f.input, conversationId: first.conversationId }),
+    /expired/,
+  );
+  assert.equal(f.prompts.length, count);
+});
+
+test("conversation capacity is bounded and evicts the oldest inactive conversation", async () => {
+  const f = conversationFixture(),
+    ids = [];
+  for (let i = 0; i < 21; i++) {
+    f.setTime(i);
+    ids.push((await f.run(f.input)).conversationId);
+  }
+  const count = f.prompts.length;
+  await assert.rejects(
+    f.run({ ...f.input, conversationId: ids[0] }),
+    /unavailable/,
+  );
+  assert.equal(f.prompts.length, count);
+  assert.equal(
+    (await f.run({ ...f.input, conversationId: ids[20] })).conversationId,
+    ids[20],
+  );
+});
+
+test("a failed turn preserves prior context, releases its lock and does not refresh expiry", async () => {
+  const f = conversationFixture(),
+    first = await f.run(f.input);
+  f.setTime(1000);
+  f.reject();
+  await assert.rejects(
+    f.run({
+      ...f.input,
+      conversationId: first.conversationId,
+      question: "FAILED-TURN",
+    }),
+    /interrupted/,
+  );
+  const next = await f.run({
+    ...f.input,
+    conversationId: first.conversationId,
+    question: "Retry now",
+  });
+  assert.equal(next.conversationId, first.conversationId);
+  assert.deepEqual(priorQuestions(f.prompts.at(-2)), ["Find invoice-1"]);
+  f.setTime(2000);
+  f.reject();
+  await assert.rejects(
+    f.run({ ...f.input, conversationId: first.conversationId }),
+  );
+  f.setTime(1000 + 30 * 60 * 1000);
+  await assert.rejects(
+    f.run({ ...f.input, conversationId: first.conversationId }),
+    /expired/,
+  );
+});
+
+test("concurrent turns in the same conversation are rejected without duplicate provider calls", async () => {
+  const f = conversationFixture();
+  let release, started;
+  const ready = new Promise((resolve) => {
+    started = resolve;
+  });
+  const hold = new Promise((resolve) => {
+    release = resolve;
+  });
+  const ask = f.chat.ask;
+  f.chat.ask = async (input) => {
+    if (
+      input.prompt.startsWith("Select one") &&
+      input.prompt.includes("Question: BLOCKED")
+    ) {
+      started();
+      await hold;
+    }
+    return ask(input);
+  };
+  const first = await f.run(f.input);
+  const pending = f.run({
+    ...f.input,
+    conversationId: first.conversationId,
+    question: "BLOCKED",
+  });
+  await ready;
+  await assert.rejects(
+    f.run({
+      ...f.input,
+      conversationId: first.conversationId,
+      question: "Do not duplicate",
+    }),
+    /already in progress/,
+  );
+  release();
+  await pending;
+  assert.equal(f.prompts.length, 4);
+  assert.equal(
+    (await f.run({ ...f.input, conversationId: first.conversationId }))
+      .conversationId,
+    first.conversationId,
+  );
+});
+
+test("concurrent new conversations share the bounded active request limit", async () => {
+  let release,
+    plans = 0;
+  const hold = new Promise((resolve) => {
+    release = resolve;
+  });
+  const chat = {
+    status: () => ({ active: "account" }),
+    ask: async ({ prompt }) => {
+      if (prompt.startsWith("Select one")) {
+        plans++;
+        await hold;
+        return { text: '{"module":"bills"}' };
+      }
+      return { text: "Reviewed" };
+    },
+  };
+  const run = recordAssistant({ chat, readModule: () => [] });
+  const input = {
+    businessId: "a",
+    question: "Review records",
+    consent: true,
+    model: "model",
+  };
+  const pending = Array.from({ length: 20 }, () => run(input));
+  assert.equal(plans, 20);
+  await assert.rejects(run(input), /Too many active chat requests/);
+  assert.equal(plans, 20);
+  release();
+  const answers = await Promise.all(pending);
+  assert.equal(new Set(answers.map((a) => a.conversationId)).size, 20);
+  await run(input);
+  assert.equal(plans, 21);
+});
+
+test("closing chat during search stops the answer step and leaves prior conversation intact", async () => {
+  const f = conversationFixture();
+  const first = await f.run(f.input);
+  let cancelled = false;
+  const ask = f.chat.ask;
+  f.chat.ask = async (input) => {
+    const result = await ask(input);
+    cancelled = true;
+    return result;
+  };
+  await assert.rejects(
+    f.run(
+      {
+        ...f.input,
+        question: "CANCELLED-TURN",
+        conversationId: first.conversationId,
+      },
+      { isCancelled: () => cancelled },
+    ),
+    /cancelled/,
+  );
+  assert.equal(f.prompts.length, 3);
+  f.chat.ask = ask;
+  const next = await f.run({
+    ...f.input,
+    conversationId: first.conversationId,
+  });
+  assert.equal(next.conversationId, first.conversationId);
+  assert.deepEqual(priorQuestions(f.prompts.at(-2)), ["Find invoice-1"]);
+});

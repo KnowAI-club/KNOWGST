@@ -1,1 +1,1 @@
-{"name":"knowgst-desktop-service","version":"1.0.0-rc.1","private":true,"type":"module","license":"GPL-3.0-only","dependencies":{"better-sqlite3":"13.0.3","express":"5.2.1","openai":"7.47.0"}}
+{"name":"knowgst-desktop-service","version":"1.0.0-rc.1","private":true,"type":"module","license":"GPL-3.0-only","dependencies":{"better-sqlite3":"13.0.3","express":"5.2.1","openai":"7.47.0","ws":"8.22.0"}}

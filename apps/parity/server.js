@@ -1,3 +1,4 @@
+import {attachAiChatSocket,closeAiChatSocket} from './ai-chat-socket.mjs';
 import {integrationRoutes} from './integration-routes.mjs';
 import {dashboardSummary} from './dashboard-summary.mjs';
 import {acquireRuntimeLock} from './runtime-lock.mjs';
@@ -135,7 +136,7 @@ app.use((req, res, next) => {
   return (req.path === IMPORT_ROUTE ? importBody : jsonBody)(req, res, next);
 });
 
-integrationRoutes(app, RUNTIME_DIR, ({month,currency}) => {
+const integrations = integrationRoutes(app, RUNTIME_DIR, ({month,currency}) => {
   const businessId=activeBusiness(DATA_DIR)?.id;
   if(!businessId || typeof month!=='string' || !/^\d{4}-(0[1-9]|1[0-2])$/.test(month) || Number(month.slice(0,4))<1900 || typeof currency!=='string' || !/^[A-Z]{3}$/.test(currency)) throw storageError('Select a business, month and currency.','bad-request',400);
   const scoped=dir=>readAllFromDir(dir).filter(r=>businessOf(DATA_DIR,r)===businessId);
@@ -143,6 +144,7 @@ integrationRoutes(app, RUNTIME_DIR, ({month,currency}) => {
   const coverage=previewBackfill(DATA_DIR,businessId);
   return {...summary,businessId,coverage:{ready:coverage.ready,review:coverage.review}};
 }, (expectedBusinessId,module) => {
+  storeFor(DATA_DIR)?.flushFiles();
   const profile=activeBusiness(DATA_DIR),businessId=profile?.id;
   if(!businessId||businessId!==expectedBusinessId)throw storageError('Business changed. Ask again in the correct business.','conflict',409);
   if(module==='profile')return [profile];
@@ -1835,9 +1837,11 @@ process.on('unhandledRejection', (err) => { logFatal(err, 'unhandledRejection');
 // Bound to 127.0.0.1 explicitly so the server can NEVER be reached from the LAN —
 // every byte stays on the user's machine, which the privacy promise depends on.
 let activeServer = null;
+let activeChatSocket = null;
 function startServer(port) {
   const server = app.listen(port, '127.0.0.1', () => {
     activeServer = server;
+    activeChatSocket = chatSocket;
     const boundPort = server.address().port;
     process.send?.({ type: 'ready', port: boundPort });
     // Persist the chosen port — the .bat launcher reads this for the browser URL.
@@ -1848,6 +1852,7 @@ function startServer(port) {
     console.log(`\n  KNOWGST local service running at http://127.0.0.1:${boundPort}`);
     console.log(`  Data stored in: ${DATA_DIR}\n`);
   });
+  const chatSocket = attachAiChatSocket(server, {secret:localSecret, ask:integrations?.askRecords || (()=>{throw storageError('Chat integration is unavailable. Check connection settings.','unavailable',503);})});
   server.on('error', (err) => {
     if (err.code === 'EADDRINUSE' && port < STARTING_PORT + MAX_PORT_SCAN) {
       console.log(`  Port ${port} is busy, trying ${port + 1}...`);
@@ -1879,6 +1884,7 @@ function gracefulShutdown(signal) {
     process.exit(1);
   }, 3000);
   force.unref();
+  closeAiChatSocket(activeChatSocket);
   activeServer.close(() => {
     clearTimeout(force);
     console.log('  Server closed cleanly.');

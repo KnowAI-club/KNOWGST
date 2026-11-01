@@ -183,7 +183,7 @@ export const pages = [
     "intro": "Keep operating costs available for your reports.",
     "steps": [
       "Open Expenses and choose Add Expense.",
-      "Enter a clear description, date, amount and the available category and GST details.",
+      "Enter a clear description, date, amount and the available category and GST details. Optionally open Suggest categories with ChatGPT, preview and approve the selected description, then apply a reviewed category to the draft. Save remains a separate step.",
       "Save the entry and verify it in the register. Review expense totals in Reports."
     ],
     "notes": "Avoid recording the same cost as both a purchase and an expense. Tax eligibility must be reviewed separately from recording the cost.",
@@ -228,6 +228,7 @@ export const pages = [
       "Open Income Tax and confirm the financial year before entering figures.",
       "Use the supported historical filing-year calculations for FY 2024–25 or FY 2025–26.",
       "For ordinary current-year income, expand Tax Year 2026–27 · New-regime estimate and review its stated limits.",
+      "In Bank Statement Import, optionally select up to ten rows, open Suggest categories with ChatGPT, review the shared data and approve one request. Apply each suggestion individually before pushing totals to the calculator.",
       "Reconcile every figure and confirm the applicable deadline before filing externally."
     ],
     "notes": "The current-year estimate covers resident individuals with ordinary taxable income up to ₹50 lakh. It excludes capital gains, other special-rate income, surcharge and most deductions. It is not a full current-year return.",
@@ -263,7 +264,9 @@ export const pages = [
       "Your account appears after its identity is verified. Use Reconnect, Use account or Sign out to manage saved connections. Manage ChatGPT usage opens the provider’s account limits.",
       "Expand Ask ChatGPT, load your available models, choose one and enter a question. Only your typed question is sent; invoices, customer lists and books are not attached automatically.",
       "For email, create a Resend sending-access API key for your verified domain. Enter sender name, sender email, optional reply-to and API key; select Save email settings.",
-      "Open an invoice’s More actions → Email PDF with Resend, or a receipt’s Email receipt PDF button. Review the PDF, recipient, subject and message, then select Send email."
+      "Open an invoice’s More actions → Email PDF with Resend, or a receipt’s Email receipt PDF button. Review the PDF, recipient, subject and message.",
+      "Optionally open Draft with ChatGPT, select a model and purpose, preview the shared context and approve one suggestion. Review and apply it, then edit as needed. The recipient and PDF are not added to the ChatGPT request.",
+      "Select Send email only when the recipient, PDF and final text are correct. Applying an AI draft does not send it."
     ],
     "notes": "ChatGPT OAuth supports eligible open-source/local-app plan usage; account permissions and availability are controlled by OpenAI. AI cannot edit your books or file returns. Resend uses an API key, not ChatGPT OAuth. Credentials are stored in owner-protected device files outside portable backups; this is not an encrypted vault. No live provider account is connected by default."
   },
@@ -329,16 +332,16 @@ export const pages = [
     "id": "ai-assistant",
     "title": "AI assistant",
     "group": "Workspace",
-    "intro": "Review monthly totals, understand bookkeeping review counts and prepare payment-reminder templates using your connected ChatGPT account.",
+    "intro": "Chat about your business records, follow up on an answer, or prepare monthly reviews and payment-reminder templates with your connected ChatGPT account.",
     "steps": [
       "Connect your eligible ChatGPT account in Settings → Integrations.",
-      "Open Overview → AI assistant. Select a task, month, currency and model.",
-      "Choose Preview data to share. Read the complete request and aggregate summary.",
-      "Tick the consent checkbox and generate a review. A preview expires after five minutes.",
-      "Check suggestions against your records. Copy reminder drafts and replace placeholders yourself; nothing is sent automatically.",
-      "Use Ask about your business records for a specific invoice, party or item. Approve record access; the assistant searches one module and shows source coverage. Open the source register to verify."
+      "Open Overview → AI assistant. Choose a model, enter a question and approve sharing relevant records from this business in the chat.",
+      "Press Enter or Send. Shift + Enter adds a new line. Live progress appears while the assistant reads current records and prepares the reply.",
+      "Ask follow-up questions, expand Sources and open the source register to verify the answer. New chat clears conversation context and record-sharing consent.",
+      "For a one-off summary, open Reviews & drafts. Select a task, month and currency, preview the shared totals, then approve this request. Previews expire after five minutes.",
+      "Check suggestions against your records. Copy reminder drafts and replace placeholders yourself; nothing is sent automatically. If a connection fails, your message stays in the composer for a manual retry."
     ],
-    "notes": "Summary tasks share aggregate totals and counts. Record questions can share relevant party, tax and financial details from the active business after your approval. Credentials, attachments and other businesses are excluded. Searches return up to five matches; narrow your question if more exist. No records are changed. Screenshots use fictional data and simulated provider responses.",
+    "notes": "Summary tasks share aggregate totals and counts. Record questions can share relevant party, tax and financial details from the active business after your approval. Credentials, attachments and other businesses are excluded. Searches return up to five matches; narrow your question if more exist. Recent questions and source IDs help follow-ups, but records are read again each time. Chat history is temporary and clears when you leave the page or change business/model; server context expires after 30 minutes. No records are changed. Screenshots use fictional data and simulated provider responses.",
     "screen": "ai-assistant",
     "view": "ai"
   },

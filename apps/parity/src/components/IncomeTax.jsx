@@ -6,6 +6,8 @@ import { getAllBills, getAllExpenses, getAllPurchases, getProfile } from '../sto
 import { formatCurrency } from '../utils';
 import { getPrintSettings } from '../utils/printSettings';
 import HelpButton from './HelpButton';
+import AiCategorySuggestions from './AiCategorySuggestions';
+import { BANK_CATEGORY_LABELS as CATEGORY_LABELS } from '../utils/ai-categories.mjs';
 
 // v1.10.31 — Parse the user's chosen PDF accent (hex like "#1e40af") into
 // a [r, g, b] tuple for jsPDF's setFillColor / setDrawColor. Falls back to
@@ -315,6 +317,7 @@ export default function IncomeTax() {
 
       {tab === 'bank' && (
         <BankImportTab
+          businessId={profile?.id}
           bankImport={bankImport}
           setBankImport={setBankImport}
           onCommit={(totals) => {
@@ -757,8 +760,11 @@ function NumberInput({ label, hint, value, onChange }) {
 // ============================================================================
 // Bank Statement Import sub-tab
 // ============================================================================
-function BankImportTab({ bankImport, setBankImport, onCommit }) {
+function BankImportTab({ businessId, bankImport, setBankImport, onCommit }) {
   const [dragActive, setDragActive] = useState(false);
+  const [selectedRows, setSelectedRows] = useState([]);
+  useEffect(() => { setSelectedRows([]); }, [businessId]);
+  const aiRow = (row, idx) => ({ id: String(idx), description: row.description, amount: row.credit > 0 ? row.credit : row.debit || 0, currency: 'INR', direction: row.credit > 0 ? 'credit' : 'debit', category: row.category });
 
   const handleFile = async (file) => {
     if (!file) return;
@@ -769,6 +775,7 @@ function BankImportTab({ bankImport, setBankImport, onCommit }) {
         toast('No transactions found. Try uploading a raw CSV from your bank\'s statement download.', 'warning');
         return;
       }
+      setSelectedRows([]);
       setBankImport(parsed);
       toast(`Parsed ${parsed.transactions.length} transactions from ${parsed.bankName}`, 'success');
     } catch (e) {
@@ -828,7 +835,7 @@ function BankImportTab({ bankImport, setBankImport, onCommit }) {
             <li><strong>Net-banking</strong> → Accounts → Statements → Download as CSV / Excel (save as CSV)</li>
             <li><strong>Mobile app</strong> → Account statement → Share → Export CSV</li>
             <li>Choose a date range covering the current FY (1 Apr {parseInt(CURRENT_FY.split('-')[0], 10)} onwards)</li>
-            <li>Your data is parsed in-browser — nothing is uploaded to a server</li>
+            <li>CSV parsing stays on this device. ChatGPT suggestions share only rows you select and approve.</li>
           </ul>
         </div>
       </div>
@@ -845,7 +852,7 @@ function BankImportTab({ bankImport, setBankImport, onCommit }) {
           </p>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <button className="btn btn-secondary" onClick={() => setBankImport({ bankName: '', transactions: [] })}>
+          <button className="btn btn-secondary" onClick={() => { setSelectedRows([]); setBankImport({ bankName: '', transactions: [] }); }}>
             <X size={16} /> Clear
           </button>
           <button className="btn btn-primary" onClick={() => onCommit(totals)}>
@@ -863,11 +870,23 @@ function BankImportTab({ bankImport, setBankImport, onCommit }) {
         ))}
       </div>
 
+      <div className="glass-panel p-4" style={{ marginBottom: '1rem' }}>
+        <p className="text-muted" style={{ fontSize: 13, margin: 0 }}>Select rows below to review AI category suggestions ({selectedRows.length}/10 selected).</p>
+        <AiCategorySuggestions kind="bank" businessId={businessId}
+          rows={selectedRows.filter(idx => bankImport.transactions[idx]).map(idx => aiRow(bankImport.transactions[idx], idx))}
+          onApply={(id, category, original) => {
+            const idx = Number(id), row = bankImport.transactions[idx];
+            if (!row || JSON.stringify(aiRow(row, idx)) !== JSON.stringify(original)) return false;
+            changeCategory(idx, category);
+            return true;
+          }} />
+      </div>
       {/* Transactions grid */}
       <div className="glass-panel" style={{ overflow: 'auto', maxHeight: '60vh' }}>
         <table className="data-table" style={{ minWidth: '900px' }}>
           <thead>
             <tr>
+              <th>AI review</th>
               <th>Date</th>
               <th>Description</th>
               <th style={{ textAlign: 'right' }}>Debit</th>
@@ -878,6 +897,7 @@ function BankImportTab({ bankImport, setBankImport, onCommit }) {
           <tbody>
             {bankImport.transactions.map((row, idx) => (
               <tr key={idx}>
+                <td><input type="checkbox" aria-label={`Select bank row ${idx + 1} for AI`} checked={selectedRows.includes(idx)} disabled={!selectedRows.includes(idx) && selectedRows.length >= 10} onChange={e => setSelectedRows(prev => e.target.checked ? [...prev, idx] : prev.filter(i => i !== idx))} /></td>
                 <td className="text-muted" style={{ fontSize: '0.78rem' }}>{row.date}</td>
                 <td style={{ maxWidth: '350px', fontSize: '0.78rem' }} title={row.description}>{row.description}</td>
                 <td style={{ textAlign: 'right', color: '#dc2626', fontFamily: 'monospace', fontSize: '0.78rem' }}>
@@ -1138,20 +1158,6 @@ const SECTION_DESCRIPTIONS = {
   '80DDB':   'Specified serious illness',
   '80U':     'Self-disability',
   '24b':     'Home-loan interest (self-occupied)',
-};
-
-const CATEGORY_LABELS = {
-  salary: 'Salary income',
-  business_in: 'Business receipts',
-  business_out: 'Business expense',
-  interest: 'Interest earned',
-  rent_received: 'Rent received',
-  investment: 'Investment / MF / PPF',
-  deduction_80C: '80C claim',
-  deduction_80D: '80D claim',
-  gst_paid: 'GST paid',
-  transfer: 'Transfer / unclassified',
-  personal: 'Personal spending',
 };
 
 const CATEGORY_COLORS = {

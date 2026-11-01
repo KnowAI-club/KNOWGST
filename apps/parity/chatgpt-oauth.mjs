@@ -17,6 +17,29 @@ const same = (a, b) =>
   Buffer.byteLength(a) === Buffer.byteLength(b) &&
   timingSafeEqual(Buffer.from(a), Buffer.from(b));
 const fail = (message) => Object.assign(new Error(message), { status: 400 });
+async function readOAuthError(response) {
+  const reader = response.body?.getReader();
+  if (!reader) return {};
+  const chunks = [];
+  let bytes = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      bytes += value.byteLength;
+      if (bytes > 8192) {
+        await reader.cancel();
+        return {};
+      }
+      chunks.push(value);
+    }
+    return JSON.parse(Buffer.concat(chunks).toString("utf8"));
+  } catch {
+    return {};
+  } finally {
+    reader.releaseLock();
+  }
+}
 export function validateIdentity(
   jwt,
   keys,
@@ -78,10 +101,53 @@ export function chatgptOAuth(store, { fetcher = fetch } = {}) {
       signal: options.signal || AbortSignal.timeout(20000),
       redirect: "error",
     });
-    if (!r.ok)
-      throw fail(
-        `ChatGPT request failed (${r.status}). Check your account access and try again.`,
+    if (!r.ok) {
+      // Provider descriptions can echo codes/tokens. Show only known error codes.
+      const payload = await readOAuthError(r);
+      const supplied =
+        typeof payload?.error === "string"
+          ? payload.error
+          : payload?.error?.code;
+      const recovery = {
+        invalid_grant:
+          "The sign-in code was rejected. Start a fresh sign-in from Settings.",
+        invalid_client:
+          "The app registration was rejected. Start a new ChatGPT connection.",
+        invalid_request:
+          "OpenAI rejected the sign-in parameters. Update KNOWGST and retry sign-in.",
+        unauthorized_client:
+          "This app registration is not authorized for this connection.",
+        invalid_scope:
+          "The requested ChatGPT permission was rejected. Review the sign-in permissions.",
+        invalid_resource:
+          "OpenAI rejected the requested service. Update KNOWGST and retry sign-in.",
+        unsupported_grant_type:
+          "OpenAI rejected the authorization method. Update KNOWGST and retry sign-in.",
+        access_denied:
+          "ChatGPT access was not approved. Start sign-in and review the requested permissions.",
+        temporarily_unavailable:
+          "ChatGPT is temporarily unavailable. Try again shortly.",
+        server_error: "ChatGPT is temporarily unavailable. Try again shortly.",
+      };
+      const code =
+        typeof supplied === "string" && Object.hasOwn(recovery, supplied)
+          ? supplied
+          : "";
+      const endpoint = new URL(url).pathname;
+      const step = endpoint.endsWith("/oauth/token")
+        ? new URLSearchParams(options.body).get("grant_type") ===
+          "refresh_token"
+          ? "session renewal"
+          : "sign-in exchange"
+        : endpoint.endsWith("/models")
+          ? "model list"
+          : "identity verification";
+      const error = fail(
+        `ChatGPT ${step} failed (${r.status}${code ? " · " + code : ""}). ${code ? recovery[code] : "Check your connection and retry sign-in from Settings."}`,
       );
+      error.oauthCode = code;
+      throw error;
+    }
     return r.json();
   }
   function stopRequests() {
@@ -116,6 +182,15 @@ export function chatgptOAuth(store, { fetcher = fetch } = {}) {
     const old = store.get().accounts.find((a) => a.clientId === clientId);
     if (clientId && !old)
       throw fail("Choose a saved account or add a new account.");
+    const pending = store.get().incompleteChatgptRegistration;
+    const recovering =
+      !clientId &&
+      typeof pending?.clientId === "string" &&
+      /^[A-Za-z0-9_-]{1,250}$/.test(pending.clientId) &&
+      pending.clientId !== "dynamic_agent_client"
+        ? pending.clientId
+        : null;
+    const expectedClientId = old?.clientId || recovering;
     const a = {
       state: randomBytes(32).toString("base64url"),
       nonce: randomBytes(32).toString("base64url"),
@@ -147,12 +222,12 @@ export function chatgptOAuth(store, { fetcher = fetch } = {}) {
       try {
         if (u.searchParams.has("error"))
           throw fail("ChatGPT sign-in was not completed.");
-        const issued = u.searchParams.get("client_id") || old?.clientId;
+        const issued = u.searchParams.get("client_id") || expectedClientId;
         if (
           !issued ||
           issued === "dynamic_agent_client" ||
           issued.length > 250 ||
-          (old && issued !== old.clientId)
+          (expectedClientId && issued !== expectedClientId)
         )
           throw fail(
             "ChatGPT registration did not return the expected client ID.",
@@ -160,6 +235,13 @@ export function chatgptOAuth(store, { fetcher = fetch } = {}) {
         const code = u.searchParams.get("code");
         if (!code || code.length > 4096)
           throw fail("Missing authorization code.");
+        // A registration is not a connected identity. Retain only its public ID
+        // so failed exchanges retry authorization instead of registering duplicates.
+        a.issuedClientId = issued;
+        if (!old)
+          store.update((s) => {
+            s.incompleteChatgptRegistration = { clientId: issued };
+          });
         const tokens = await json(AUTH + "/api/accounts/oauth/token", {
           method: "POST",
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -202,11 +284,28 @@ export function chatgptOAuth(store, { fetcher = fetch } = {}) {
             expires: Date.now() + Number(tokens.expires_in) * 1000,
           });
           s.active = issued;
+          if (s.incompleteChatgptRegistration?.clientId === issued)
+            delete s.incompleteChatgptRegistration;
         });
         res.end(
           "ChatGPT connected. You can close this tab and return to KNOWGST.",
         );
       } catch (e) {
+        if (
+          ["invalid_client", "unauthorized_client"].includes(e.oauthCode) &&
+          a.issuedClientId
+        ) {
+          try {
+            store.update((s) => {
+              if (
+                s.incompleteChatgptRegistration?.clientId === a.issuedClientId
+              )
+                delete s.incompleteChatgptRegistration;
+            });
+          } catch {
+            /* Preserve the original provider error if local recovery metadata cannot be saved. */
+          }
+        }
         lastError = e.status
           ? e.message
           : "ChatGPT sign-in could not be verified. Please try again.";
@@ -235,7 +334,7 @@ export function chatgptOAuth(store, { fetcher = fetch } = {}) {
     a.timer.unref();
     const url = new URL(AUTH + "/api/accounts/authorize");
     url.search = new URLSearchParams({
-      client_id: old?.clientId || "dynamic_agent_client",
+      client_id: expectedClientId || "dynamic_agent_client",
       ext_agent_host_id: store.get().hostId,
       response_type: "code",
       redirect_uri: a.redirect,
@@ -247,7 +346,7 @@ export function chatgptOAuth(store, { fetcher = fetch } = {}) {
       code_challenge: createHash("sha256")
         .update(a.verifier)
         .digest("base64url"),
-      ...(!old ? { agent_name_hint: "KNOWGST" } : {}),
+      ...(!expectedClientId ? { agent_name_hint: "KNOWGST" } : {}),
       ...(old?.email ? { login_hint: old.email } : {}),
     }).toString();
     return { url: url.href };
@@ -379,7 +478,10 @@ export function chatgptOAuth(store, { fetcher = fetch } = {}) {
         throw fail(
           "ChatGPT response was interrupted. No records were changed.",
         );
-      if(!text.trim())throw fail("ChatGPT returned no readable answer. Try another model or revise the request.");
+      if (!text.trim())
+        throw fail(
+          "ChatGPT returned no readable answer. Try another model or revise the request.",
+        );
       return { text };
     } catch (error) {
       if (error.status && !(error instanceof OpenAI.APIError)) throw error;

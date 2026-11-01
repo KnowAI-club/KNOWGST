@@ -8,38 +8,9 @@ import { toast } from './Toast';
 import { confirmAction } from './ConfirmModal';
 import HelpButton from './HelpButton';
 import TableExport from './TableExport';
+import AiCategorySuggestions from './AiCategorySuggestions';
+import { EXPENSE_CATEGORIES } from '../utils/ai-categories.mjs';
 
-// Each category is tagged with its ITR (Income Tax Return) head so the
-// v1.7.0+ ITR Filing Summary can auto-aggregate expenses under the correct
-// P&L line. Users don't have to think about heads — they pick the category
-// they already understand.
-//   - 'business'      → deductible business expense under section 37
-//   - 'depreciation'  → section 32 (asset purchases, capitalised then
-//                       depreciated per Rule 5)
-//   - 'salary'        → separately tracked; declared under section 40A(2)(b)
-//                       for related parties
-//   - 'notDeductible' → personal / drawings / capital / non-business
-const EXPENSE_CATEGORIES = [
-  { name: 'Office Rent',            itrHead: 'business' },
-  { name: 'Utilities',              itrHead: 'business' },
-  { name: 'Internet & Phone',       itrHead: 'business' },
-  { name: 'Software & Tools',       itrHead: 'business' },
-  { name: 'Travel',                 itrHead: 'business' },
-  { name: 'Meals & Entertainment',  itrHead: 'business' },
-  { name: 'Office Supplies',        itrHead: 'business' },
-  { name: 'Salary & Wages',         itrHead: 'salary' },
-  { name: 'Professional Fees',      itrHead: 'business' },
-  { name: 'Insurance',              itrHead: 'business' },
-  { name: 'Marketing & Ads',        itrHead: 'business' },
-  { name: 'Raw Materials',          itrHead: 'business' },
-  { name: 'Shipping & Courier',     itrHead: 'business' },
-  { name: 'Repairs & Maintenance',  itrHead: 'business' },
-  { name: 'Bank Charges',           itrHead: 'business' },
-  { name: 'GST Paid',               itrHead: 'business' },
-  { name: 'Asset Purchase',         itrHead: 'depreciation' },
-  { name: 'Personal / Drawings',    itrHead: 'notDeductible' },
-  { name: 'Other',                  itrHead: 'business' },
-];
 const CATEGORY_NAMES = EXPENSE_CATEGORIES.map(c => c.name);
 
 const PAYMENT_MODES = ['Bank Transfer', 'UPI', 'Cash', 'Cheque', 'Card', 'Other'];
@@ -388,6 +359,13 @@ export default function ExpenseTracker() {
                   onChange={e => updateField('note', e.target.value)} placeholder="Any additional note..." />
               </div>
             </div>
+            <AiCategorySuggestions kind="expense" businessId={ownerProfile?.id}
+              rows={[{ id: form.id || editingId || 'draft', description: form.description, amount: Number(form.amount), currency: form.currency || 'INR', direction: 'debit', category: form.category }]}
+              onApply={(_id, category, original) => {
+                if (form.description !== original.description || Number(form.amount) !== original.amount || form.category !== original.category) return false;
+                updateField('category', category);
+                return true;
+              }} />
             <div className="flex gap-2 justify-end mt-4">
               <button className="btn btn-secondary" onClick={closeForm}>Cancel</button>
               <button className="btn btn-primary" onClick={handleSave}><Save size={16} /> {editingId ? 'Update' : 'Save'}</button>

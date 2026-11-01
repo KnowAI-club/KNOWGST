@@ -23,7 +23,15 @@ const port = await new Promise<number>((resolvePort, reject) => {
 let web: Awaited<ReturnType<typeof createServer>>;
 try {
   web = await createServer({ root: resolve(root, 'apps/parity'), server: { host: '127.0.0.1', port: webPort, strictPort: true,
-    proxy: { '/api': { target: `http://127.0.0.1:${port}`, headers: { 'x-knowgst-key': secret } } },
+    proxy: { '/api': { target: `http://127.0.0.1:${port}`, ws: true, headers: { 'x-knowgst-key': secret },
+      configure(proxy) {
+        proxy.on('proxyReqWs', (outgoing, req, socket) => {
+          if (req.url !== '/api/ai/chat' || req.headers.host !== webHost || req.headers.origin !== `http://${webHost}`) {
+            outgoing.destroy(); socket.end('HTTP/1.1 403 Forbidden\r\nConnection: close\r\nContent-Length: 0\r\n\r\n');
+          }
+        });
+      },
+    } },
   }, plugins: [{ name: 'local-origin-guard', configureServer(server) {
     server.middlewares.use((req, res, next) => {
       if (!req.url?.startsWith('/api')) return next();
