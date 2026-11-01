@@ -107,9 +107,12 @@ test('mobile navigation and dark theme work',async ({page,request})=>{
   await page.goto('/?view=dashboard');
   await expect(page.locator('html')).toHaveAttribute('data-theme','light');
   await page.getByRole('button',{name:'Open menu',exact:true}).click();
+  await page.getByRole('button',{name:'Sales',exact:true}).click();
+  await expect(page.locator('.sidebar')).toHaveClass(/sidebar-open/);
   await page.locator('.sidebar').getByRole('button',{name:'Clients',exact:true}).click();
   await expect(page.locator('.main-content')).toContainText('Clients');
   await page.getByRole('button',{name:'Open menu',exact:true}).click();
+  await page.getByRole('button',{name:'Workspace',exact:true}).click();
   await page.getByRole('button',{name:'Dark Mode',exact:true}).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme','dark');
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);

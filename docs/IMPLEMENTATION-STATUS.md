@@ -2,7 +2,7 @@
 
 All 15 main pages share aligned gutters, heading spacing and section gaps. Form controls and actions fit their panels; wide tables retain local scrolling. Settings and Print Settings grids adapt to narrow windows, and the GST summary wraps instead of widening the page. Screen-only rules preserve printed invoice geometry and the KnowAI logo.
 
-The sidebar groups existing destinations under Overview, Sales, Purchases & stock, Accounting & tax, and Workspace. Module visibility, keyboard navigation and auto-hide remain supported. Layout coverage includes 320, 390, 768, 1280, 1440 and 1920 pixel widths, dark mode, report/tax subpages and six entry dialogs. Tests explicitly reset the theme to avoid inheriting state from earlier tests.
+The sidebar groups existing destinations under Overview, Sales, Purchases & stock, Accounting & tax, and Workspace. Groups now collapse independently and start closed except for the active page’s group, which remains open. Workspace utilities collapse with Workspace. Opening a group does not dismiss the mobile menu. Module visibility, keyboard navigation and auto-hide remain supported. Layout coverage includes 320, 390, 768, 1280, 1440 and 1920 pixel widths, dark mode, report/tax subpages and six entry dialogs. Tests explicitly reset the theme to avoid inheriting state from earlier tests.
 
 # Dashboard increment — 1 November 2026
 

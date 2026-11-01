@@ -87,6 +87,7 @@ test("shared headers and actions remain readable in dark mode", async ({
   page,
 }, testInfo) => {
   await page.goto("/?view=reports");
+  await page.getByRole("button", { name: "Workspace", exact: true }).click();
   await page.getByRole("button", { name: "Dark Mode", exact: true }).click();
   for (const view of views) {
     await page.goto(`/?view=${view}`);
@@ -183,22 +184,36 @@ test("entry dialogs keep fields and actions inside the mobile viewport", async (
   }
 });
 
-test("sidebar groups preserve navigation and remain reachable on short windows", async ({page}) => {
+test("sidebar groups collapse, keep the active route open and support keyboard navigation", async ({page}) => {
   await page.setViewportSize({width:1280,height:720});
   await page.goto('/?view=dashboard');
   const nav=page.getByRole('navigation',{name:'Main navigation'});
-  for (const label of ['Overview','Sales','Purchases & stock','Accounting & tax','Workspace']) {
-    await expect(nav.getByRole('heading',{name:label,exact:true})).toHaveCount(1);
-  }
-  await expect(nav.getByRole('region',{name:'Sales',exact:true}).getByRole('button',{name:'Invoices',exact:true})).toHaveCount(1);
-  await nav.getByRole('button',{name:'Settings',exact:true}).click();
+  const group=(name:string)=>nav.getByRole('button',{name,exact:true});
+  await expect(group('Overview')).toHaveAttribute('aria-expanded','true');
+  await expect(group('Sales')).toHaveAttribute('aria-expanded','false');
+  await expect(group('Invoices')).toBeHidden();
+  await group('Sales').click();
+  await expect(group('Invoices')).toBeVisible();
+  await group('Sales').click();
+  await expect(group('Invoices')).toBeHidden();
+  await group('Workspace').click();
+  await group('Settings').click();
   await expect(page.locator('.workspace-heading h1')).toHaveText('Settings');
-  await nav.getByRole('button',{name:'Dashboard',exact:true}).click();
-  await expect(nav.getByRole('button',{name:'Dashboard',exact:true})).toHaveAttribute('aria-current','page');
-  await page.getByRole('button',{name:'Auto-hide menu',exact:true}).click();
-  await page.mouse.move(900, 100);
-  await nav.getByRole('button',{name:'Invoices',exact:true}).focus();
+  await expect(group('Workspace')).toHaveAttribute('aria-disabled','true');
+  await expect(group('Workspace')).toHaveAttribute('aria-expanded','true');
+  await group('Sales').focus();
   await page.keyboard.press('Enter');
+  await group('Invoices').click();
+  await expect(group('Sales')).toHaveAttribute('aria-expanded','true');
+  await expect(group('Sales')).toHaveAttribute('aria-disabled','true');
+  await page.goto('/?view=filing');
+  await expect(group('Accounting & tax')).toHaveAttribute('aria-expanded','true');
+  await expect(group('Sales')).toHaveAttribute('aria-expanded','false');
+  await page.getByRole('button',{name:'Auto-hide menu',exact:true}).click();
+  await page.mouse.move(900,100);
+  await group('Sales').focus();
+  await page.keyboard.press('Enter');
+  await group('Invoices').click();
   await expect(page.locator('.workspace-heading h1')).toHaveText('Invoices');
   await page.getByRole('button',{name:'Auto-hide menu',exact:true}).click();
 });

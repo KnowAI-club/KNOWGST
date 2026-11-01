@@ -434,7 +434,7 @@ function App() {
   const [navOpen, setNavOpen] = useState(false);
   const closeNavAfterPick = (e) => {
     const picked = e.target.closest('button');
-    if (picked && !picked.classList.contains('profile-switcher-btn')) setNavOpen(false);
+    if (picked && !picked.classList.contains('profile-switcher-btn') && !picked.classList.contains('sidebar-group-toggle')) setNavOpen(false);
   };
 
   // v1.10.76 - a fresh editor for every invoice opened, so nothing (such as
@@ -528,6 +528,7 @@ function App() {
   }, [currentView, JSON.stringify(enabledModules)]);
 
   const [dashboardTarget,setDashboardTarget]=useState({});
+  const [openSidebarGroups, setOpenSidebarGroups] = useState({});
   const navigateDashboard=(view,options={})=>{setDashboardTarget(options);setCurrentView(view);};
   const navItems = [
     { id: 'dashboard', icon: Home, label: 'Dashboard', module: 'dashboard' },
@@ -888,8 +889,16 @@ function App() {
           ].map(([label, ids]) => {
             const items = ids.map(id => navItems.find(item => item.id === id)).filter(Boolean);
             if (!items.length) return null;
+            const active = ids.includes(currentView) || (label === 'Workspace' && ['settings', 'controlpanel', 'support'].includes(currentView));
+            const expanded = active || !!openSidebarGroups[label];
+            const panelId = `sidebar-group-${ids[0]}`;
             return <section className="sidebar-group" aria-label={label} key={label}>
-              <h2 className="sidebar-group-title">{label}</h2>
+              <h2 className="sidebar-group-title"><button type="button" className="sidebar-group-toggle"
+                aria-label={label} aria-expanded={expanded} aria-controls={panelId} aria-disabled={active || undefined}
+                title={active ? `${label}: contains the active page` : `${expanded ? 'Collapse' : 'Expand'} ${label}`}
+                onClick={() => { if (!active) setOpenSidebarGroups(groups => ({...groups, [label]: !groups[label]})); }}
+              ><span>{label}</span><ChevronDown size={14} aria-hidden="true" /></button></h2>
+              <div className="sidebar-group-items" id={panelId} hidden={!expanded}>
               {items.map(item => <button
                 key={item.id}
                 className={`nav-btn ${currentView === item.id ? 'nav-btn-active' : ''}`}
@@ -898,9 +907,7 @@ function App() {
                 title={item.label}
                 onClick={item.onClick || (() => {setDashboardTarget({});setCurrentView(item.id);})}
               ><item.icon size={18} /><span>{item.label}</span></button>)}
-            </section>;
-          })}
-          <div className="sidebar-utilities" role="group" aria-label="Workspace controls">
+              {label === 'Workspace' && (<div className="sidebar-utilities" role="group" aria-label="Workspace controls">
             {/* Update-available banner — only shows when GitHub has a newer version
                 AND the user hasn't already dismissed THIS specific version. New
                 releases re-show the banner. Click to view notes + update. */}
@@ -991,7 +998,11 @@ function App() {
               <span className="server-status-dot" />
               {serverStatus === 'online' ? 'App Ready' : serverStatus === 'offline' ? 'App Not Running' : 'Connecting...'}
             </div>
-          </div>
+          </div>)}
+              </div>
+            </section>;
+          })}
+
         </nav>
       </div>
 

@@ -191,6 +191,7 @@ test("dashboard mobile and dark mode, attention navigation, errors and retry", a
   ).toBeVisible();
   await page.goto("/?view=dashboard");
   await page.getByRole("button", { name: "Open menu", exact: true }).click();
+  await page.getByRole("button", { name: "Workspace", exact: true }).click();
   await page.getByRole("button", { name: "Dark Mode", exact: true }).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await expect(page.locator(".sidebar-backdrop")).toHaveCount(0);

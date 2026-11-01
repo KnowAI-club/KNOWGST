@@ -179,3 +179,21 @@ html[data-theme=dark] .form-input{background:var(--card-bg);color:var(--text);bo
   .main-content .modal-content { max-width:calc(100vw - 24px); padding:16px; }
   .main-content .stat-value { font-size:clamp(18px,5.5vw,24px); overflow-wrap:anywhere; }
 }
+
+@media screen {
+  .sidebar-group-title { padding:0; }
+  .sidebar-group-toggle { display:flex; align-items:center; justify-content:space-between; gap:8px; width:100%; padding:8px 12px; border:0; border-radius:6px; background:transparent; color:var(--text-muted); font:inherit; letter-spacing:inherit; text-transform:inherit; text-align:left; cursor:pointer; }
+  .sidebar-group-toggle:hover { background:var(--bg-secondary); color:var(--text); }
+  .sidebar-group-toggle[aria-disabled=true] { cursor:default; }
+  .sidebar-group-toggle svg { flex-shrink:0; transform:rotate(-90deg); }
+  .sidebar-group-toggle[aria-expanded=true] svg { transform:rotate(0); }
+  .sidebar-group-items { display:flex; flex-direction:column; gap:4px; }
+  .sidebar-group-items[hidden] { display:none; }
+  .sidebar-group-items .sidebar-utilities { margin-top:0; }
+  .sidebar-nav { gap:12px; }
+}
+@media screen and (min-width:769px) {
+  .app-layout.sidebar-autohide > .sidebar:not(:hover):not(:has(:focus-visible)) .sidebar-group-title { height:auto; margin:0; background:none; }
+  .app-layout.sidebar-autohide > .sidebar:not(:hover):not(:has(:focus-visible)) .sidebar-group-toggle { justify-content:center; padding:8px; }
+  .app-layout.sidebar-autohide > .sidebar:not(:hover):not(:has(:focus-visible)) .sidebar-group-toggle > span { display:none; }
+}
