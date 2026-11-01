@@ -17,12 +17,10 @@ body{font-family:Inter,system-ui,sans-serif;background:var(--bg);color:var(--tex
 .btn{border-radius:6px;font-weight:500;box-shadow:none;min-height:38px}.btn-primary{background:var(--primary);color:var(--on-primary);border-color:var(--primary);box-shadow:none}.btn-primary:hover:not(:disabled){background:var(--primary-hover);box-shadow:none;transform:none}.btn-secondary{background:var(--card-bg);border:1px solid var(--border);color:var(--text-secondary)}
 .form-input,.form-select,.form-textarea{border-radius:6px;background:var(--card-bg);border:1px solid var(--border);box-shadow:none}.form-label{color:var(--text-secondary);font-size:12px;font-weight:500}
 .data-table th{font-size:11px;color:var(--text-muted);font-weight:500;background:var(--bg-secondary)}.data-table td{font-size:12px}.data-table tr{border-color:var(--border)}
-.knowgst-development{font-size:11px;color:var(--text-muted);border-bottom:1px solid var(--border);padding:0 0 12px;margin-bottom:8px;line-height:1.5}
 .mobile-topbar{background:var(--card-bg);color:var(--text);border-bottom:1px solid var(--border)}.mobile-topbar-title,.mobile-topbar-btn,.mobile-topbar-business{color:var(--text)}
 button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid var(--primary);outline-offset:3px}
 .knowgst-about{max-width:760px}.knowgst-about p{line-height:1.7;color:var(--text-secondary)}.knowgst-about a{color:var(--primary)}
-@media(max-width:768px){.main-content{padding:18px 16px}.main-content h1{font-size:24px}.sidebar .nav-btn{min-height:44px}.knowgst-development{font-size:10px}}
-@media print{.knowgst-development{display:none!important}}
+@media(max-width:768px){.main-content{padding:18px 16px}.main-content h1{font-size:24px}.sidebar .nav-btn{min-height:44px}}
 /* Override inherited navigation accents consistently in both themes. */
 html .sidebar .nav-btn{color:var(--text-secondary)}
 html .sidebar .nav-btn-active{background:var(--primary)!important;color:var(--on-primary)!important;box-shadow:none}
@@ -41,7 +39,6 @@ html[data-theme=dark] .form-input{background:var(--card-bg);color:var(--text);bo
 @media screen {
   :root { --workspace-gutter:32px; --section-space:24px; --panel-space:24px; --control-height:36px; }
   .app-layout > .main-content { padding:24px var(--workspace-gutter) 32px; gap:24px; min-width:0; }
-  .main-content > .knowgst-development { margin:0; padding-bottom:12px; }
   .main-content > :is(.dashboard-container,.settings-container,.generator-container) { width:100%; max-width:1440px; margin-inline:auto; min-width:0; }
   .main-content > .dashboard-container { display:flex; flex-direction:column; gap:var(--section-space); }
   .main-content > .dashboard-container > :not(.modal-overlay):not(style) { margin-block:0 !important; min-width:0; }
@@ -149,7 +146,6 @@ html[data-theme=dark] .form-input{background:var(--card-bg);color:var(--text);bo
   .sidebar-utilities { margin-top:-16px; }
   .sidebar .server-status { margin-top:16px; }
   .app-layout > .main-content { scrollbar-gutter:stable; }
-  .main-content > .knowgst-development,
   .main-content > .dashboard-overview { width:100%; max-width:1440px; margin-inline:auto; min-width:0; flex-shrink:0; }
   .main-content > :is(.dashboard-container,.settings-container,.generator-container,.dashboard-overview) > .workspace-heading { margin-block:0; }
   .main-content > .settings-container { display:flex; flex-direction:column; gap:var(--section-space); }
