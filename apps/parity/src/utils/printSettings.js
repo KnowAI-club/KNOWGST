@@ -151,12 +151,12 @@ export const DEFAULT_PRINT_SETTINGS = {
   // template defaults. Users can tune every aspect of the visual output
   // without needing developer changes. Live preview updates instantly.
   userColorsEnabled: false,
-  pdfPrimaryText: '#0f172a',    // main body text (dark)
-  pdfMutedText: '#334155',      // secondary text (labels, addresses) — v1.9.2 default darkened from #64748b
-  pdfAccent: '#1e40af',         // section labels + table header background
+  pdfPrimaryText: '#242824',    // main body text (dark)
+  pdfMutedText: '#626862',      // secondary text (labels, addresses) — v1.9.2 default darkened from #64748b
+  pdfAccent: '#343c34',         // section labels + table header background
   pdfAccentText: '#ffffff',     // text on accent-coloured backgrounds
-  pdfHeaderBg: '#f8fafc',       // invoice header block background (modern template)
-  pdfDividerColor: '#334155',   // hairlines between sections (darkened default)
+  pdfHeaderBg: '#f4f5f2',       // invoice header block background (modern template)
+  pdfDividerColor: '#dfe2dc',   // hairlines between sections (darkened default)
 
   // Font size scale multiplier — 0.8 to 1.4. Applied via CSS transform to the
   // whole invoice-preview-container, so everything scales proportionally.

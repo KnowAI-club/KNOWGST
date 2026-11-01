@@ -3477,3 +3477,17 @@ html:not([data-theme="dark"]) .mobile-topbar-btn { background: rgba(15, 23, 42, 
   font-size: 0.85rem;
 }
 .app-lock-help { font-size: 0.8rem; color: var(--text-muted); text-align: left; line-height: 1.5; }
+
+/* KNOWGST invoice paper: quiet hierarchy across layouts and app themes. */
+.invoice-preview-container:not(.paper-thermal) .inv-table thead th {
+  background: var(--pdf-header-bg, #f4f5f2) !important;
+  color: var(--pdf-primary-text, #242824) !important;
+  border-color: var(--pdf-divider, #dfe2dc) !important;
+}
+.invoice-preview-container:not(.paper-thermal) .inv-total-modern {
+  background: var(--pdf-header-bg, #f4f5f2) !important;
+  color: var(--pdf-primary-text, #242824) !important;
+}
+.invoice-preview-container:not(.paper-thermal) .inv-total-modern * {
+  color: inherit !important;
+}

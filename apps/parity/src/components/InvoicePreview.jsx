@@ -183,10 +183,10 @@ const InvoicePreview = React.forwardRef(({ profile: profileProp, client, details
   }, [showUPI, upiId, profile?.businessName, upiAmount, details?.invoiceNumber, currencySymbol]);
 
   const accentColors = {
-    'tax-invoice': '#1e40af',
-    'proforma': '#7c3aed',
-    'bill-of-supply': '#0f766e',
-    'credit-note': '#be123c',
+    'tax-invoice': '#343c34',
+    'proforma': '#343c34',
+    'bill-of-supply': '#343c34',
+    'credit-note': '#343c34',
   };
   // v1.9.14 — When userColorsEnabled is on, pdfAccent MUST feed the
   // header-block background too.
@@ -249,19 +249,19 @@ const InvoicePreview = React.forwardRef(({ profile: profileProp, client, details
   // Header renderers per style
   const renderModernHeader = () => (
     <>
-      <div style={{ background: accent, padding: '1.5rem 2rem', color: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+      <div style={{ background: '#ffffff', borderBottom: '1px solid #dfe2dc', padding: '1.5rem 2rem', color: '#242824', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
           {showLogo && profile?.logo && (
-            <img src={profile.logo} alt="Logo" style={{ maxHeight: `${profile.logoHeight || 48}px`, maxWidth: '180px', objectFit: 'contain', marginBottom: '0.5rem', display: 'block', filter: 'brightness(0) invert(1)' }} />
+            <img src={profile.logo} alt="Logo" style={{ maxHeight: `${profile.logoHeight || 48}px`, maxWidth: '180px', objectFit: 'contain', marginBottom: '0.5rem', display: 'block' }} />
           )}
-          <h1 style={{ fontSize: '1.4rem', fontWeight: 800, margin: 0, letterSpacing: '0.08em' }}>{customTitle}</h1>
+          <h1 style={{ fontSize: '1.4rem', fontWeight: 600, margin: 0, letterSpacing: '-0.02em' }}>{customTitle}</h1>
           {invoiceType === 'proforma' && (
-            <p style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.7)', fontStyle: 'italic', margin: '0.25rem 0 0' }}>For estimation purposes only</p>
+            <p style={{ fontSize: '0.7rem', color: '#626862', fontStyle: 'italic', margin: '0.25rem 0 0' }}>For estimation purposes only</p>
           )}
         </div>
         <div style={{ textAlign: 'right' }}>
           {showBusinessName && <h2 style={{ fontSize: '1rem', fontWeight: 700, margin: '0 0 0.25rem' }}>{profile?.businessName || 'Your Business'}</h2>}
-          <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.85)', lineHeight: 1.6 }}>
+          <div style={{ fontSize: '0.7rem', color: '#626862', lineHeight: 1.6 }}>
             {showBusinessAddress && profile?.address && <p style={{ margin: 0 }}>{profile.address}</p>}
             {showBusinessAddress && (profile?.city || profile?.pin) && <p style={{ margin: 0 }}>{[profile.city, profile.pin].filter(Boolean).join(' - ')}</p>}
             {showState && profile?.state && <p style={{ margin: 0 }}>{profile.state}</p>}
@@ -323,7 +323,7 @@ const InvoicePreview = React.forwardRef(({ profile: profileProp, client, details
 
   const renderClassicHeader = () => (
     <>
-      <div style={{ height: '6px', background: `linear-gradient(90deg, ${accent}, ${accent}cc, ${accent}88)` }} />
+      <div style={{ height: '1px', background: '#dfe2dc' }} />
       <div className="inv-header">
         <div className="inv-header-left">
           {showLogo && profile?.logo && (
@@ -934,7 +934,7 @@ const InvoicePreview = React.forwardRef(({ profile: profileProp, client, details
     // applied when userColorsEnabled = true (data attribute gates the CSS).
     // Each var falls back to a template default if the user doesn't set it.
     ...(_ps_final.userColorsEnabled ? (() => {
-      const accent = _ps_final.pdfAccent || '#1e40af';
+      const accent = _ps_final.pdfAccent || '#343c34';
       // v1.10.40 — Also compute an RGB channel string so CSS rules can
       // build rgba(var(--pdf-accent-rgb), α) tints. Was using
       // color-mix(in oklab, …) but html2canvas doesn't parse it and
@@ -1312,7 +1312,7 @@ const InvoicePreview = React.forwardRef(({ profile: profileProp, client, details
             </div>
           )}
           {pdfStyle === 'modern' ? (
-            <div className="inv-total-row inv-total-final inv-total-modern" style={{ background: accent, color: '#fff', borderRadius: '6px', padding: '0.6rem 0.75rem', marginTop: '0.25rem' }}>
+            <div className="inv-total-row inv-total-final inv-total-modern" style={{ background: '#f4f5f2', color: '#242824', border: '1px solid #dfe2dc', borderRadius: '4px', padding: '0.6rem 0.75rem', marginTop: '0.25rem' }}>
               <span style={{ color: '#fff' }}>{invoiceType === 'credit-note' ? 'Credit Amount' : totalDueLabel}</span>
               <span style={{ color: '#fff' }}>{fmt(totals.total)}</span>
             </div>
@@ -1328,7 +1328,7 @@ const InvoicePreview = React.forwardRef(({ profile: profileProp, client, details
                 <span>Less: TDS{options.tdsSection ? ` (${options.tdsSection} @ ${options.tdsRate}%)` : ''}</span>
                 <span>− {fmt(totals.tdsAmount)}</span>
               </div>
-              <div className="inv-total-row" style={{ fontWeight: 600, color: '#0f766e', fontSize: '0.78rem' }}>
+              <div className="inv-total-row" style={{ fontWeight: 600, color: '#343c34', fontSize: '0.78rem' }}>
                 <span>Net Receivable</span>
                 <span>{fmt(totals.netReceivable)}</span>
               </div>
@@ -1548,7 +1548,7 @@ const InvoicePreview = React.forwardRef(({ profile: profileProp, client, details
 
       {/* Bottom bar for modern style */}
       {pdfStyle === 'modern' && (
-        <div style={{ height: '4px', background: accent, marginTop: 'auto' }} />
+        <div style={{ height: '1px', background: '#dfe2dc', marginTop: 'auto' }} />
       )}
     </div>
   );
