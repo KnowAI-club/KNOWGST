@@ -51,6 +51,7 @@ const launch = async () => {
   });
   const page = await app.firstWindow();
   page.on("pageerror", (e) => errors.push(e.message));
+  await page.waitForURL(/^http:\/\/127\.0\.0\.1:\d+\//, { timeout: 30000 });
   await page.waitForLoadState("domcontentloaded");
   return page;
 };
@@ -199,6 +200,17 @@ try {
     "data/workspace/Saved Invoices/Demo/November2026/installer.pdf",
   );
   expect(fs.readFileSync(archived).equals(bytes)).toBe(true);
+  const popupEvent = page.waitForEvent("popup");
+  await page.evaluate(() => {
+    const report = window.open("", "_blank");
+    if (!report) throw Error("Report window blocked");
+    report.document.write("<h1>KNOWGST report preview</h1>");
+    report.document.close();
+  });
+  const popup = await popupEvent;
+  await expect(popup.locator("h1")).toHaveText("KNOWGST report preview");
+  expect(await popup.evaluate(() => typeof window.require)).toBe("undefined");
+  await popup.close();
   await page.screenshot({ path: path.join(output, "installed-app.png") });
   await app.close();
   app = null;
@@ -228,6 +240,7 @@ try {
           "backup and restore including PDF bytes",
           "restart persistence",
           "bundled guide",
+          "sandboxed report window",
         ],
         passed: true,
       },

@@ -116,10 +116,11 @@ async function start() {
     callback(false),
   );
   session.setPermissionCheckHandler(() => false);
+  const trustedContents = new Set([window.webContents.id]);
   session.webRequest.onBeforeSendHeaders(
     { urls: [gateway.origin + "/*"] },
     (details, callback) => {
-      if (details.webContentsId === window.webContents.id)
+      if (trustedContents.has(details.webContentsId))
         details.requestHeaders["x-knowgst-key"] = secret;
       callback({ requestHeaders: details.requestHeaders });
     },
@@ -128,6 +129,27 @@ async function start() {
     if (new URL(url).origin !== gateway.origin) event.preventDefault();
   });
   window.webContents.setWindowOpenHandler(({ url }) => {
+    // Report printing writes a same-origin about:blank document. PDF
+    // fallbacks use locally created blob URLs; neither needs Node access.
+    if (
+      url === "about:blank" ||
+      url === "" ||
+      url.startsWith(`blob:${gateway.origin}/`)
+    ) {
+      return {
+        action: "allow",
+        overrideBrowserWindowOptions: {
+          title: "KNOWGST document",
+          autoHideMenuBar: true,
+          webPreferences: {
+            nodeIntegration: false,
+            contextIsolation: true,
+            sandbox: true,
+            webSecurity: true,
+          },
+        },
+      };
+    }
     try {
       const parsed = new URL(url);
       if (parsed.origin === gateway.origin) window.loadURL(url);
@@ -135,6 +157,19 @@ async function start() {
         shell.openExternal(url);
     } catch {}
     return { action: "deny" };
+  });
+  window.webContents.on("did-create-window", (child) => {
+    const id = child.webContents.id;
+    trustedContents.add(id);
+    child.on("closed", () => trustedContents.delete(id));
+    child.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+    child.webContents.on("will-attach-webview", (event) =>
+      event.preventDefault(),
+    );
+    child.webContents.on("will-navigate", (event, url) => {
+      if (url !== "about:blank" && new URL(url).origin !== gateway.origin)
+        event.preventDefault();
+    });
   });
   window.webContents.on("will-attach-webview", (event) =>
     event.preventDefault(),

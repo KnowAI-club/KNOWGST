@@ -2,9 +2,15 @@
 
 Open-source invoicing and bookkeeping. New KNOWGST code is GPL-3.0-only; reused Free GST code retains its MIT notices.
 
-**Local development preview: use test data.** The original product modules are integrated. This is not yet a certified GST, hosted, or packaged macOS release.
+**Release candidate: use test data until your books and workflows have been reviewed.** Native macOS and Windows installer builds are available through the desktop pipeline. Publisher signing, Apple notarization and taxpayer-specific compliance approval remain release gates.
 
-## Run
+## Desktop builds
+
+The [Desktop installers workflow](https://github.com/KnowAI-club/KNOWGST/actions/workflows/desktop.yml) builds native installers and tests installation, SQLite, PDF export, backup/restore and restart persistence. Download the artifact only from a successful run. Candidates are versioned `1.0.0-rc.1` and are not publisher-signed.
+
+See [desktop installation, data migration and build instructions](docs/DESKTOP-RELEASE.md). Installed apps bundle their runtime and do not require Node or a development server. Upgrades preserve the separate data directory; import existing development data using a verified backup.
+
+## Run from source
 
 Node.js 22.22+ and pnpm 9.15.9, Python 3 and a C/C++ build toolchain (macOS Command Line Tools or Linux build-essential):
 
@@ -19,7 +25,7 @@ Open http://127.0.0.1:4173. Both interface and protected local service start tog
 
 Dashboard, seven invoice/document types and PDF output, clients, inventory, purchases, expenses, receipts, recurring invoices, reports, GST returns, income-tax calculations, settings, print settings, backups, control panel, onboarding and local app lock. These reuse the audited upstream implementation; importing a module does not establish complete end-to-end parity or current tax compliance.
 
-The approved minimal interface uses neutral surfaces, Inter, restrained blue accents and light/dark themes. See [implementation status](docs/IMPLEMENTATION-STATUS.md) for test coverage and remaining boundaries.
+The approved minimal interface uses neutral surfaces, Inter, restrained neutral accents and light/dark themes. See [implementation status](docs/IMPLEMENTATION-STATUS.md) for test coverage and remaining boundaries.
 
 The dashboard reads business-scoped records with month and currency filters, sales excluding GST/TCS, recorded money movement, current customer/supplier balances, an attention queue and a searchable activity inspector. The full document workflow remains under **Invoices**. Balances cover all dates; the money-movement chart excludes manual journals and untracked purchase payments and is not a bank balance.
 
