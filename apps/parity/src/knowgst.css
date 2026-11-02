@@ -156,6 +156,7 @@ html[data-theme=dark] .form-input{background:var(--card-bg);color:var(--text);bo
   .main-content :is(.grid,.stats-grid,.tax-form-grid) > * { min-width:0; }
   .main-content :is(.form-group,.workspace-heading-copy,.stat-card) { overflow-wrap:anywhere; }
   .main-content :is(.form-input,.form-select,.form-textarea,.search-box,.search-input,.filter-select,.filter-date) { max-width:100%; min-width:0; }
+  .main-content .filters-bar > .search-box { flex:1 1 240px; min-width:min(200px,100%); }
   .main-content .table-scroll { overflow-x:auto; overscroll-behavior-x:contain; }
   .main-content .table-scroll .data-table { width:100%; }
   .main-content .modal-content { max-width:calc(100vw - 32px); }

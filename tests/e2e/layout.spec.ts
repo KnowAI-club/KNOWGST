@@ -31,6 +31,7 @@ for (const viewport of [
   { width: 1920, height: 1080 },
   { width: 1440, height: 1000 },
   { width: 1280, height: 800 },
+  { width: 1008, height: 768 },
   { width: 768, height: 1024 },
   { width: 390, height: 844 },
   { width: 320, height: 700 },
@@ -70,6 +71,10 @@ for (const viewport of [
         geometry.scroll,
         `${view}: no page-wide horizontal scrolling`,
       ).toBeLessThanOrEqual(geometry.width + 1);
+      if (view === 'invoices') {
+        const search=await page.getByPlaceholder('Search client or invoice...').boundingBox();
+        expect(search?.width, 'invoice search remains readable beside wrapping filters').toBeGreaterThanOrEqual(200);
+      }
       await expect(heading).toHaveCSS(
         "font-size",
         viewport.width > 768 ? "28px" : "24px",

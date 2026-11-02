@@ -141,6 +141,7 @@ try {
   await expect(
     page.getByRole("button", { name: "View TEST/26/001", exact: true }),
   ).toBeVisible();
+  expect((await page.getByPlaceholder('Search client or invoice...').boundingBox()).width).toBeGreaterThanOrEqual(200);
   const pdfPath = path.join(output, "installed-invoice.pdf");
   fs.rmSync(pdfPath, { force: true });
   await app.evaluate(({ BrowserWindow }, pdfPath) => {
@@ -225,6 +226,7 @@ try {
   await expect(popup.locator("h1")).toHaveText("KNOWGST report preview");
   expect(await popup.evaluate(() => typeof window.require)).toBe("undefined");
   await popup.close();
+  await page.evaluate(() => { for (const element of document.querySelectorAll('*')) if (element instanceof HTMLElement && element.scrollTop) element.scrollTop = 0; });
   await page.screenshot({ path: path.join(output, "installed-app.png") });
   await app.close();
   app = null;
@@ -262,6 +264,7 @@ try {
           "SQLite 3.54.1",
           "unauthenticated gateway denied",
           "sandboxed renderer",
+          "usable invoice search in the installed window",
           "invoice PDF",
           "server-side PDF cancellation and byte-exact undo",
           "backup and restore including PDF bytes",
