@@ -16,6 +16,7 @@ export default function IntegrationSettings() {
     try {
       const s = await api();
       setStatus(s);
+      setSignInUrl(s.chatgpt.pending ? s.chatgpt.authorizationUrl || "" : "");
       if (initial)
         setSender({
           from: s.resend.from,
@@ -129,8 +130,8 @@ export default function IntegrationSettings() {
             </div>
             {status.chatgpt.pending && (
               <p role="status">
-                Complete sign-in in your browser. This page updates
-                automatically.{" "}
+                {status.chatgpt.notice ||
+                  "Complete sign-in in your browser. This page updates automatically."}{" "}
                 {signInUrl && (
                   <a href={signInUrl} target="_blank" rel="noreferrer">
                     Open sign-in browser

@@ -78,7 +78,7 @@ try {
   const origin = new URL(page.url()).origin;
   const health = await api(page, "/api/health");
   expect(health.sqliteVersion).toBe("3.54.1");
-  expect(health.version).toBe('1.0.0');
+  expect(health.version).toBe(JSON.parse(fs.readFileSync(path.join(root, 'apps/desktop/package.json'), 'utf8')).version);
   expect((await fetch(origin + "/api/profile")).status).toBe(403);
   const prefs = await app.evaluate(({ BrowserWindow }) =>
     BrowserWindow.getAllWindows()[0].webContents.getLastWebPreferences(),

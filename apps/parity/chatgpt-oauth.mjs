@@ -95,7 +95,8 @@ export function validateIdentity(
 export function chatgptOAuth(store, { fetcher = fetch } = {}) {
   let attempt = null,
     lastError = "",
-    generation = 0;
+    generation = 0,
+    authorizationGeneration = 0;
   const refreshes = new Map();
   const requests = new Set();
   const requestLimiter = createAiRequestLimiter();
@@ -164,7 +165,9 @@ export function chatgptOAuth(store, { fetcher = fetch } = {}) {
     requests.clear();
   }
   function cancel() {
+    authorizationGeneration++;
     if (attempt) {
+      attempt.controller.abort();
       clearTimeout(attempt.timer);
       attempt.server.close();
       attempt = null;
@@ -181,11 +184,16 @@ export function chatgptOAuth(store, { fetcher = fetch } = {}) {
         planEnabled: !!a.scopes?.includes("chatgpt.tokens.use.direct"),
       })),
       pending: !!attempt,
+      authorizationUrl: attempt?.authorizationUrl || null,
+      notice: attempt?.recoveries
+        ? "Finishing ChatGPT sign-in with a fresh authorization."
+        : "",
       error: lastError,
     };
   }
   async function start(clientId) {
     cancel();
+    const startedGeneration = authorizationGeneration;
     lastError = "";
     const old = store.get().accounts.find((a) => a.clientId === clientId);
     if (clientId && !old)
@@ -198,16 +206,52 @@ export function chatgptOAuth(store, { fetcher = fetch } = {}) {
       pending.clientId !== "dynamic_agent_client"
         ? pending.clientId
         : null;
-    const expectedClientId = old?.clientId || recovering;
+    let expectedClientId = old?.clientId || recovering;
     const a = {
       state: randomBytes(32).toString("base64url"),
       nonce: randomBytes(32).toString("base64url"),
       verifier: randomBytes(48).toString("base64url"),
       old,
       claimed: false,
+      recoveries: 0,
+      controller: new AbortController(),
     };
+    function authorizationUrl() {
+      const url = new URL(AUTH + "/api/accounts/authorize");
+      url.search = new URLSearchParams({
+        client_id: expectedClientId || "dynamic_agent_client",
+        ext_agent_host_id: store.get().hostId,
+        response_type: "code",
+        redirect_uri: a.redirect,
+        scope: SCOPES,
+        resource: RESOURCE,
+        state: a.state,
+        nonce: a.nonce,
+        code_challenge_method: "S256",
+        code_challenge: createHash("sha256")
+          .update(a.verifier)
+          .digest("base64url"),
+        ...(!expectedClientId ? { agent_name_hint: "KNOWGST" } : {}),
+        ...(old?.email ? { login_hint: old.email } : {}),
+      }).toString();
+      return url.href;
+    }
+    function armTimeout() {
+      clearTimeout(a.timer);
+      a.timer = setTimeout(
+        () => {
+          if (attempt === a) {
+            lastError = "Sign-in expired. Please try again.";
+            cancel();
+          }
+        },
+        5 * 60 * 1000,
+      );
+      a.timer.unref();
+    }
     const server = http.createServer(async (req, res) => {
       res.setHeader("Cache-Control", "no-store");
+      res.setHeader("Referrer-Policy", "no-referrer");
       res.setHeader("Content-Type", "text/plain; charset=utf-8");
       res.setHeader(
         "Content-Security-Policy",
@@ -227,6 +271,7 @@ export function chatgptOAuth(store, { fetcher = fetch } = {}) {
         return;
       }
       a.claimed = true;
+      const acceptedState = a.state;
       try {
         if (u.searchParams.has("error"))
           throw fail("ChatGPT sign-in was not completed.");
@@ -251,6 +296,10 @@ export function chatgptOAuth(store, { fetcher = fetch } = {}) {
             s.incompleteChatgptRegistration = { clientId: issued };
           });
         const tokens = await json(AUTH + "/api/accounts/oauth/token", {
+          signal: AbortSignal.any([
+            a.controller.signal,
+            AbortSignal.timeout(20000),
+          ]),
           method: "POST",
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
           body: new URLSearchParams({
@@ -262,7 +311,12 @@ export function chatgptOAuth(store, { fetcher = fetch } = {}) {
             resource: RESOURCE,
           }),
         });
-        const jwks = await json(AUTH + "/.well-known/jwks.json");
+        const jwks = await json(AUTH + "/.well-known/jwks.json", {
+          signal: AbortSignal.any([
+            a.controller.signal,
+            AbortSignal.timeout(20000),
+          ]),
+        });
         const identity = validateIdentity(tokens.id_token, jwks.keys, {
           clientId: issued,
           nonce: a.nonce,
@@ -299,6 +353,34 @@ export function chatgptOAuth(store, { fetcher = fetch } = {}) {
           "ChatGPT connected. You can close this tab and return to KNOWGST.",
         );
       } catch (e) {
+        // A cancelled exchange must never report an error into a newer sign-in
+        // or remove its retained registration.
+        if (attempt !== a) {
+          res.writeHead(400);
+          res.end("This sign-in was cancelled. Return to KNOWGST.");
+          return;
+        }
+        if (
+          e.oauthCode === "invalid_grant" &&
+          a.recoveries === 0 &&
+          a.issuedClientId
+        ) {
+          // Discard the rejected code. Continue through authorization once with
+          // the issued registration and completely new PKCE, state and nonce.
+          // A second rejection is surfaced; this never retries a token exchange.
+          expectedClientId = a.issuedClientId;
+          a.recoveries++;
+          a.state = randomBytes(32).toString("base64url");
+          a.nonce = randomBytes(32).toString("base64url");
+          a.verifier = randomBytes(48).toString("base64url");
+          a.claimed = false;
+          a.authorizationUrl = authorizationUrl();
+          armTimeout();
+          lastError = "";
+          res.writeHead(303, { Location: a.authorizationUrl });
+          res.end("Continuing ChatGPT sign-in with a fresh authorization.");
+          return;
+        }
         if (
           ["invalid_client", "unauthorized_client"].includes(e.oauthCode) &&
           a.issuedClientId
@@ -320,44 +402,23 @@ export function chatgptOAuth(store, { fetcher = fetch } = {}) {
         res.writeHead(400);
         res.end(lastError);
       } finally {
-        if (attempt === a) cancel();
+        if (attempt === a && a.state === acceptedState) cancel();
       }
     });
     await new Promise((resolve, reject) => {
       server.once("error", reject);
       server.listen(0, "127.0.0.1", resolve);
     });
+    if (authorizationGeneration !== startedGeneration) {
+      server.close();
+      throw fail("This sign-in was cancelled or superseded.");
+    }
     a.server = server;
     a.redirect = `http://127.0.0.1:${server.address().port}/auth/callback`;
     attempt = a;
-    a.timer = setTimeout(
-      () => {
-        if (attempt === a) {
-          lastError = "Sign-in expired. Please try again.";
-          cancel();
-        }
-      },
-      5 * 60 * 1000,
-    );
-    a.timer.unref();
-    const url = new URL(AUTH + "/api/accounts/authorize");
-    url.search = new URLSearchParams({
-      client_id: expectedClientId || "dynamic_agent_client",
-      ext_agent_host_id: store.get().hostId,
-      response_type: "code",
-      redirect_uri: a.redirect,
-      scope: SCOPES,
-      resource: RESOURCE,
-      state: a.state,
-      nonce: a.nonce,
-      code_challenge_method: "S256",
-      code_challenge: createHash("sha256")
-        .update(a.verifier)
-        .digest("base64url"),
-      ...(!expectedClientId ? { agent_name_hint: "KNOWGST" } : {}),
-      ...(old?.email ? { login_hint: old.email } : {}),
-    }).toString();
-    return { url: url.href };
+    a.authorizationUrl = authorizationUrl();
+    armTimeout();
+    return { url: a.authorizationUrl };
   }
   async function token() {
     const a = current();

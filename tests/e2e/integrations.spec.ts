@@ -1,4 +1,64 @@
 import { test, expect } from "@playwright/test";
+test("ChatGPT recovery follows the current sign-in attempt and clears cancelled links", async ({
+  page,
+}) => {
+  let phase = "idle";
+  const first =
+    "https://auth.openai.com/api/accounts/authorize?state=first-fixture";
+  const fresh =
+    "https://auth.openai.com/api/accounts/authorize?state=fresh-fixture";
+  await page.addInitScript(() => {
+    window.open = (() => ({ location: { href: "" }, close() {} })) as any;
+  });
+  await page.route("**/api/integrations", async (route) => {
+    await route.fulfill({
+      json: {
+        chatgpt: {
+          accounts: [],
+          active: null,
+          error: "",
+          pending: phase !== "idle",
+          notice:
+            phase === "fresh"
+              ? "Finishing ChatGPT sign-in with a fresh authorization."
+              : "",
+          authorizationUrl:
+            phase === "first" ? first : phase === "fresh" ? fresh : null,
+        },
+        resend: {
+          from: "",
+          name: "",
+          replyTo: "",
+          configured: false,
+          recent: [],
+        },
+      },
+    });
+  });
+  await page.route("**/api/integrations/chatgpt/start", async (route) => {
+    phase = "first";
+    await route.fulfill({ json: { url: first } });
+  });
+  await page.route("**/api/integrations/chatgpt/cancel", async (route) => {
+    phase = "idle";
+    await route.fulfill({ json: { ok: true } });
+  });
+  await page.goto("/?view=settings");
+  const section = page.locator("#section-integrations");
+  await section.getByRole("button", { name: "Continue with ChatGPT" }).click();
+  const retryLink = section.getByRole("link", { name: "Open sign-in browser" });
+  await expect(retryLink).toHaveAttribute("href", first);
+  phase = "fresh";
+  await expect(retryLink).toHaveAttribute("href", fresh);
+  await expect(section.getByRole("status")).toContainText(
+    "fresh authorization",
+  );
+  await section.getByRole("button", { name: "Cancel sign-in" }).click();
+  await expect(retryLink).toHaveCount(0);
+  await expect(
+    section.getByRole("button", { name: "Continue with ChatGPT" }),
+  ).toBeEnabled();
+});
 test.beforeEach(async ({ request }) => {
   await request.post("/api/local-prefs", {
     data: {

@@ -424,7 +424,7 @@ test("OAuth exchange errors name the failing step without exposing provider mess
     fetcher: async () =>
       new Response(
         JSON.stringify({
-          error: "invalid_grant",
+          error: "invalid_request",
           error_description: "code=PRIVATE-CODE verifier=PRIVATE-VERIFIER",
         }),
         { status: 400 },
@@ -441,7 +441,7 @@ test("OAuth exchange errors name the failing step without exposing provider mess
   const result = await fetch(callback),
     text = await result.text();
   assert.equal(result.status, 400);
-  assert.match(text, /sign-in exchange.*invalid_grant/);
+  assert.match(text, /sign-in exchange.*invalid_request/);
   assert.doesNotMatch(text, /PRIVATE|unused-code/);
   assert.equal(chat.status().active, null);
   assert.equal(chat.status().accounts.length, 0);
@@ -497,12 +497,13 @@ test("failed first code exchange retains only its registration and retries with 
     state: oldState,
     client_id: "oaiapp_test",
   });
-  assert.equal((await fetch(callback)).status, 400);
+  assert.equal((await fetch(callback, { redirect: "manual" })).status, 303);
   assert.deepEqual(store.get().incompleteChatgptRegistration, {
     clientId: "oaiapp_test",
   });
   assert.equal(chat.status().accounts.length, 0);
   assert.equal(chat.status().active, null);
+  chat.cancel();
   chat = chatgptOAuth(credentialStore(dir), { fetcher });
   auth = new URL((await chat.start()).url);
   assert.equal(auth.searchParams.get("client_id"), "oaiapp_test");
@@ -578,11 +579,206 @@ test("failed new registration leaves a different connected account and its token
     state: auth.searchParams.get("state"),
     client_id: "oaiapp_new",
   });
-  assert.equal((await fetch(callback)).status, 400);
+  assert.equal((await fetch(callback, { redirect: "manual" })).status, 303);
   assert.deepEqual(store.get().accounts, [existing]);
   assert.equal(chat.status().active, existing.clientId);
   assert.deepEqual(store.get().incompleteChatgptRegistration, {
     clientId: "oaiapp_new",
   });
   assert.doesNotMatch(JSON.stringify(chat.status()), /private/);
+});
+
+test("OAuth invalid_grant redirects once with fresh PKCE and never replays the rejected code", async (t) => {
+  const { store } = fixture(t);
+  let auth;
+  const exchanges = [];
+  const chat = chatgptOAuth(store, {
+    fetcher: async (url, options) => {
+      if (String(url).endsWith("/oauth/token")) {
+        const body = new URLSearchParams(options.body);
+        exchanges.push(body.get("code"));
+        assert.equal(body.get("client_id"), "oaiapp_test");
+        assert.equal(
+          body.get("redirect_uri"),
+          auth.searchParams.get("redirect_uri"),
+        );
+        const { createHash } = await import("node:crypto");
+        assert.equal(
+          createHash("sha256")
+            .update(body.get("code_verifier"))
+            .digest("base64url"),
+          auth.searchParams.get("code_challenge"),
+        );
+        if (exchanges.length === 1)
+          return new Response(
+            JSON.stringify({
+              error: "invalid_grant",
+              error_description: "PRIVATE-CODE",
+            }),
+            { status: 400 },
+          );
+        return response({
+          id_token: jwt(identity(auth.searchParams.get("nonce"))),
+          access_token: "private-access",
+          refresh_token: "private-refresh",
+          token_type: "Bearer",
+          expires_in: 3600,
+          scope: "openid resource.invoke chatgpt.tokens.use.direct",
+        });
+      }
+      return response({ keys: [jwk] });
+    },
+  });
+  t.after(() => chat.cancel());
+  const first = (auth = new URL((await chat.start()).url));
+  const callback = new URL(first.searchParams.get("redirect_uri"));
+  callback.search = new URLSearchParams({
+    code: "rejected-code",
+    state: first.searchParams.get("state"),
+    client_id: "oaiapp_test",
+  });
+  const recovery = await fetch(callback, { redirect: "manual" });
+  assert.equal(recovery.status, 303);
+  assert.equal(recovery.headers.get("referrer-policy"), "no-referrer");
+  assert.doesNotMatch(await recovery.text(), /PRIVATE|rejected-code/);
+  auth = new URL(recovery.headers.get("location"));
+  assert.equal(auth.origin, "https://auth.openai.com");
+  assert.equal(auth.pathname, "/api/accounts/authorize");
+  assert.equal(auth.searchParams.get("client_id"), "oaiapp_test");
+  assert.equal(
+    auth.searchParams.get("ext_agent_host_id"),
+    first.searchParams.get("ext_agent_host_id"),
+  );
+  assert.equal(auth.searchParams.has("agent_name_hint"), false);
+  for (const field of ["state", "nonce", "code_challenge"])
+    assert.notEqual(
+      auth.searchParams.get(field),
+      first.searchParams.get(field),
+    );
+  assert.equal(chat.status().authorizationUrl, auth.href);
+  assert.equal(chat.status().pending, true);
+  assert.equal(chat.status().error, "");
+  assert.equal((await fetch(callback, { redirect: "manual" })).status, 400);
+  assert.deepEqual(exchanges, ["rejected-code"]);
+  const fresh = new URL(auth.searchParams.get("redirect_uri"));
+  fresh.search = new URLSearchParams({
+    code: "fresh-code",
+    state: auth.searchParams.get("state"),
+  });
+  assert.equal((await fetch(fresh, { redirect: "manual" })).status, 200);
+  assert.deepEqual(exchanges, ["rejected-code", "fresh-code"]);
+  assert.equal(chat.status().active, "oaiapp_test");
+  assert.equal(chat.status().authorizationUrl, null);
+  assert.equal(chat.status().pending, false);
+  assert.equal(store.get().incompleteChatgptRegistration, undefined);
+});
+
+test("OAuth fresh authorization is bounded and does not loop after another invalid_grant", async (t) => {
+  const { store } = fixture(t);
+  let calls = 0;
+  const chat = chatgptOAuth(store, {
+    fetcher: async () => {
+      calls++;
+      return new Response(JSON.stringify({ error: "invalid_grant" }), {
+        status: 400,
+      });
+    },
+  });
+  t.after(() => chat.cancel());
+  let auth = new URL((await chat.start()).url);
+  for (const expected of [303, 400]) {
+    const callback = new URL(auth.searchParams.get("redirect_uri"));
+    callback.search = new URLSearchParams({
+      code: "fictional-" + calls,
+      state: auth.searchParams.get("state"),
+      client_id: "oaiapp_test",
+    });
+    const result = await fetch(callback, { redirect: "manual" });
+    assert.equal(result.status, expected);
+    if (expected === 303) auth = new URL(result.headers.get("location"));
+    else {
+      assert.equal(result.headers.get("location"), null);
+      assert.match(await result.text(), /invalid_grant/);
+    }
+  }
+  assert.equal(calls, 2);
+  assert.equal(chat.status().pending, false);
+  assert.equal(chat.status().authorizationUrl, null);
+  assert.match(chat.status().error, /invalid_grant/);
+  assert.deepEqual(store.get().incompleteChatgptRegistration, {
+    clientId: "oaiapp_test",
+  });
+});
+
+test("OAuth cancellation during listener startup cannot resurrect an attempt", async (t) => {
+  const { store } = fixture(t);
+  const chat = chatgptOAuth(store, {
+    fetcher: async () => {
+      throw Error("No provider call expected");
+    },
+  });
+  t.after(() => chat.cancel());
+  const starting = chat.start();
+  chat.cancel();
+  await assert.rejects(starting, /cancelled|superseded/i);
+  assert.equal(chat.status().pending, false);
+  assert.equal(chat.status().authorizationUrl, null);
+});
+
+for (const errorCode of ["invalid_grant", "invalid_client"])
+  test(`superseded OAuth callback ${errorCode} cannot change a newer attempt`, async (t) => {
+    const { store } = fixture(t);
+    let entered, release;
+    const waiting = new Promise((resolve) => (entered = resolve)),
+      gate = new Promise((resolve) => (release = resolve));
+    const chat = chatgptOAuth(store, {
+      fetcher: async () => {
+        entered();
+        await gate;
+        return new Response(JSON.stringify({ error: errorCode }), {
+          status: 400,
+        });
+      },
+    });
+    t.after(() => chat.cancel());
+    const first = new URL((await chat.start()).url),
+      callback = new URL(first.searchParams.get("redirect_uri"));
+    callback.search = new URLSearchParams({
+      code: "old-code",
+      state: first.searchParams.get("state"),
+      client_id: "oaiapp_test",
+    });
+    const oldRequest = fetch(callback, { redirect: "manual" });
+    await waiting;
+    const latest = await chat.start();
+    release();
+    assert.equal((await oldRequest).status, 400);
+    assert.equal(chat.status().error, "");
+    assert.equal(chat.status().pending, true);
+    assert.equal(chat.status().authorizationUrl, latest.url);
+    assert.deepEqual(store.get().incompleteChatgptRegistration, {
+      clientId: "oaiapp_test",
+    });
+  });
+
+test("concurrent OAuth starts leave only the latest callback listener active", async (t) => {
+  const { store } = fixture(t);
+  const chat = chatgptOAuth(store, {
+    fetcher: async () => {
+      throw Error("No provider call expected");
+    },
+  });
+  t.after(() => chat.cancel());
+  const [first, latest] = await Promise.allSettled([
+    chat.start(),
+    chat.start(),
+  ]);
+  assert.equal(first.status, "rejected");
+  assert.match(first.reason.message, /cancelled|superseded/);
+  assert.equal(latest.status, "fulfilled");
+  assert.equal(chat.status().authorizationUrl, latest.value.url);
+  assert.equal(chat.status().pending, true);
+  chat.cancel();
+  assert.equal(chat.status().pending, false);
+  assert.equal(chat.status().authorizationUrl, null);
 });

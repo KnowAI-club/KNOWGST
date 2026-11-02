@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.1 — 2 November 2026
+
+### ChatGPT sign-in recovery
+
+- A rejected authorization code starts one fresh authorization using the existing registration. Rejected codes are never replayed, and a repeated rejection stops visibly.
+- Cancelling while the callback listener starts now cancels the entire attempt. Delayed failures from older attempts cannot overwrite a newer sign-in.
+- The Settings retry link follows the current authorization attempt and disappears on completion or cancellation.
+- Authorization denial still stops sign-in; account approval is always controlled by OpenAI and the user.
+
 ## 1.0.0 — 2 November 2026
 
 First public KNOWGST desktop release for macOS and Windows. See the GitHub release for exact installer assets, native test evidence and checksums. Community installers are not publisher-signed or Apple-notarized.
