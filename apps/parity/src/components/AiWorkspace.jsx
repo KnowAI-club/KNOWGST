@@ -572,9 +572,15 @@ export default function AiWorkspace({ activeProfile, onNavigate }) {
             answer. History stays in memory and clears when you leave this page,
             switch business/model or start a new chat. No records are changed.
           </p>
+          <p>
+            AI has no access to credentials, SQL, files or sending tools.
+            Requests are checked against the current business before sharing
+            data. Draft suggestions need your review and a separate save or
+            send action. GST and invoice totals use the app’s calculator.
+          </p>
         </details>
         <p className="ai-caption ai-chat-footnote">
-          Verify AI suggestions against your records before acting.
+          AI suggests. You review and decide.
         </p>
       </div>
     </div>

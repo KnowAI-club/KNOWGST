@@ -248,7 +248,8 @@ export const getProfile = async () => {
 // ---- Saved Clients ----
 export const saveClient = async (client) => {
   const res = await apiFetch(`${API}/clients`, { method: 'POST', body: JSON.stringify(client) });
-  if (res.id) client.id = res.id;
+  if (res.client) Object.assign(client, res.client);
+  else if (res.id) client.id = res.id;
   return client;
 };
 
@@ -256,8 +257,15 @@ export const getAllClients = async () => {
   return apiFetch(`${API}/clients`);
 };
 
-export const deleteClient = async (id) => {
-  return apiFetch(`${API}/clients/${encodeURIComponent(id)}`, { method: 'DELETE' });
+export const getUnassignedClients = () => apiFetch(`${API}/clients?unassigned=1`);
+export const getClientInvoices = () => apiFetch(`${API}/clients/invoices`);
+export const assignClient = async (client) => {
+  const result = await apiFetch(`${API}/clients/${encodeURIComponent(client.id)}/assign`, { method: 'POST', body: JSON.stringify({ revision: client._revision }) });
+  return result.client;
+};
+export const deleteClient = async (client) => {
+  if (!client?.id || !client?._revision) throw new Error('Reload the client before deleting.');
+  return apiFetch(`${API}/clients/${encodeURIComponent(client.id)}`, { method: 'DELETE', headers: { 'If-Match': client._revision } });
 };
 
 // ---- Terms Templates ----

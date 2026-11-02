@@ -16,6 +16,8 @@ Follow-ups use server-owned, short-lived context tied to the business and ChatGP
 
 Expense and selected bank-import rows support suggested categories from existing allowlists. Applying a suggestion changes only draft state. Invoice and receipt dialogs support contextual email drafts: explicit preview/consent, validated text, apply, then the existing separate send action. Editing selected inputs or switching account invalidates stale suggestions. Provider responses are simulated in automated tests.
 
+AI request controls, draft boundaries, output limits and their limitations are documented in [AI guardrails](research/AI-GUARDRAILS.md). The server rechecks active scope at the final SDK transmission boundary; safeguards are enforced in code as well as instructions.
+
 ## Resend
 
 The API key is write-only in the UI. Configure a verified sender and optionally reply-to. Invoice and receipt dialogs render a PDF, expose it for review and require an explicit Send email action. The local service validates a single recipient, bounded subject/message and a PDF attachment up to 3 MB. A persistent request digest and Resend idempotency key protect same-draft retries. Accepted requests replay their saved result without resending; changed payloads under the same ID fail; uncertain attempts older than 23 hours require provider review. Accepted is not delivered. There is no delivery webhook in this local-only app.

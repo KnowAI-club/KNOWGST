@@ -54,9 +54,14 @@ for (const viewport of [
       const heading = page.locator(".workspace-heading h1");
       await expect(heading).toBeVisible();
       await expect(page.getByText("Loading…", { exact: true })).toHaveCount(0);
-      const box = (await heading.boundingBox())!;
-      headingLeft ??= box.x;
-      expect(box.x, `${view}: common left edge`).toBe(headingLeft);
+      // Initial profile loading can remount the page after its first heading.
+      // Retry the measurement, while keeping the same alignment assertion.
+      await expect(async () => {
+        const box = await heading.boundingBox();
+        expect(box, `${view}: heading remains rendered`).not.toBeNull();
+        headingLeft ??= box!.x;
+        expect(box!.x, `${view}: common left edge`).toBe(headingLeft);
+      }).toPass({ timeout: 5000 });
       await expect(page.locator(".workspace-heading")).toHaveCSS("margin-top", "0px");
       const geometry = await page
         .locator(".main-content")

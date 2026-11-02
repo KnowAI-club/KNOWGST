@@ -1,6 +1,6 @@
 # Bookkeeping AI: research and first implementation
 
-Reviewed 1 November 2026. This document distinguishes implemented features from future proposals.
+Reviewed 2 November 2026. This document distinguishes implemented features from future proposals. See the updated [Zoho/QuickBooks capability map](AI-COMPETITOR-MAP.md) and [enforced AI guardrails](AI-GUARDRAILS.md).
 
 ## Evidence and product choices
 
@@ -29,7 +29,7 @@ The existing ChatGPT adapter validates account access and available models, uses
 
 ## Next, after review
 
-1. Invoice and expense draft assistance with explicit field approval and deterministic recalculation.
+1. Expand reviewed invoice drafts beyond new INR tax invoices, and add expense draft assistance with explicit field approval and deterministic recalculation.
 2. Receipt extraction using supported image input, field confidence/review and duplicate detection; never automatically post extracted values.
 3. Suggested expense categories backed by a business-specific chart of accounts and reversible review workflow.
 4. Bank reconciliation suggestions only after bank import, statement integrity and deterministic matching are available.
@@ -55,7 +55,7 @@ Additional references reviewed:
 | Implemented in this change | Purchases → Import from image | ChatGPT image extraction; review extracted rows, product links and cess | Explicit image-sharing consent; validated model response; no auto-save; manual-entry fallback |
 | Implemented | Expense form | Category suggestions for the current draft | Approved category allowlist; selected-context consent; explicit apply; separate save. Receipt-to-expense extraction remains future work |
 | Implemented | Income Tax → Bank CSV import | Explain narration and suggest categories for up to ten selected rows | Preserve parser and original row; valid categories only; review/apply each row; no implied bank reconciliation |
-| Next | Invoice editor | Convert a plain-language request to an invoice draft | Resolve business/client/products locally, ask about ambiguity, use existing pricing/tax engine |
+| Implemented, bounded | Invoice editor | Convert a plain-language request to a new INR tax-invoice draft | Preview named catalog candidates, approve sharing, resolve saved client/products locally, block ambiguity, review/apply, then separately save with the existing pricing/tax engine |
 | Implemented | Invoice / receipt email dialog | Contextual payment or document email draft | Preview selected text, excluding recipient and PDF; review/apply; existing Resend send confirmation and idempotency |
 | Later | Reports | Explain movements with links to contributing records | Currency/business isolation; bounded source query; accurate period comparisons |
 | Later | Banking / reconciliation | Propose matches and explain unmatched transactions | Persistent bank transaction IDs, opening/closing balance checks, duplicate prevention and reversible allocations; current tax CSV importer is insufficient |
@@ -98,7 +98,7 @@ Expense and selected bank-row category suggestions use the existing category all
 
 Invoice/receipt email drafting sends only the shown reference, sender name, purpose, subject and message. Recipient addresses and PDF bytes are excluded. Suggestions are validated plain text, require explicit apply, and can be edited before the existing separate Resend send action. Changed document, recipient, draft or account invalidates a pending suggestion. Automated tests never send real email.
 
-Remaining roadmap: natural-language invoice drafts, expense receipt extraction, deterministic bank reconciliation, forecasting, catalog cleanup, and GST validation explanations. They are not represented as completed by the chat or category features.
+Remaining roadmap: expand invoice drafting beyond its initial new-INR-tax-invoice scope, expense receipt extraction, deterministic bank reconciliation, forecasting, catalog cleanup, and GST validation explanations. They are not represented as completed by the chat or category features.
 
 ### Verification of this implementation
 
@@ -108,3 +108,15 @@ Desktop and 390 px dark chat screenshots were inspected; the guide uses the impl
 
 
 On 2 November, a fresh user-authorized ChatGPT sign-in succeeded and the official SDK completed a live READY-only request using an available model. No business context was included in that test. Sign-in recovery now preserves an unverified public registration ID separately from active credentials, and reports safe stage-specific errors; 13 OAuth/email tests cover this recovery, PKCE, identity checks and redaction. The original generic 400 did not retain enough detail to establish its precise provider cause. Mobile chat now uses natural page flow; all four chat browser tests pass with internal width/text-boundary checks at 320, 390, 480, 800 and 1440 pixels in both themes. Real email delivery remains untested.
+
+## Reviewed invoice drafts and guardrails — 2 November 2026
+
+New Invoice now offers a contextual draft assistant for a blank, unsaved, tax-exclusive INR tax invoice. A local preview shows the typed request and bounded candidate names/aliases before consent. The model can select only existing aliases and positive quantities; rates, GST, cess and totals are rejected as model output. Locally resolved records are shown for review, then applied to the editor through a one-use resolution. Save remains separate. Duplicate names, unresolved matches, manual partial entries, changed scope/catalog, replayed proposals and unsafe amounts block application. Saved client print preferences are preserved. Other document types/currencies remain manual.
+
+The common SDK boundary now redacts known credential patterns, caps simultaneous/repeated requests and output, rejects refusals/incomplete responses and rechecks active scope immediately before network transmission. Search plans use strict read-only schemas. Email drafts reject new detected destinations. Scan results cannot be applied after an account/catalog change. These controls do not establish model accuracy; see [AI guardrails](AI-GUARDRAILS.md) for limits and regression cases.
+
+End-to-end testing exposed clients saved without a business owner. New clients are now stamped with the active business; stale or cross-business updates are rejected. Legacy clients require explicit revision-checked assignment in Clients, with linked transaction-history checks. They are not silently migrated or included in AI context. Client statements also use business-scoped invoices.
+
+Verification: `pnpm check`, all 189 parity service/unit tests plus the other workspace tests, and the web production build passed. The 148-case browser run passed 145 cases, skipped one optional guide capture and hit two existing layout-test failures: a heading measurement raced initial profile remounting, and a mobile case timed out during a long execution pause. The measurement now retries the same alignment assertion; all 12 layout/client-ownership checks passed on rerun, covering 147 distinct successful browser cases across runs. Invoice tests verify explicit Save, the existing ₹300 total with GST/cess, stock changes only on save, preserved client preferences, stale/duplicate Apply, malformed responses and desktop/mobile bounds. Provider replies in workflow tests are simulated.
+
+The refreshed dev service is healthy on SQLite at port 4184. A fresh live official-SDK connection test returned READY (HTTP 200), without business data. No emails were sent and no desktop binaries were built. The implemented review screen is recorded in [the invoice draft screenshot](../verification/ai-invoice-draft.png); the guide's chat screenshot was also refreshed.

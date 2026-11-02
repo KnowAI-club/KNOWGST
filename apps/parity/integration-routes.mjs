@@ -1,4 +1,5 @@
 import { categoryAssistant } from "./ai-categorization.mjs";
+import { invoiceDraftAssistant } from "./ai-invoice-draft.mjs";
 import { emailDraftAssistant } from "./ai-email-draft.mjs";
 import { recordAssistant } from "./ai-records.mjs";
 import { extractBill } from "./ocr-extraction.mjs";
@@ -45,7 +46,7 @@ export function integrationRoutes(app, runtime, readSummary, readModule) {
   });
   route("post", "/chatgpt/disconnect", (b) => chat.disconnect(b.clientId));
   route("get", "/chatgpt/models", () => chat.models());
-  route("post", "/chatgpt/ocr", (b) => extractBill(chat, b));
+  route("post", "/chatgpt/ocr", (b) => extractBill(chat, b, { readModule }));
   route("post", "/chatgpt/ask", (b) => chat.ask(b));
   const askRecords = readModule
     ? recordAssistant({ chat, readModule })
@@ -53,6 +54,10 @@ export function integrationRoutes(app, runtime, readSummary, readModule) {
   if (askRecords) {
     route("post", "/ai/records", askRecords);
     route("post", "/ai/categorize", categoryAssistant({ chat, readModule }));
+    const invoiceDraft = invoiceDraftAssistant({ chat, readModule });
+    route("post", "/ai/invoice-draft/preview", invoiceDraft.preview);
+    route("post", "/ai/invoice-draft/generate", invoiceDraft.generate);
+    route("post", "/ai/invoice-draft/resolve", invoiceDraft.resolve);
   }
   route("post", "/ai/email-draft", emailDraftAssistant({ chat }));
   if (readSummary) {

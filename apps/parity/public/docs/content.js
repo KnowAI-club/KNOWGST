@@ -35,6 +35,7 @@ export const pages = [
     "intro": "Start with the right document type, then add the customer and line items.",
     "steps": [
       "Open New Invoice and choose Tax Invoice, Quotation, Proforma / Estimate, Bill of Supply, Composition, Credit Note or Delivery Challan.",
+      "For a blank INR Tax Invoice, optionally open Draft an invoice with AI. Describe saved clients, products and quantities, preview what will be shared, and approve one request. Review the resolved draft and apply it to the editor. Prices and tax rates come from your saved products; Save stays separate.",
       "Enter the client, address, state, invoice date and supply details. Add a reference when creating a credit note.",
       "Add each item, quantity, rate, discount and GST rate. Confirm the tax split and total.",
       "Inspect the preview, then choose Save & Download. Confirm the record appears in Invoices and the downloaded PDF opens."
@@ -94,6 +95,7 @@ export const pages = [
     "steps": [
       "Open Clients and select Add Client.",
       "Enter the client name and available contact, address and GST details. Save the record.",
+      "New clients belong to the current business. Older unassigned clients appear under Clients needing a business. Review their history and use Assign to this business before selecting them in invoices or AI. Assignment is blocked when linked history belongs elsewhere.",
       "Select the saved client when preparing an invoice and verify the populated details."
     ],
     "notes": "Check names and GSTINs against the customer’s records. A saved profile is not proof of GST registration.",

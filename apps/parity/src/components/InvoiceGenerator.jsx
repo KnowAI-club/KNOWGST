@@ -1,5 +1,7 @@
 import { gstLayoutField } from '../utils/gstLayout';
 import PageHeader from './PageHeader';
+import AiInvoiceDraft from './AiInvoiceDraft';
+import { assertSafeInvoiceDraft, isEmptyInvoiceDraft } from '../utils/ai-invoice-draft.mjs';
 import { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
 import { ArrowLeft, Plus, Trash2, Download, UserPlus, Pencil, Settings, ChevronUp, ChevronDown, MessageCircle, Check, Loader, Truck, Printer, Eye, EyeOff } from 'lucide-react';
 import { jsPDF } from 'jspdf';
@@ -1499,7 +1501,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
     if (tpl) setCustomTerms(tpl.content);
   };
 
-  const selectSavedClient = (cli) => {
+  const selectSavedClient = (cli, { notify = true } = {}) => {
     // Spread the FULL client — earlier versions cherry-picked six fields
     // and silently dropped country/email/phone/isSEZ. Consequence: loading
     // an SEZ client via auto-complete cleared the SEZ flag, so the invoice
@@ -1554,7 +1556,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
         clientAutoPrint: !!cli.autoPrint,
       }));
     }
-    toast(`Loaded client: ${cli.name}`, 'info');
+    if (notify) toast(`Loaded client: ${cli.name}`, 'info');
   };
 
   // Open modal to add new client (pre-fill from current invoice fields)
@@ -1576,7 +1578,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
 
   // Save from modal (add or update)
   const handleClientModalSave = async (formData) => {
-    const data = { ...formData };
+    const data = { ...(isEditingClient ? modalClient : {}), ...formData };
     if (isEditingClient && modalClient?.id) data.id = modalClient.id;
     await saveClient(data);
     const updated = await getAllClients();
@@ -3246,6 +3248,19 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
     toast('E-Way Bill JSON downloaded', 'success');
   };
 
+  const aiInvoiceFormIdentity = JSON.stringify({ profile, invoiceType, client, details, items, invoiceOptions, taxInclusive, customTerms, customNotes, internalNote, extraSections, selectedTermsId, creditToApply });
+  const aiInvoiceBlocked = saving || readOnlyDoc || !!editingBill || hasBeenSaved.current || invoiceType !== 'tax-invoice' || (invoiceOptions.currency || 'INR') !== 'INR' || taxInclusive || (profile?.country || 'India') !== 'India' || !isEmptyInvoiceDraft(client, items, defaultTaxRate);
+  const applyAiInvoiceDraft = (suggestion, originalIdentity) => {
+    if (aiInvoiceBlocked || aiInvoiceFormIdentity !== originalIdentity || !suggestion?.canApply || !suggestion.client || !suggestion.items?.length) return false;
+    assertSafeInvoiceDraft({ items: suggestion.items, profile, client: suggestion.client, details, showGST, taxInclusive, invoiceOptions: { ...invoiceOptions, tcsCumulativeThisYear: clientYtd, tdsCumulativeThisYear: clientYtd } });
+    const nextItems = suggestion.items.map(item => ({ ...item, id: crypto.randomUUID(), discount: 0, isCharge: false }));
+    selectSavedClient(suggestion.client, { notify: false });
+    setProductSearch({ itemId: null, query: '' });
+    setItems(nextItems);
+    toast('Draft applied. Review the calculated invoice and save when ready.', 'success');
+    return true;
+  };
+
   return (
     <div className="generator-container">
       <PageHeader title={editingBill ? "Edit document" : "New Invoice"} subtitle="Create, review and save your billing document." />
@@ -3416,6 +3431,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
 
       <div className={`split-view ${previewCollapsed ? 'split-view-focus' : ''}`}>
         <div className="editor-pane">
+          {!editingBill && !hasBeenSaved.current && <AiInvoiceDraft businessId={profile?.id} formIdentity={aiInvoiceFormIdentity} disabled={aiInvoiceBlocked} onApply={applyAiInvoiceDraft} />}
           {/* v1.10.67 (#66 item 6) — the "Billing From (Business Profile)"
               card was removed. The company picker at the top of the sidebar
               already sets which business an invoice belongs to; a second

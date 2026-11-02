@@ -99,7 +99,8 @@ test('compatibility service: module persistence, isolation and recovery', async 
       assert.equal(exported.purchases.length,1);
       assert.equal(exported.meta.appLock,undefined);
       assert.equal((await call('/import','POST',{clients:[{id:'imported-client',name:'Imported client'}]})).status,200);
-      assert.equal((await call('/clients')).body.some(x=>x.id==='imported-client'),true);
+      assert.equal((await call('/clients')).body.some(x=>x.id==='imported-client'),false);
+      assert.equal((await call('/clients?unassigned=1')).body.some(x=>x.id==='imported-client'),true);
       assert.equal((await call('/products')).body.length,1);
       assert.equal((await call('/bills')).body.length,1);
     });

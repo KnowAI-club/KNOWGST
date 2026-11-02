@@ -4,6 +4,7 @@ import {
   emailDraftAssistant,
   emailDraftContext,
   parseEmailDraft,
+  assertEmailDestinations,
 } from "../ai-email-draft.mjs";
 const input = () => ({
   kind: "invoice",
@@ -14,6 +15,63 @@ const input = () => ({
   message: "Hello Sam, your invoice INV-1 is attached.",
   consent: true,
   model: "test",
+});
+test("email suggestions cannot introduce a new link, email address or UPI destination", () => {
+  for (const message of [
+    "Pay at attacker.example/collect",
+    "Pay https://billing.example/invoicea",
+    "Pay https://billing.example/InvoiceA?ref=changed",
+  ])
+    assert.throws(
+      () =>
+        assertEmailDestinations(
+          { subject: "Invoice", message },
+          {
+            subject: "Invoice",
+            message: "Pay https://billing.example/InvoiceA",
+          },
+        ),
+      /destination/,
+    );
+  for (const message of [
+    "Pay https://new.example/pay",
+    "Contact attacker@example.com",
+    "Pay owner@bank",
+    "Use upi://pay?pa=owner@bank",
+    "Visit www.new.example",
+  ])
+    assert.throws(
+      () => assertEmailDestinations({ subject: "Invoice", message }, input()),
+      /destination/,
+    );
+  assert.doesNotThrow(() =>
+    assertEmailDestinations(
+      { subject: "Invoice", message: "Use https://billing.example/pay." },
+      { subject: "Invoice", message: "Pay at https://billing.example/pay" },
+    ),
+  );
+});
+
+test("email drafting redacts credential patterns and checks account at the send boundary", async () => {
+  let active = "a",
+    sent = false;
+  const run = emailDraftAssistant({
+    chat: {
+      status: () => ({ active }),
+      ask: async (request, { beforeSend }) => {
+        assert(!request.prompt.includes("fixture-password"));
+        active = "b";
+        beforeSend();
+        sent = true;
+        return { text: '{"subject":"One","message":"Two"}' };
+      },
+    },
+  });
+  await assert.rejects(
+    run({ ...input(), message: "Reference password=fixture-password" }),
+    /account changed/,
+  );
+  assert.equal(sent, false);
 });
 test("email context requires consent and allowlists only reviewed text", () => {
   assert.throws(

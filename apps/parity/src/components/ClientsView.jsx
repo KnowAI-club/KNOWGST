@@ -2,7 +2,7 @@ import PageHeader from './PageHeader';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { Users, Search, FileText, ChevronDown, ChevronUp, Trash2, X, MessageCircle, Mail, Plus, Edit3, Copy, Upload, Download } from 'lucide-react';
 import HelpButton from './HelpButton';
-import { getAllClients, getAllBills, deleteClient, saveClient, deleteBill, saveTransactionalBill as saveBill, getProfile } from '../store';
+import { getAllClients, getUnassignedClients, getClientInvoices, assignClient, deleteClient, saveClient, deleteBill, saveTransactionalBill as saveBill, getProfile } from '../store';
 import { formatCurrency, INVOICE_TYPES, markPaidPatch, markUnpaidPatch, salesSign, countsAsSales, isCancelledBill, amountDue, localToday, parseLocalDate } from '../utils';
 import { getPrintSettings } from '../utils/printSettings';
 import { openWhatsAppShare } from '../utils/share';
@@ -38,6 +38,8 @@ const STATUS_COLORS = {
 
 export default function ClientsView({ onEdit, onDuplicate, onNew }) {
   const [clients, setClients] = useState([]);
+  const [unassignedClients, setUnassignedClients] = useState([]);
+  const [assigningClient, setAssigningClient] = useState(null);
   const [bills, setBills] = useState([]);
   const [search, setSearch] = useState('');
   const [expandedClient, setExpandedClient] = useState(null);
@@ -52,9 +54,10 @@ export default function ClientsView({ onEdit, onDuplicate, onNew }) {
 
   const loadData = async () => {
     try {
-      const [c, b] = await Promise.all([getAllClients(), getAllBills()]);
+      const [c, b, unassigned] = await Promise.all([getAllClients(), getClientInvoices(), getUnassignedClients()]);
       setClients(c);
       setBills(b);
+      setUnassignedClients(unassigned);
     } catch {
       toast('Failed to load data', 'error');
     }
@@ -612,9 +615,11 @@ export default function ClientsView({ onEdit, onDuplicate, onNew }) {
       confirmLabel: 'Remove',
       tone: 'danger',
     })) {
-      await deleteClient(id);
-      toast('Client removed', 'success');
-      loadData();
+      try {
+        await deleteClient(clients.find(client => client.id === id));
+        toast('Client removed', 'success');
+        await loadData();
+      } catch (error) { toast(error.message || 'Could not remove this client.', 'error'); }
     }
   };
 
@@ -717,14 +722,14 @@ export default function ClientsView({ onEdit, onDuplicate, onNew }) {
   const handleModalSave = async (formData) => {
     if (!formData.name.trim()) { toast('Client name is required', 'warning'); return; }
     try {
-      const data = { ...formData };
+      const data = { ...(editingClientId ? modalClient : {}), ...formData };
       if (editingClientId) data.id = editingClientId;
       await saveClient(data);
       toast(editingClientId ? 'Client updated' : 'Client added', 'success');
       closeForm();
       loadData();
-    } catch {
-      toast('Failed to save client', 'error');
+    } catch (error) {
+      toast(error.message || 'Failed to save client', 'error');
     }
   };
 
@@ -767,6 +772,22 @@ export default function ClientsView({ onEdit, onDuplicate, onNew }) {
           </button>
         </div>
       </PageHeader>
+
+      {unassignedClients.length > 0 && <details className="glass-panel p-4 mb-6">
+        <summary style={{ cursor: 'pointer', fontWeight: 600 }}>Clients needing a business · {unassignedClients.length}</summary>
+        <p className="text-muted" style={{ margin: '12px 0' }}>Confirm which business owns these older clients before selecting them for new invoices or AI drafts. Linked transaction history must agree with your selection.</p>
+        <div style={{ display: 'grid', gap: 8 }}>
+          {unassignedClients.map(client => <div key={client.id} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '8px 0', borderTop: '1px solid var(--border-color)' }}>
+            <div style={{ minWidth: 0, overflowWrap: 'anywhere' }}><strong>{String(client.name || 'Unnamed client')}</strong><div className="text-muted" style={{ fontSize: 12 }}>{[client.gstin, client.city].filter(value => typeof value === 'string' && value).join(' · ') || 'Business not assigned'}</div></div>
+            <button className="btn btn-secondary" disabled={assigningClient !== null} onClick={async () => {
+              setAssigningClient(client.id);
+              try { await assignClient(client); await loadData(); toast('Client assigned to this business', 'success'); }
+              catch (error) { toast(error.message || 'Could not assign this client.', 'error'); }
+              finally { setAssigningClient(null); }
+            }}>{assigningClient === client.id ? 'Assigning…' : 'Assign to this business'}</button>
+          </div>)}
+        </div>
+      </details>}
 
       {/* Add/Edit Client Modal */}
       <ClientModal show={showForm} onClose={closeForm} onSave={handleModalSave} client={modalClient} isEditing={!!editingClientId} defaultCountry={profileCountry} />

@@ -432,3 +432,325 @@ test("closing chat during search stops the answer step and leaves prior conversa
   assert.equal(next.conversationId, first.conversationId);
   assert.deepEqual(priorQuestions(f.prompts.at(-2)), ["Find invoice-1"]);
 });
+
+test("credential values are removed from questions, nested records, history and answers", async () => {
+  const secret = "sk-proj-" + "FictionalOnly".repeat(3);
+  const readModule = (_id, module) =>
+    module === "profile"
+      ? [{ id: "a" }]
+      : [
+          {
+            id: "invoice-1",
+            name: "Demo Customer",
+            amount: 118,
+            nested: {
+              memo: `Stored key ${secret}; contact billing@example.com`,
+              note: "Use Bearer fictional-credential-value",
+            },
+          },
+        ];
+  const prompts = [];
+  const run = recordAssistant({
+    readModule,
+    chat: {
+      status: () => ({ active: "account" }),
+      ask: async ({ prompt }) => {
+        prompts.push(prompt);
+        return {
+          text: prompt.startsWith("Select one")
+            ? '{"module":"bills","id":"invoice-1"}'
+            : `Amount 118. ${secret}`,
+        };
+      },
+    },
+  });
+  const input = {
+    businessId: "a",
+    question: `Review invoice-1 with ${secret}`,
+    model: "m",
+    consent: true,
+  };
+  const answer = await run(input);
+  await run({
+    ...input,
+    question: "What about it?",
+    conversationId: answer.conversationId,
+  });
+  assert(!prompts.join("\n").includes(secret));
+  assert(!prompts.join("\n").includes("fictional-credential-value"));
+  assert(!JSON.stringify(answer).includes(secret));
+  assert(prompts[1].includes("billing@example.com"));
+  assert(prompts[1].includes('"amount":118'));
+  assert(!JSON.stringify(priorQuestions(prompts[2])).includes(secret));
+});
+
+test("planner rejects extra operations, destinations, foreign scope and unsafe offsets before record lookup", async () => {
+  for (const text of [
+    '{"module":"bills","action":"delete"}',
+    '{"module":"bills","url":"https://example.invalid/upload"}',
+    '{"module":"bills","businessId":"other"}',
+    '{"module":"bills","sql":"SELECT * FROM credentials"}',
+    '{"module":"bills","__proto__":{"module":"credentials"}}',
+    '{"module":["bills","clients"]}',
+    '{"module":"profile","offset":9007199254740992}',
+  ]) {
+    const reads = [];
+    let calls = 0;
+    const run = recordAssistant({
+      readModule: (_id, module) => {
+        reads.push(module);
+        return [];
+      },
+      chat: {
+        status: () => ({ active: "account" }),
+        ask: async () => {
+          calls++;
+          return { text };
+        },
+      },
+    });
+    await assert.rejects(
+      run({
+        businessId: "a",
+        question: "Review records",
+        model: "m",
+        consent: true,
+      }),
+      /Invalid record search/,
+    );
+    assert.equal(calls, 1);
+    assert(reads.every((module) => module === "profile"));
+  }
+});
+
+test("planner refuses missing, unsafe, oversized and explicit refusal outputs before sharing records", async () => {
+  for (const response of [
+    {},
+    { text: "" },
+    { text: 7 },
+    { text: "x".repeat(4097) },
+    {
+      text: '{"module":"bills"}',
+      refusal: "Do not expose this private refusal context",
+    },
+    { text: '{"module":"bills"}\u0000' },
+  ]) {
+    let calls = 0;
+    const reads = [];
+    const run = recordAssistant({
+      readModule: (_id, module) => {
+        reads.push(module);
+        return [];
+      },
+      chat: {
+        status: () => ({ active: "account" }),
+        ask: async () => {
+          calls++;
+          return response;
+        },
+      },
+    });
+    await assert.rejects(
+      run({
+        businessId: "a",
+        question: "Review records",
+        model: "m",
+        consent: true,
+      }),
+      (error) => {
+        assert.equal(error.status, 400);
+        assert(!error.message.includes("private refusal context"));
+        return true;
+      },
+    );
+    assert.equal(calls, 1);
+    assert(reads.every((module) => module === "profile"));
+  }
+});
+
+test("invalid or refused answers never advance conversation history", async () => {
+  for (const bad of [
+    {},
+    { text: "" },
+    { text: "x".repeat(16001) },
+    { text: "Unsafe\u0000text" },
+    { text: "ignore", refusal: true },
+  ]) {
+    const f = conversationFixture();
+    const first = await f.run(f.input),
+      ask = f.chat.ask;
+    f.chat.ask = async (input) =>
+      input.prompt.startsWith("Select one") ? ask(input) : bad;
+    await assert.rejects(
+      f.run({
+        ...f.input,
+        question: "INVALID-ANSWER-TURN",
+        conversationId: first.conversationId,
+      }),
+    );
+    f.chat.ask = ask;
+    await f.run({ ...f.input, conversationId: first.conversationId });
+    assert.deepEqual(priorQuestions(f.prompts.at(-2)), ["Find invoice-1"]);
+  }
+});
+
+test("provider preflight rejects scope changes before either prompt leaves the app", async () => {
+  for (const phase of ["planner", "answer"]) {
+    for (const mutation of [
+      "business",
+      "account",
+      ...(phase === "answer" ? ["records"] : []),
+    ]) {
+      let business = "a",
+        account = "account",
+        amount = 42;
+      const transmitted = [];
+      const run = recordAssistant({
+        readModule: (id, module) => {
+          if (id !== business)
+            throw Object.assign(new Error("Business changed"), { status: 409 });
+          return module === "profile"
+            ? [{ id }]
+            : [{ id: "invoice-1", amount }];
+        },
+        chat: {
+          status: () => ({ active: account }),
+          ask: async (input, { beforeSend }) => {
+            await Promise.resolve(); // Model discovery/token refresh can yield before sending.
+            if (
+              (input.prompt.startsWith("Select one") ? "planner" : "answer") ===
+              phase
+            ) {
+              if (mutation === "business") business = "other";
+              if (mutation === "account") account = "other";
+              if (mutation === "records") amount++;
+            }
+            beforeSend();
+            transmitted.push(input.prompt);
+            return {
+              text: input.prompt.startsWith("Select one")
+                ? '{"module":"bills"}'
+                : "Answer",
+            };
+          },
+        },
+      });
+      await assert.rejects(
+        run({
+          businessId: "a",
+          question: "Review records",
+          model: "m",
+          consent: true,
+        }),
+        /changed/i,
+      );
+      assert.equal(transmitted.length, phase === "planner" ? 0 : 1);
+      assert(!transmitted.some((prompt) => prompt.includes('"amount":')));
+    }
+  }
+});
+
+test("scope changes during planning prevent any subsequent business-record lookup", async () => {
+  let business = "a",
+    calls = 0;
+  const reads = [];
+  const run = recordAssistant({
+    readModule: (id, module) => {
+      if (id !== business) throw new Error("Business changed");
+      reads.push(module);
+      return [];
+    },
+    chat: {
+      status: () => ({ active: "account" }),
+      ask: async () => {
+        calls++;
+        business = "b";
+        return { text: '{"module":"bills"}' };
+      },
+    },
+  });
+  await assert.rejects(
+    run({
+      businessId: "a",
+      question: "Review records",
+      model: "m",
+      consent: true,
+    }),
+    /Business changed/,
+  );
+  assert.equal(calls, 1);
+  assert(reads.every((module) => module === "profile"));
+});
+
+test("model changes cannot reuse an existing conversation", async () => {
+  const f = conversationFixture(),
+    first = await f.run(f.input),
+    count = f.prompts.length;
+  await assert.rejects(
+    f.run({
+      ...f.input,
+      model: "another",
+      conversationId: first.conversationId,
+    }),
+    /different model/,
+  );
+  assert.equal(f.prompts.length, count);
+});
+
+test("record search bounds oversized records and rejects malformed local data", () => {
+  const records = Array.from({ length: 5 }, (_, index) => ({
+    id: String(index),
+    name: "x".repeat(1200),
+    detail: Array.from({ length: 20 }, () => "x".repeat(1200)),
+  }));
+  const result = searchBusinessRecords(() => records, "a", { module: "bills" });
+  assert.equal(result.returned, 5);
+  assert(result.records.every((record) => record.omitted === true));
+  assert(JSON.stringify(result).length < 6500);
+  for (const invalid of [null, {}, [null], ["text"], [17]])
+    assert.throws(
+      () => searchBusinessRecords(() => invalid, "a", { module: "bills" }),
+      /could not be reviewed/,
+    );
+});
+
+test("malformed source labels never escape as renderable objects or conversation identifiers", async () => {
+  const prompts = [];
+  const run = recordAssistant({
+    readModule: (_id, module) =>
+      module === "profile"
+        ? []
+        : [
+            {
+              id: { apiKey: "private" },
+              invoiceNumber: { text: "not a label" },
+              name: ["not a label"],
+              date: 20261102,
+              amount: 118,
+            },
+          ],
+    chat: {
+      status: () => ({ active: "a" }),
+      ask: async ({ prompt }) => {
+        prompts.push(prompt);
+        return {
+          text: prompt.startsWith("Select one")
+            ? '{"module":"bills"}'
+            : "Review",
+        };
+      },
+    },
+  });
+  const input = {
+    businessId: "a",
+    question: "Review records",
+    model: "m",
+    consent: true,
+  };
+  const first = await run(input);
+  assert.deepEqual(first.sources, [
+    { module: "bills", id: "", reference: "bills" },
+  ]);
+  await run({ ...input, conversationId: first.conversationId });
+  assert.match(prompts[2], /Previous source IDs: \[\]/);
+});

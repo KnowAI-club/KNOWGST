@@ -20,6 +20,34 @@ const request = () => ({
   consent: true,
   rows: [{ ...row }],
 });
+test("category prompts redact credential patterns and block a business change during preflight", async () => {
+  let business = "active",
+    sent = false;
+  const run = categoryAssistant({
+    chat: {
+      status: () => ({ active: "account" }),
+      ask: async (request, { beforeSend }) => {
+        assert(!request.prompt.includes("fixture-password"));
+        business = "changed";
+        beforeSend();
+        sent = true;
+        return { text: JSON.stringify(response()) };
+      },
+    },
+    readModule: (id) => {
+      if (id !== business) throw new Error("Business changed");
+      return [];
+    },
+  });
+  await assert.rejects(
+    run({
+      ...request(),
+      rows: [{ ...row, description: "Subscription password=fixture-password" }],
+    }),
+    /Business changed/,
+  );
+  assert.equal(sent, false);
+});
 const response = () => ({
   suggestions: [
     {

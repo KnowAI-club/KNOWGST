@@ -38,6 +38,7 @@ test("ChatGPT extraction requires consent and preserves product stock link and c
   await page.route("**/api/integrations/chatgpt/ocr", (r) => {
     calls++;
     expect(r.request().postDataJSON().consent).toBe(true);
+    expect(r.request().postDataJSON().businessId).toBe(profile.id);
     return r.fulfill({
       json: {
         supplierName: "Demo supplier",
@@ -144,6 +145,109 @@ test("ChatGPT extraction requires consent and preserves product stock link and c
     ).stock,
   ).toBe(12);
   expect(calls).toBe(1);
+});
+
+test("scan discards changed-account replies and blocks applying stale product matches", async ({
+  page,
+  request,
+}) => {
+  const before = await (await request.get("/api/purchases")).json();
+  await request.post("/api/products", {
+    data: {
+      id: "ocr-guard-product",
+      name: "Guard product",
+      stock: 5,
+      rate: 100,
+      taxPercent: 18,
+    },
+  });
+  let account = "a",
+    changeAccount = true;
+  await page.route("**/api/integrations", (r) =>
+    r.fulfill({ json: { chatgpt: { active: account }, resend: {} } }),
+  );
+  await page.route("**/api/integrations/chatgpt/models", (r) =>
+    r.fulfill({ json: [{ id: "vision", name: "Test model" }] }),
+  );
+  await page.route("**/api/integrations/chatgpt/ocr", (r) => {
+    if (changeAccount) account = "b";
+    return r.fulfill({
+      json: {
+        supplierName: "Fictional supplier",
+        supplierGstin: "",
+        invoiceNumber: "OCR-GUARD",
+        date: "2026-11-02",
+        grandTotal: 118,
+        taxBreakdown: {
+          taxableValue: 100,
+          cgst: 9,
+          sgst: 9,
+          igst: 0,
+          cess: 0,
+          roundOff: 0,
+        },
+        items: [
+          {
+            name: "Guard product",
+            hsn: "",
+            quantity: 1,
+            rate: 100,
+            amount: 100,
+            taxPercent: 18,
+            cessPercent: 0,
+          },
+        ],
+      },
+    });
+  });
+  await page.goto("/?view=purchases");
+  await page
+    .getByRole("button", { name: "Import from image (OCR)", exact: true })
+    .click();
+  await page
+    .locator('input[type=file][accept="image/*"]')
+    .setInputFiles({
+      name: "guard.png",
+      mimeType: "image/png",
+      buffer: Buffer.from(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jL9kAAAAASUVORK5CYII=",
+        "base64",
+      ),
+    });
+  const extract = page.getByRole("button", {
+    name: "Extract fields",
+    exact: true,
+  });
+  await page.getByLabel("Send this image to ChatGPT for extraction").check();
+  await extract.click();
+  await expect(page.getByRole("alert")).toContainText(
+    "ChatGPT account changed",
+  );
+  await expect(page.getByLabel("Linked product 1")).toHaveCount(0);
+  changeAccount = false;
+  await page.getByLabel("Send this image to ChatGPT for extraction").check();
+  await extract.click();
+  await expect(page.getByLabel("Linked product 1")).toHaveValue(
+    "ocr-guard-product",
+  );
+  await request.post("/api/products", {
+    data: {
+      id: "ocr-new-product",
+      name: "New catalog record",
+      rate: 50,
+      taxPercent: 18,
+      stock: 0,
+    },
+  });
+  await page.getByRole("button", { name: /Use these values/ }).click();
+  await expect(
+    page.getByText(
+      "Business or product catalog changed. Reopen the image to use current records.",
+      { exact: true },
+    ),
+  ).toBeVisible();
+  await expect(page.locator(".bill-ocr")).toBeVisible();
+  expect(await (await request.get("/api/purchases")).json()).toEqual(before);
 });
 
 test("provider rejection preserves manual entry and does not change records", async ({

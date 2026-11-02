@@ -21,11 +21,15 @@ export default function BillOCR({ onClose, onExtracted }) {
   const [consent, setConsent] = useState(false);
   const [aiError, setAiError] = useState("");
   const generation = useRef(0);
+  const requestLock = useRef(false);
+  const resultAccount = useRef(undefined);
   const [file, setFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState("");
   const [status, setStatus] = useState("idle"); // 'idle' | 'ocr' | 'done' | 'error'
   const [rawText, setRawText] = useState("");
   const [parsed, setParsed] = useState(null);
+  const latestParsed = useRef(parsed);
+  latestParsed.current = parsed;
   // v1.10.35 — Products catalog loaded once on mount. Used to enrich
   // extracted line items with the user's known HSN + GST rate so they
   // don't have to retype for products they've already saved.
@@ -82,7 +86,7 @@ export default function BillOCR({ onClose, onExtracted }) {
     };
   }, []);
   const runChatGPT = async () => {
-    if (!file || !consent || !model) return;
+    if (!file || !consent || !model || requestLock.current) return;
     if (!business.current) {
       setAiError(
         "Wait for the business and product catalog to load, or reopen this dialog.",
@@ -96,11 +100,26 @@ export default function BillOCR({ onClose, onExtracted }) {
       return;
     }
     const version = ++generation.current;
+    requestLock.current = true;
+    resultAccount.current = undefined;
     setStatus("ocr");
     setParsed(null);
     setAiError("");
     setConsent(false);
     try {
+      const [profile, integration, products] = await Promise.all([
+        getProfile(),
+        integrationRequest(),
+        getAllProducts(),
+      ]);
+      if (version !== generation.current) return;
+      if (
+        profile?.id !== business.current ||
+        JSON.stringify(products) !== JSON.stringify(catalog)
+      )
+        throw new Error(
+          "Business or product catalog changed. Reopen the image to use current records.",
+        );
       const image = await new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => resolve(reader.result);
@@ -112,8 +131,18 @@ export default function BillOCR({ onClose, onExtracted }) {
         model,
         image,
         consent: true,
+        businessId: business.current,
       });
       if (version !== generation.current) return;
+      if (
+        (await integrationRequest()).chatgpt?.active !==
+        integration.chatgpt?.active
+      )
+        throw new Error(
+          "ChatGPT account changed. Review the image and try again.",
+        );
+      if (version !== generation.current) return;
+      resultAccount.current = integration.chatgpt?.active;
       if ((await getProfile())?.id !== business.current)
         throw new Error(
           "Business changed. Reopen the image in the correct business.",
@@ -143,6 +172,8 @@ export default function BillOCR({ onClose, onExtracted }) {
         );
         setStatus("error");
       }
+    } finally {
+      requestLock.current = false;
     }
   };
   const pickFile = (f) => {
@@ -169,37 +200,57 @@ export default function BillOCR({ onClose, onExtracted }) {
   };
 
   const applyToForm = async () => {
-    if (!parsed) return;
+    if (!parsed || requestLock.current) return;
+    const applying = parsed,
+      version = generation.current;
+    requestLock.current = true;
     try {
-      if (!business.current || (await getProfile())?.id !== business.current) {
-        toast(
-          "Business changed. Reopen the bill image in the correct business.",
-          "warning",
+      const [profile, integration, products] = await Promise.all([
+        getProfile(),
+        integrationRequest(),
+        getAllProducts(),
+      ]);
+      if (version !== generation.current) return;
+      if (applying !== latestParsed.current)
+        throw new Error(
+          "Invoice fields changed during review. Review them and apply again.",
         );
+      if (
+        !business.current ||
+        profile?.id !== business.current ||
+        JSON.stringify(products) !== JSON.stringify(catalog)
+      )
+        throw new Error(
+          "Business or product catalog changed. Reopen the image to use current records.",
+        );
+      if (integration.chatgpt?.active !== resultAccount.current)
+        throw new Error(
+          "ChatGPT account changed. Review the image and try again.",
+        );
+      const issue = ocrReviewIssue(parsed);
+      if (issue) {
+        toast(issue, "warning");
         return;
       }
-    } catch {
-      toast("Could not verify the active business. Try again.", "error");
-      return;
+      // v1.10.35 — Also ship line items + tax breakdown to the parent so
+      // the purchase form is pre-filled top to bottom (was: header only,
+      // items always blank).
+      onExtracted({
+        supplierName: parsed.supplierName,
+        supplierGstin: parsed.supplierGstin,
+        invoiceNumber: parsed.invoiceNumber,
+        date: parsed.date,
+        grandTotal: parsed.grandTotal,
+        items: parsed.items || [],
+        taxBreakdown: parsed.taxBreakdown || {},
+      });
+      onClose();
+    } catch (e) {
+      if (version === generation.current)
+        toast(e.message || "Could not verify this review. Try again.", "error");
+    } finally {
+      requestLock.current = false;
     }
-    const issue = ocrReviewIssue(parsed);
-    if (issue) {
-      toast(issue, "warning");
-      return;
-    }
-    // v1.10.35 — Also ship line items + tax breakdown to the parent so
-    // the purchase form is pre-filled top to bottom (was: header only,
-    // items always blank).
-    onExtracted({
-      supplierName: parsed.supplierName,
-      supplierGstin: parsed.supplierGstin,
-      invoiceNumber: parsed.invoiceNumber,
-      date: parsed.date,
-      grandTotal: parsed.grandTotal,
-      items: parsed.items || [],
-      taxBreakdown: parsed.taxBreakdown || {},
-    });
-    onClose();
   };
 
   // v1.10.35 — Line-item editors: user can tweak / add / remove

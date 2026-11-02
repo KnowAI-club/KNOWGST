@@ -405,21 +405,81 @@ app.post('/api/profile', (req, res) => {
 // CLIENTS
 // ========================
 app.get('/api/clients', (req, res) => {
-  const clients = readAllFromDir('clients');
-  clients.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  const businessId = requireBusiness();
+  const clients = readAllFromDir('clients').filter(client => {
+    const owner = businessOf(DATA_DIR, client);
+    return req.query.unassigned === '1' ? !owner : owner === businessId;
+  }).map(versionedInvoice);
+  clients.sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
   res.json(clients);
 });
 
+// Client statements must use the same authoritative business boundary as AI.
+app.get('/api/clients/invoices', (_req, res) => {
+  const businessId = requireBusiness();
+  res.json(readAllFromDir('bills').filter(bill => businessOf(DATA_DIR, bill) === businessId).map(versionedInvoice));
+});
+
 app.post('/api/clients', (req, res) => {
-  const client = req.body;
-  if (!client.id) client.id = 'cli_' + crypto.randomUUID();
-  const filePath = path.join(DATA_DIR, 'clients', safeFileName(client.id) + '.json');
+  requireSnapshotIdle();
+  const businessId = requireBusiness(), incoming = req.body;
+  validateObject(incoming);
+  if (typeof incoming.name !== 'string' || !incoming.name.trim() || incoming.name.length > 500)
+    throw storageError('Enter a client name of up to 500 characters.', 'bad-request', 400);
+  const id = incoming.id || 'cli_' + crypto.randomUUID(), filePath = recordPath(DATA_DIR, 'clients', id), old = readRecord(filePath);
+  const ownerIds = [incoming.businessId, incoming.profileId, incoming.profile?.id, incoming.data?.profile?.id].filter(value => value != null && value !== '');
+  for (const owner of ownerIds) {
+    validateId(owner);
+    if (owner !== businessId) throw storageError('Client belongs to another business.', 'conflict', 409);
+  }
+  const suppliedOwner = businessOf(DATA_DIR, incoming);
+  if (suppliedOwner && suppliedOwner !== businessId)
+    throw storageError('Client belongs to another business.', 'conflict', 409);
+  if (!old && !suppliedOwner && (incoming.ownerGstin || incoming.ownerName))
+    throw storageError('The supplied client business could not be verified.', 'conflict', 409);
+  if (old && (old.id !== id || businessOf(DATA_DIR, old) !== businessId))
+    throw storageError('Assign legacy clients first; another business’s client cannot be edited.', 'conflict', 409);
+  if (old && incoming._revision !== invoiceRevision(old))
+    throw storageError('Client changed. Reload before saving.', 'conflict', 409);
+  if (!old && incoming._revision !== undefined)
+    throw storageError('Client was deleted. Reload before saving.', 'conflict', 409);
+  const client = { ...old, ...incoming, id, businessId };
+  delete client._revision;
   writeJSON(filePath, client);
-  res.json({ success: true, id: client.id });
+  res.json({ success: true, id, client: versionedInvoice(client) });
+});
+
+app.post('/api/clients/:id/assign', (req, res) => {
+  requireSnapshotIdle();
+  validateObject(req.body);
+  const businessId = requireBusiness(), filePath = recordPath(DATA_DIR, 'clients', req.params.id), old = readRecord(filePath);
+  if (!old || old.id !== req.params.id || businessOf(DATA_DIR, old) || req.body.revision !== invoiceRevision(old))
+    throw storageError('Client changed or is already assigned. Reload first.', 'conflict', 409);
+  const name = typeof old.name === 'string' ? old.name.trim().toLowerCase() : '';
+  if (!name) throw storageError('This legacy client has no name. Repair it before assignment.', 'conflict', 409);
+  for (const directory of ['bills', 'trash', 'recurring', 'receipts']) {
+    for (const document of readAllFromDir(directory)) {
+      const linkedRecord = document.bill && typeof document.bill === 'object' ? document.bill : document;
+      const ids = [linkedRecord.clientId, linkedRecord.client?.id, linkedRecord.data?.client?.id].filter(value => typeof value === 'string' && value);
+      const names = [linkedRecord.clientName, linkedRecord.client?.name, linkedRecord.data?.client?.name, linkedRecord.receivedFrom];
+      const linked = ids.length ? ids.includes(old.id) : names.some(value => typeof value === 'string' && value.trim().toLowerCase() === name);
+      if (!linked) continue;
+      const owners = [businessOf(DATA_DIR, linkedRecord), businessOf(DATA_DIR, document)].filter(Boolean);
+      if (!owners.length) throw storageError('Resolve the business on linked documents before assigning this client.', 'conflict', 409);
+      if (owners.some(owner => owner !== businessId)) throw storageError('Document history links this client to another business. Reconcile or split it first.', 'conflict', 409);
+    }
+  }
+  const client = { ...cleanRecord(old), businessId };
+  writeJSON(filePath, client);
+  res.json({ success: true, id: client.id, client: versionedInvoice(client) });
 });
 
 app.delete('/api/clients/:id', (req, res) => {
-  const filePath = path.join(DATA_DIR, 'clients', safeFileName(req.params.id) + '.json');
+  requireSnapshotIdle();
+  const businessId = requireBusiness(), filePath = recordPath(DATA_DIR, 'clients', req.params.id), old = readRecord(filePath);
+  if (!old) return res.json({ success: true });
+  if (old.id !== req.params.id || businessOf(DATA_DIR, old) !== businessId || req.headers['if-match'] !== invoiceRevision(old))
+    throw storageError('Client changed, is unassigned or belongs to another business. Reload first.', 'conflict', 409);
   deleteFile(filePath);
   res.json({ success: true });
 });

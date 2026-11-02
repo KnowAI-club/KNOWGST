@@ -29,6 +29,38 @@ const draft = () => ({
   ],
   taxBreakdown: { cess: 2 },
 });
+test("OCR refuses oversized output and blocks stale business or account before image transmission", async () => {
+  assert.throws(() => parseBillResponse(" ".repeat(32001) + "{}"), /limit/);
+  for (const change of ["business", "account"]) {
+    let business = "active",
+      account = "a",
+      sent = false;
+    const chat = {
+      status: () => ({ active: account }),
+      ask: async (_request, { beforeSend }) => {
+        if (change === "business") business = "other";
+        else account = "b";
+        beforeSend();
+        sent = true;
+        return { text: JSON.stringify(draft()) };
+      },
+    };
+    await assert.rejects(
+      extractBill(
+        chat,
+        { model: "test", image, consent: true, businessId: "active" },
+        {
+          readModule: (id) => {
+            if (id !== business) throw new Error("Business changed");
+            return [];
+          },
+        },
+      ),
+      /changed/,
+    );
+    assert.equal(sent, false);
+  }
+});
 test("OCR response is allowlisted and rejects malformed or unsafe amounts", () => {
   const result = parseBillResponse(
     JSON.stringify({

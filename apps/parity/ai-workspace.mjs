@@ -1,4 +1,5 @@
 import { randomUUID, createHash } from "node:crypto";
+import { validatedAiText } from "./ai-guardrails.mjs";
 const tasks = {
   monthly:
     "Explain this monthly financial summary in plain language. Distinguish monthly movements from all-date balances. Give three practical next steps. Do not invent causes or forecasts.",
@@ -10,7 +11,30 @@ const tasks = {
 const fail = (message) => Object.assign(new Error(message), { status: 409 });
 const digest = (value) =>
   createHash("sha256").update(JSON.stringify(value)).digest("hex");
+const plainObject = (value) =>
+  value !== null &&
+  typeof value === "object" &&
+  [Object.prototype, null].includes(Object.getPrototypeOf(value));
+const identifier = (value, max) =>
+  typeof value === "string" &&
+  value.trim() &&
+  value.length <= max &&
+  !/[\u0000-\u001f\u007f]/.test(value);
+const period = (value) =>
+  typeof value === "string" &&
+  /^\d{4}-(0[1-9]|1[0-2])$/.test(value) &&
+  Number(value.slice(0, 4)) >= 1900;
+const currency = (value) =>
+  typeof value === "string" && /^[A-Z]{3}$/.test(value);
 export function summaryContext(summary) {
+  if (
+    !plainObject(summary) ||
+    !period(summary.month) ||
+    !currency(summary.currency)
+  )
+    throw fail(
+      "Summary contains an invalid month or currency. Review the dashboard first.",
+    );
   const money = {};
   for (const key of [
     "sales",
@@ -28,20 +52,38 @@ export function summaryContext(summary) {
       );
     money[key] = summary[key];
   }
+  if (
+    ["overdue", "unallocated", "lowStock", "warnings"].some(
+      (key) => !Array.isArray(summary[key]),
+    ) ||
+    (summary.coverage != null && !plainObject(summary.coverage))
+  )
+    throw fail(
+      "Summary contains invalid review counts. Review the dashboard first.",
+    );
+  const counts = {
+    overdueInvoices: summary.overdue.length,
+    unallocatedReceipts: summary.unallocated.length,
+    lowStockProducts: summary.lowStock.length,
+    untrackedPurchases: summary.untrackedPurchases,
+    olderRecordsReady: summary.coverage?.ready ?? 0,
+    olderRecordsNeedingReview: summary.coverage?.review ?? 0,
+    excludedValueWarnings: summary.warnings.length,
+  };
+  if (
+    Object.values(counts).some(
+      (value) => !Number.isSafeInteger(value) || value < 0,
+    )
+  )
+    throw fail(
+      "Summary contains invalid review counts. Review the dashboard first.",
+    );
   return {
     month: summary.month,
     currency: summary.currency,
     amountUnit: "integer minor currency units",
     amounts: money,
-    review: {
-      overdueInvoices: summary.overdue.length,
-      unallocatedReceipts: summary.unallocated.length,
-      lowStockProducts: summary.lowStock.length,
-      untrackedPurchases: summary.untrackedPurchases,
-      olderRecordsReady: summary.coverage?.ready || 0,
-      olderRecordsNeedingReview: summary.coverage?.review || 0,
-      excludedValueWarnings: summary.warnings.length,
-    },
+    review: counts,
     limitations:
       "Monthly sales exclude GST. Outstanding, overdue and payable balances use all dates. Recorded cash movements are not a bank balance and exclude manual journals and untracked purchase payments. Tax totals do not establish filing liability or input-tax eligibility. No individual records or identities are supplied.",
   };
@@ -50,12 +92,29 @@ export function aiWorkspace({ readSummary, chat, now = Date.now }) {
   const snapshots = new Map();
   function current(options) {
     const summary = readSummary(options);
-    if (!options.businessId || summary.businessId !== options.businessId)
+    if (!plainObject(summary) || summary.businessId !== options.businessId)
       throw fail("Business changed. Create a new preview.");
+    if (
+      summary.month !== options.month ||
+      summary.currency !== options.currency
+    )
+      throw fail("Summary period or currency changed. Create a new preview.");
     return summaryContext(summary);
   }
   return {
     preview(options) {
+      if (
+        !plainObject(options) ||
+        !identifier(options.businessId, 200) ||
+        !period(options.month) ||
+        !currency(options.currency) ||
+        Object.keys(options).some(
+          (key) => !["businessId", "task", "month", "currency"].includes(key),
+        )
+      )
+        throw fail(
+          "Choose a business, valid month and currency for the preview.",
+        );
       if (!Object.hasOwn(tasks, options.task)) throw fail("Choose an AI task.");
       const context = current(options);
       for (const [id, item] of snapshots)
@@ -80,14 +139,19 @@ export function aiWorkspace({ readSummary, chat, now = Date.now }) {
       });
       return { id, prompt, context, expiresAt: now() + 300000 };
     },
-    async analyze({ snapshotId, consent, model }) {
+    async analyze({ snapshotId, consent, model } = {}) {
       const item = snapshots.get(snapshotId);
       if (!item || item.expires <= now())
         throw fail("Preview expired. Review a new snapshot.");
       if (consent !== true)
         throw fail("Review and approve the snapshot before sending.");
+      if (!identifier(model, 150))
+        throw fail("Choose an available ChatGPT model.");
       const validate = () => {
+        if (item.expires <= now())
+          throw fail("Preview expired. Review a new snapshot.");
         if (
+          !identifier(item.account, 250) ||
           chat.status().active !== item.account ||
           digest(current(item.options)) !== digest(item.context)
         )
@@ -95,9 +159,12 @@ export function aiWorkspace({ readSummary, chat, now = Date.now }) {
       };
       validate();
       snapshots.delete(snapshotId); // One explicit consent permits one provider request, including failures.
-      const answer = await chat.ask({ model, prompt: item.prompt });
+      const answer = await chat.ask(
+        { model, prompt: item.prompt },
+        { beforeSend: validate },
+      );
       validate();
-      return answer;
+      return { text: validatedAiText(answer, { maxLength: 16000 }) };
     },
   };
 }
