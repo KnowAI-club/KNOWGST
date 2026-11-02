@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { createRequire } from "node:module";
-import { spawnSync } from "node:child_process";
+import { spawnSync, execFileSync } from "node:child_process";
 import sharp from "sharp";
 const root = path.resolve(import.meta.dirname, "../..");
 const out = path.join(root, ".local/desktop/runtime"),
@@ -64,6 +64,8 @@ fs.writeFileSync(
       platform: process.platform,
       arch: process.arch,
       sqlite: "3.54.1",
+      version: JSON.parse(fs.readFileSync(path.join(root, 'apps/desktop/package.json'), 'utf8')).version,
+      sourceCommit: execFileSync('git', ['rev-parse', 'HEAD'], {cwd:root, encoding:'utf8'}).trim(),
     },
     null,
     2,

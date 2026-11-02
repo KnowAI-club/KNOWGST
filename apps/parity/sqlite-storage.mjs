@@ -22,6 +22,7 @@ const collections = new Set([
   "purchases",
   "trash",
   "accounting",
+  "ai-workspaces",
 ]);
 const hidden = new Set([
   "knowgst.sqlite",

@@ -7,7 +7,13 @@ import { aiWorkspace } from "./ai-workspace.mjs";
 import { credentialStore } from "./integration-vault.mjs";
 import { chatgptOAuth } from "./chatgpt-oauth.mjs";
 import { resendEmail } from "./resend-email.mjs";
-export function integrationRoutes(app, runtime, readSummary, readModule) {
+import { workflowStore } from './ai-workflow-store.mjs';
+import { documentInbox } from './ai-document-inbox.mjs';
+import { importReview } from './ai-import-review.mjs';
+import { matchingAssistant } from './ai-matching.mjs';
+import { catalogAssistant } from './ai-catalog.mjs';
+import { reviewInsights } from './ai-review-insights.mjs';
+export function integrationRoutes(app, runtime, readSummary, readModule, workflowOptions) {
   let store;
   try {
     store = credentialStore(runtime);
@@ -58,6 +64,17 @@ export function integrationRoutes(app, runtime, readSummary, readModule) {
     route("post", "/ai/invoice-draft/preview", invoiceDraft.preview);
     route("post", "/ai/invoice-draft/generate", invoiceDraft.generate);
     route("post", "/ai/invoice-draft/resolve", invoiceDraft.resolve);
+    if (workflowOptions?.dataDir) {
+      const state = workflowStore({dataDir:workflowOptions.dataDir, readModule});
+      const dependencies = {...workflowOptions, chat, readModule, store:state};
+      for (const [group, handlers] of Object.entries({
+        documents:documentInbox(dependencies),
+        imports:importReview(dependencies),
+        matching:matchingAssistant(dependencies),
+        catalog:catalogAssistant(dependencies),
+        insights:reviewInsights(dependencies),
+      })) for (const [action, handler] of Object.entries(handlers)) route('post', `/ai/${group}/${action}`, handler);
+    }
   }
   route("post", "/ai/email-draft", emailDraftAssistant({ chat }));
   if (readSummary) {

@@ -1,0 +1,121 @@
+.ai-review-workflow {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+.ai-review-workflow > section {
+  border: 1px solid var(--border-color, #e3e5df);
+  border-radius: 8px;
+  padding: 16px;
+  background: var(--bg-card, var(--bg-primary, #fff));
+  min-width: 0;
+}
+.ai-review-workflow h3 {
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+.ai-review-workflow p {
+  font-size: 13px;
+  margin: 6px 0 12px;
+  color: var(--text-secondary, #666);
+  line-height: 1.5;
+}
+.ai-review-workflow label {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  min-width: 0;
+}
+.ai-review-workflow .ai-review-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+  gap: 12px;
+  margin: 12px 0;
+}
+.ai-review-workflow input,
+.ai-review-workflow select,
+.ai-review-workflow textarea {
+  max-width: 100%;
+  min-width: 0;
+}
+.ai-review-workflow textarea {
+  width: 100%;
+  resize: vertical;
+}
+.ai-review-workflow .ai-review-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+.ai-review-workflow .ai-review-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 12px 0;
+}
+.ai-review-workflow .ai-review-check input {
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+.ai-review-workflow .ai-review-scroll {
+  overflow-x: auto;
+  max-width: 100%;
+  margin: 12px 0;
+}
+.ai-review-workflow table {
+  width: 100%;
+  font-size: 13px;
+  border-collapse: collapse;
+}
+.ai-review-workflow td,
+.ai-review-workflow th {
+  padding: 10px;
+  text-align: left;
+  border-bottom: 1px solid var(--border-color, #e3e5df);
+  vertical-align: top;
+}
+.ai-review-workflow td {
+  overflow-wrap: anywhere;
+}
+.ai-review-workflow th {
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--text-secondary, #666);
+}
+.ai-review-workflow pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  max-height: 240px;
+  overflow: auto;
+}
+.ai-review-workflow [role="alert"] {
+  padding: 12px;
+  border: 1px solid var(--border-color, #e3e5df);
+  border-radius: 6px;
+}
+.ai-review-workflow .ai-review-list {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0;
+}
+.ai-review-workflow .ai-review-list li {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border-color, #e3e5df);
+  overflow-wrap: anywhere;
+}
+.ai-review-workflow dl {
+  display: grid;
+  grid-template-columns: minmax(90px, 120px) minmax(0, 1fr);
+  gap: 8px 12px;
+  font-size: 13px;
+}
+.ai-review-workflow dt {
+  color: var(--text-secondary, #666);
+}
+.ai-review-workflow dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}

@@ -71,9 +71,9 @@ app.use((req, res, next) => {
   res.setHeader('Cache-Control', 'no-store');
   res.setHeader('X-Content-Type-Options', 'nosniff');
   // Upstream updater/launcher must never replace KNOWGST with another product.
-  if (req.path === '/api/check-update') return res.json({ current: '0.1.0', latest: '0.1.0', updateAvailable: false });
+  if (req.path === '/api/check-update') return res.json({ current: '1.0.0', latest: '1.0.0', updateAvailable: false });
   if (req.path === '/api/control-panel/launch-script' || req.path === '/api/update') return res.status(409).json({ error: 'Signed KNOWGST updater is not available yet. Use the KNOWGST repository.' });
-  if (req.path === '/api/health') return res.json({ ok: true, version: '0.1.0', mode: 'compatibility', storage:'sqlite',sqliteVersion:storeFor(DATA_DIR)?.version, uptimeSec: Math.round(process.uptime()) });
+  if (req.path === '/api/health') return res.json({ ok: true, version: '1.0.0', mode: 'desktop-local', storage:'sqlite',sqliteVersion:storeFor(DATA_DIR)?.version, uptimeSec: Math.round(process.uptime()) });
   next();
 });
 
@@ -153,6 +153,17 @@ const integrations = integrationRoutes(app, RUNTIME_DIR, ({month,currency}) => {
   const fields={journal:'entries',audit:'audit',stockMovements:'movements',supplierPayments:'supplierPayments'};
   if(!Object.hasOwn(fields,module))throw storageError('Unsupported record module.','bad-request',400);
   return readAccounting(DATA_DIR,businessId)[fields[module]]||[];
+}, {
+  dataDir: DATA_DIR,
+  beforeWrite: requireSnapshotIdle,
+  invalidate: invalidateCache,
+  createBackup() {
+    requireSnapshotIdle();
+    const name = `${todayLocalIso()}-import-${crypto.randomUUID().slice(0,8)}`;
+    const target = path.join(BACKUPS_DIR, name);
+    createVerifiedBackup(DATA_DIR, target, {pdfDir:INVOICES_DIR,trashDir:TRASH_DIR});
+    return {name, scope:verifyBackup(target).scope};
+  },
 });
 
 // Ensure data directory and sub-directories exist
@@ -565,7 +576,7 @@ app.get('/api/dashboard',(req,res)=>{
   const result=dashboardSummary({bills:scoped('bills'),receipts:scoped('receipts'),expenses:scoped('expenses'),purchases:scoped('purchases'),products:scoped('products'),accounting:businessId?readAccounting(DATA_DIR,businessId):{},month,currency,today:localToday(),stockSettings:readRecord(META_PATH)?.stockAlertSettings || {}});
   const coverage=businessId?previewBackfill(DATA_DIR,businessId):null;
   let backup=null,backupUnavailable=false;
-  try{ensureDir(BACKUPS_DIR);const extra=extraBackupsDir(),dates=new Set(fs.readdirSync(BACKUPS_DIR).filter(n=>DATE_DIR.test(n)));if(extra&&fs.existsSync(extra))for(const n of fs.readdirSync(extra))if(DATE_DIR.test(n))dates.add(n);const latest=[...dates].sort().at(-1);if(latest)backup={date:latest,createdAt:fs.statSync(backupSourceDir(latest)).mtime.toISOString()};}catch{backupUnavailable=true;}
+  try{ensureDir(BACKUPS_DIR);const extra=extraBackupsDir(),dates=new Set(fs.readdirSync(BACKUPS_DIR).filter(n=>DATE_DIR.test(n)));if(extra&&fs.existsSync(extra))for(const n of fs.readdirSync(extra))if(DATE_DIR.test(n))dates.add(n);const latest=[...dates].sort((a,b)=>fs.statSync(backupSourceDir(a)).mtimeMs-fs.statSync(backupSourceDir(b)).mtimeMs).at(-1);if(latest)backup={date:latest,createdAt:fs.statSync(backupSourceDir(latest)).mtime.toISOString()};}catch{backupUnavailable=true;}
   res.json({...result,businessId,businessName:profile?.businessName||'',unassigned,coverage:coverage?{ready:coverage.ready,review:coverage.review}:null,backup,backupUnavailable});
 });
 app.get('/api/accounting/backfill',(req,res)=>res.json(previewBackfill(DATA_DIR,requireBusiness())));
@@ -583,6 +594,14 @@ app.get('/api/expenses', (req, res) => {
 
 app.post('/api/expenses', (req, res) => {
   const expense = req.body;
+  for (const field of ['gstAmount','taxAmount','gstPercent']) {
+    const value = expense[field];
+    if (value === undefined) continue;
+    const limit = field === 'gstPercent' ? 100 : Number(expense.amount);
+    if (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || !Number.isFinite(limit) || value > limit ||
+        !Number.isSafeInteger(Math.round(value * 100)) || Math.abs(value * 100 - Math.round(value * 100)) > 0.0001)
+      throw storageError(field === 'gstPercent' ? 'GST rate must be between 0 and 100 with at most two decimals.' : 'GST amount must be between zero and the expense total, with at most two decimals.','bad-request',400);
+  }
   if (!expense.id) expense.id = 'exp_' + crypto.randomUUID();
   const filePath = path.join(DATA_DIR, 'expenses', safeFileName(expense.id) + '.json');
   const old=readRecord(filePath), businessId=requireBusiness();
@@ -852,6 +871,8 @@ app.get('/api/export', (req, res) => {
     profiles: readAllFromDir('profiles'),
     purchases: readAllFromDir('purchases'),
     accounting: readAllFromDir('accounting'),
+    aiWorkspaces: readAllFromDir('ai-workspaces'),
+    aiImportBatches: readRecord(path.join(DATA_DIR,'ai-import-batches.json'), {schema:1,batches:[]}),
     // v1.10.77 - never the PIN hash: a backup file can travel (email, Drive).
     meta: withoutLock(readJSON(META_PATH, {})),
     exportedAt: new Date().toISOString(),
@@ -873,6 +894,7 @@ app.post('/api/import', (req, res) => {
   // so the next reservation doesn't collide.
   requireSnapshotIdle();
   const data = req.body;
+  if(data.aiWorkspaces?.length || data.aiImportBatches?.batches?.length) throw storageError('Use a complete verified backup to restore AI originals, review state and import history together with the books.','conflict',409);
 
   const collections={bills:'bills',clients:'clients',termsTemplates:'templates',products:'products',expenses:'expenses',recurring:'recurring',receipts:'receipts',profiles:'profiles',purchases:'purchases'};
   for(const [key,dir] of Object.entries(collections)){
@@ -1495,7 +1517,7 @@ function todayLocalIso() {
 // listed and restorable like the ones in data/backups.
 const BACKUP_FOLDER_KEY = 'backupFolder';
 const EXTRA_BACKUP_SUBDIR = 'FreeGSTBill Backups';
-const DATE_DIR = /^\d{4}-\d{2}-\d{2}$/;
+const DATE_DIR = /^\d{4}-\d{2}-\d{2}(?:-import-[0-9a-f]{8})?$/;
 const extraBackupsDir = () => {
   const folder = readJSON(META_PATH, {})[BACKUP_FOLDER_KEY];
   return typeof folder === 'string' && folder.trim() && path.isAbsolute(folder.trim())
@@ -1574,7 +1596,7 @@ app.get('/api/backups', (req, res) => {
       .map(name => {
         const stat = fs.statSync(backupSourceDir(name));
         return { date: name, createdAt: stat.mtime.toISOString(), inBackupFolder: extraDates.has(name), onlyInBackupFolder: !dates.has(name) };
-      });
+      }).sort((a,b) => b.createdAt.localeCompare(a.createdAt) || b.date.localeCompare(a.date));
     res.json(list);
   } catch (err) { errRes(res, 500, 'server-error', err); }
 });
@@ -1586,7 +1608,7 @@ app.get('/api/backups', (req, res) => {
 app.delete('/api/backups/:date', (req, res) => {
   try {
     const date = req.params.date;
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return errRes(res, 400, 'bad-request');
+    if (!DATE_DIR.test(date)) return errRes(res, 400, 'bad-request');
     const [y, m, d] = date.split('-').map(Number);
     if (m < 1 || m > 12 || d < 1 || d > 31 || y < 2000 || y > 2100) {
       return errRes(res, 400, 'bad-request');
@@ -1603,7 +1625,7 @@ app.post('/api/backups/:date/restore', (req, res) => {
   try {
     requireSnapshotIdle();
     const date=req.params.date;
-    if(!/^\d{4}-\d{2}-\d{2}$/.test(date)) return errRes(res,400,'bad-request');
+    if(!DATE_DIR.test(date)) return errRes(res,400,'bad-request');
     const source=backupSourceDir(date);
     if(!fs.existsSync(source)) return errRes(res,404,'not-found');
     const manifest=verifyBackup(source);

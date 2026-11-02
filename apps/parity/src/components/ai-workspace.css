@@ -11,6 +11,13 @@
   height: calc(100dvh - 68px);
   min-height: 580px;
 }
+.ai-workflow-view { height: auto; min-height: 580px; }
+.ai-chat-panel { display:flex; flex-direction:column; flex:1; min-height:0; }
+.ai-workspace-tabs { display:flex; flex-wrap:wrap; gap:4px; padding:12px 0 0; flex-shrink:0; }
+.ai-workspace-tabs button { color:var(--text-secondary); background:transparent; border:1px solid transparent; border-radius:6px; padding:8px 10px; font:inherit; font-size:12px; cursor:pointer; }
+.ai-workspace-tabs button[aria-selected="true"] { color:var(--text-primary); background:var(--bg-secondary); border-color:var(--border-color); }
+.ai-workspace-tabs button:focus-visible { outline:2px solid var(--text-primary); outline-offset:2px; }
+.ai-workflow-view [role="tabpanel"] { min-width:0; padding:20px 0; }
 .ai-chat .page-header {
   flex-shrink: 0;
   margin-bottom: 0;

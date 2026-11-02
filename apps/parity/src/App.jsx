@@ -1020,7 +1020,7 @@ function App() {
         </div>
       )}
       <div className="main-content" data-view={currentView}>
-        {currentView === 'ai' && <AiWorkspace activeProfile={profile} onNavigate={navigateDashboard} />}
+        {currentView === 'ai' && <AiWorkspace key={businessKey} activeProfile={profile} onNavigate={navigateDashboard} />}
         {currentView === 'dashboard' && <DashboardOverview activeProfile={profile} onNavigate={navigateDashboard} onNew={handleNewInvoice} />}
         {currentView === 'invoices' && (
           <Dashboard initialSearch={dashboardTarget.search || ''} initialStatus={dashboardTarget.status || 'all'} onNew={handleNewInvoice} onEdit={handleEditInvoice} onPrint={handlePrintInvoice} onDuplicate={handleDuplicateInvoice} onConvert={handleConvertToInvoice} onOpenProducts={() => setCurrentView('inventory')} onOpenSettings={() => setCurrentView('settings')} onOpenGuide={openDocs} onOpenSupport={() => setCurrentView('support')} activeProfile={profile} />
@@ -1036,10 +1036,10 @@ function App() {
              matched view's chunk actually loads; others stay unfetched. */}
         <Suspense fallback={<ViewLoading />}>
         {currentView === 'clients' && (
-          <ClientsView key={businessKey} onNew={handleNewInvoice} onEdit={handleEditInvoice} onDuplicate={handleDuplicateInvoice} />
+          <ClientsView key={businessKey} initialAiDraft={dashboardTarget.aiCatalogDraft} onDraftConsumed={() => setDashboardTarget({})} onNew={handleNewInvoice} onEdit={handleEditInvoice} onDuplicate={handleDuplicateInvoice} />
         )}
         {currentView === 'inventory' && (
-          <InventoryView key={businessKey} onOpenSettings={() => setCurrentView('settings')} />
+          <InventoryView key={businessKey} initialAiDraft={dashboardTarget.aiCatalogDraft} onDraftConsumed={() => setDashboardTarget({})} onOpenSettings={() => setCurrentView('settings')} />
         )}
         {/* v1.10.66 (#64 item 1) — `key={businessKey}` remounts these screens
             when the business changes. Each reads the business once when it
@@ -1047,10 +1047,10 @@ function App() {
             and a record added straight after switching was saved under the OLD
             business. Remounting makes every one of them read it again. */}
         {currentView === 'expenses' && (
-          <ExpenseTracker key={businessKey} />
+          <ExpenseTracker key={businessKey} initialAiDraft={dashboardTarget.aiDocumentDraft} onDraftConsumed={() => setDashboardTarget({})} />
         )}
         {currentView === 'purchases' && (
-          <PurchaseBills key={businessKey} />
+          <PurchaseBills key={businessKey} initialAiDraft={dashboardTarget.aiDocumentDraft} onDraftConsumed={() => setDashboardTarget({})} />
         )}
         {currentView === 'recurring' && (
           <RecurringInvoices key={businessKey} onEdit={handleEditInvoice} />

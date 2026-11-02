@@ -1,3 +1,5 @@
+> Historical implementation log. For the current v1 feature scope, see [AI workflows](../AI-WORKFLOWS.md) and the [release changelog](../../CHANGELOG.md). Entries below describe their dated increments, not the complete current release.
+
 # Bookkeeping AI: research and first implementation
 
 Reviewed 2 November 2026. This document distinguishes implemented features from future proposals. See the updated [Zoho/QuickBooks capability map](AI-COMPETITOR-MAP.md) and [enforced AI guardrails](AI-GUARDRAILS.md).

@@ -1,0 +1,30 @@
+name: Bug report
+description: Report a reproducible problem with fictional data.
+body:
+  - type: markdown
+    attributes:
+      value: Do not include real books, credentials, API keys or sign-in callback URLs. For vulnerabilities, see SECURITY.md.
+  - type: input
+    id: version
+    attributes:
+      label: KNOWGST version and operating system
+      placeholder: v1.0.0, macOS Apple silicon / Windows x64
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Include a minimal example using fictional data.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected and actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Screenshots or sanitized error details

@@ -283,7 +283,7 @@ export const pages = [
       "To restore, select the required snapshot, read the confirmation and choose Restore.",
       "Reopen records and PDFs after restoration. Keep the pre-restore recovery copy until you have checked the result."
     ],
-    "notes": "New complete snapshots include application data, Saved Invoices and PDF trash, verified with SHA-256 manifests. Legacy snapshots restore data only and leave PDFs in place. JSON exports are records-only. Backups are not encrypted. Use a separate secondary folder for each installation; a folder owned by another installation cannot be overwritten.",
+    "notes": "New complete snapshots include application data, Saved Invoices and PDF trash, verified with SHA-256 manifests. Legacy snapshots restore data only and leave PDFs in place. JSON exports are records-only. Backups are not encrypted. Use a separate secondary folder for each installation; a folder owned by another installation cannot be overwritten. Complete backups also include AI image originals, reviewed rules and import history. Pre-import snapshots are listed in Control Panel.",
     "screen": "control-panel",
     "view": "controlpanel"
   },
@@ -302,7 +302,7 @@ export const pages = [
     "view": "controlpanel"
   },
   {
-    "id": "integrations",
+    "id": "sharing",
     "title": "OCR, Drive and sharing",
     "group": "Help",
     "intro": "Understand which features run locally and which use an external service.",
@@ -341,7 +341,8 @@ export const pages = [
       "Press Enter or Send. Shift + Enter adds a new line. Live progress appears while the assistant reads current records and prepares the reply.",
       "Ask follow-up questions, expand Sources and open the source register to verify the answer. New chat clears conversation context and record-sharing consent.",
       "For a one-off summary, open Reviews & drafts. Select a task, month and currency, preview the shared totals, then approve this request. Previews expire after five minutes.",
-      "Check suggestions against your records. Copy reminder drafts and replace placeholders yourself; nothing is sent automatically. If a connection fails, your message stays in the composer for a manual retry."
+      "Check suggestions against your records. Copy reminder drafts and replace placeholders yourself; nothing is sent automatically. If a connection fails, your message stays in the composer for a manual retry.",
+      "Use Document inbox, Books & payments, Bank matching, Catalog review or Import assistant for reviewed workflows. Local rules, checks and CSV mapping do not require ChatGPT; generated content always requires explicit review."
     ],
     "notes": "Summary tasks share aggregate totals and counts. Record questions can share relevant party, tax and financial details from the active business after your approval. Credentials, attachments and other businesses are excluded. Searches return up to five matches; narrow your question if more exist. Recent questions and source IDs help follow-ups, but records are read again each time. Chat history is temporary and clears when you leave the page or change business/model; server context expires after 30 minutes. No records are changed. Screenshots use fictional data and simulated provider responses.",
     "screen": "ai-assistant",
@@ -362,6 +363,81 @@ export const pages = [
     "notes": "Product matching stays local. An ambiguous match is left unlinked; changing an item name clears its old link. Fixed-amount cess needs manual handling. ChatGPT may be unavailable for your model/account; enter the purchase manually if needed. Screenshot uses a simulated provider response and fictional data.",
     "screen": "ocr-chatgpt",
     "view": "purchases"
+  },
+  {
+    "id": "ai-document-inbox",
+    "title": "Scan receipts in the document inbox",
+    "group": "AI assistance",
+    "intro": "Keep original receipt images beside reviewed fields, then open a normal expense or purchase draft.",
+    "steps": [
+      "Open AI assistant → Document inbox. Upload PNG, JPEG or WebP images (up to 3 MB each).",
+      "Select an image and approve sharing it with your selected ChatGPT account for one scan.",
+      "Check supplier, reference, date, currency, GST, cess and totals against the original. Correct unresolved fields.",
+      "Confirm the review and open an expense or purchase draft. Check payment state and matched products, then use the form’s Save action."
+    ],
+    "notes": "The local queue holds up to 30 documents / 8 MB of original images. Duplicate images are blocked. Complete verified backups include originals and review state. PDFs and automatic mailbox intake are not supported. No document is posted by scanning it.",
+    "screen": "ai-inbox",
+    "view": "ai"
+  },
+  {
+    "id": "ai-bank-matching",
+    "title": "Review bank statement classifications",
+    "group": "AI assistance",
+    "intro": "Import statement rows, review suggested parties/categories and save your own matching rules.",
+    "steps": [
+      "Open AI assistant → Bank matching. Name the account, choose currency and load a CSV with date, description, amount and direction.",
+      "Preview dates, totals and possible duplicates. Confirm the retained rows before importing.",
+      "Select rows and confirm a matching rule, or preview selected data and request ChatGPT suggestions. Review before applying classifications.",
+      "Manage saved rules and their change history. Export reviewed CSV or remove an old statement review."
+    ],
+    "notes": "This workspace does not post entries, prove bank reconciliation or initiate a transfer. Up to 500 rows per file, 5,000 stored rows and ten rows per AI request. Conflicting rules require review.",
+    "screen": "ai-bank-matching",
+    "view": "ai"
+  },
+  {
+    "id": "ai-catalog",
+    "title": "Review catalog names and drafts",
+    "group": "AI assistance",
+    "intro": "Find duplicate-name candidates, confirm alternate names and prepare a new client or product draft.",
+    "steps": [
+      "Open AI assistant → Catalog review and choose Clients or Products. Review possible duplicate names.",
+      "Select an existing record and confirm an alternate name. This never merges records or changes historical transactions.",
+      "Describe a new record and preview the text being shared before requesting a draft.",
+      "Review extracted identity/details and possible existing matches. Open the normal form, complete required fields and Save separately."
+    ],
+    "notes": "AI does not guess GST rates, HSN, prices, opening stock or balances. Stale or conflicting aliases need review. Tax and stock histories are never merged automatically.",
+    "screen": "ai-catalog",
+    "view": "ai"
+  },
+  {
+    "id": "ai-books-review",
+    "title": "Review books, collections and supplier plans",
+    "group": "AI assistance",
+    "intro": "Inspect evidence, ledger movements and payment priorities using the current business’s saved records.",
+    "steps": [
+      "Open AI assistant → Books & payments. Choose Book review, Reports, Collections or Supplier plan.",
+      "Choose the period, currency and review date, then select Review records.",
+      "Open source references, inspect contributions and add review notes. Collections supports explicit disputed/do-not-contact holds. Supplier dates entered here are labelled planning dates.",
+      "For an optional explanation, preview the computed evidence and approve one ChatGPT request. Verify the explanation against its sources."
+    ],
+    "notes": "Marking reviewed changes review state only. Reports use posted ledger entries, which can differ from source-based reports. A supplier plan does not record or send a payment. These checks are not a complete audit or tax certification.",
+    "screen": "ai-books-review",
+    "view": "ai"
+  },
+  {
+    "id": "ai-import",
+    "title": "Import clients or products safely",
+    "group": "AI assistance",
+    "intro": "Map a CSV, review duplicates and create a recoverable batch of new master records.",
+    "steps": [
+      "Open AI assistant → Import assistant. Choose Clients or Products and a CSV of up to 250 KB / 300 data rows.",
+      "Map each source column to a supported field. Inspect the ready/skipped/error summary and correct all errors.",
+      "Confirm the reviewed import. KNOWGST first creates a complete verified snapshot, then creates the new records and batch history together.",
+      "Review the imported records. Undo import is available only while they are unchanged and have no linked documents, stock history or aliases."
+    ],
+    "notes": "This local workflow does not send your CSV to AI. Existing records are not replaced. Opening stock, balances and historical transactions are excluded. Find the pre-import backup in Control Panel.",
+    "screen": "ai-import",
+    "view": "ai"
   },
   {
     "id": "limitations",

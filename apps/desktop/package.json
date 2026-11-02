@@ -1,5 +1,10 @@
 {
-  "name": "knowgst-desktop", "productName": "KNOWGST", "version": "1.0.0-rc.1",
+  "name": "knowgst-desktop",
+  "productName": "KNOWGST",
+  "version": "1.0.0",
   "description": "Offline bookkeeping and GST billing for Indian businesses",
-  "author": "KnowAI", "license": "GPL-3.0-only", "main": "main.cjs", "private": true
+  "author": "KnowAI",
+  "license": "GPL-3.0-only",
+  "main": "main.cjs",
+  "private": true
 }

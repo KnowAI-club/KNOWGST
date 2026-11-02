@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import {
   ArrowUp,
   Plus,
@@ -11,6 +11,19 @@ import { integrationRequest as api } from "../services/integrations";
 import { askChat } from "../services/ai-chat";
 import { localToday } from "../utils";
 import "./ai-workspace.css";
+const AiDocumentInbox = lazy(() => import("./AiDocumentInbox"));
+const AiImportReview = lazy(() => import("./AiImportReview"));
+const AiMatching = lazy(() => import("./AiMatching"));
+const AiCatalogReview = lazy(() => import("./AiCatalogReview"));
+const AiReviewInsights = lazy(() => import("./AiReviewInsights"));
+const workspaces = {
+  chat: "Chat",
+  documents: "Document inbox",
+  insights: "Books & payments",
+  matching: "Bank matching",
+  catalog: "Catalog review",
+  imports: "Import assistant",
+};
 const titles = {
   monthly: "Monthly review",
   review: "Bookkeeping review",
@@ -31,6 +44,7 @@ const routes = {
   recurring: "recurring",
 };
 export default function AiWorkspace({ activeProfile, onNavigate }) {
+  const [workspaceTab, setWorkspaceTab] = useState("chat");
   const [messages, setMessages] = useState([]),
     [draft, setDraft] = useState(""),
     [models, setModels] = useState([]),
@@ -244,20 +258,24 @@ export default function AiWorkspace({ activeProfile, onNavigate }) {
     composer.current?.focus();
   };
   return (
-    <div className="ai-workspace ai-chat">
+    <div
+      className={`ai-workspace ai-chat${workspaceTab !== "chat" ? " ai-workflow-view" : ""}`}
+    >
       <PageHeader
         title="AI assistant"
         subtitle={activeProfile?.businessName || "Your business workspace"}
       >
-        <button
-          className="btn btn-secondary"
-          onClick={() => {
-            reset();
-            composer.current?.focus();
-          }}
-        >
-          <Plus size={15} /> New chat
-        </button>
+        {workspaceTab === "chat" && (
+          <button
+            className="btn btn-secondary"
+            onClick={() => {
+              reset();
+              composer.current?.focus();
+            }}
+          >
+            <Plus size={15} /> New chat
+          </button>
+        )}
         <button
           className="btn btn-secondary"
           onClick={() => onNavigate("settings")}
@@ -265,6 +283,44 @@ export default function AiWorkspace({ activeProfile, onNavigate }) {
           Connection settings
         </button>
       </PageHeader>
+      <div
+        className="ai-workspace-tabs"
+        role="tablist"
+        aria-label="Assistant workspace"
+      >
+        {Object.entries(workspaces).map(([id, label], index) => (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            tabIndex={workspaceTab === id ? 0 : -1}
+            aria-selected={workspaceTab === id}
+            aria-controls="ai-workspace-panel"
+            disabled={busy}
+            onClick={() => setWorkspaceTab(id)}
+            onKeyDown={(event) => {
+              const keys = Object.keys(workspaces),
+                next =
+                  event.key === "ArrowRight"
+                    ? (index + 1) % keys.length
+                    : event.key === "ArrowLeft"
+                      ? (index + keys.length - 1) % keys.length
+                      : event.key === "Home"
+                        ? 0
+                        : event.key === "End"
+                          ? keys.length - 1
+                          : null;
+              if (next !== null) {
+                event.preventDefault();
+                setWorkspaceTab(keys[next]);
+                event.currentTarget.parentElement.children[next].focus();
+              }
+            }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
       <div className="ai-chat-toolbar">
         <label className="ai-model-label">
           Model
@@ -287,302 +343,368 @@ export default function AiWorkspace({ activeProfile, onNavigate }) {
             ))}
           </select>
         </label>
-        <span className="ai-readonly">Read-only assistance</span>
-        <button
-          className="btn btn-secondary"
-          aria-expanded={toolsOpen}
-          aria-controls="ai-review-tools"
-          onClick={() => setToolsOpen((v) => !v)}
-        >
-          <SlidersHorizontal size={14} /> Reviews & drafts
-        </button>
-      </div>
-      {toolsOpen && (
-        <section
-          id="ai-review-tools"
-          className="ai-review-tools"
-          aria-label="Reviews and drafts"
-        >
-          <div className="ai-fields">
-            <label>
-              Task
-              <select
-                disabled={busy}
-                value={task}
-                onChange={(e) => option(setTask, e.target.value)}
-              >
-                {Object.entries(titles).map(([key, title]) => (
-                  <option key={key} value={key}>
-                    {title}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Month
-              <input
-                type="month"
-                disabled={busy}
-                value={month}
-                onChange={(e) => option(setMonth, e.target.value)}
-              />
-            </label>
-            <label>
-              Currency
-              <input
-                maxLength={3}
-                disabled={busy}
-                value={currency}
-                onChange={(e) =>
-                  option(setCurrency, e.target.value.toUpperCase())
-                }
-              />
-            </label>
-            <button
-              className="btn btn-secondary"
-              disabled={busy || !activeProfile?.id}
-              onClick={() => summary(false)}
-            >
-              Preview data to share
-            </button>
-          </div>
-          <p className="ai-caption">
-            These one-off reviews use your saved totals. Preview the summary
-            before sharing.
-          </p>
-          {snapshot && (
-            <div className="ai-summary-preview">
-              <details>
-                <summary>Review what ChatGPT will receive</summary>
-                <pre>{snapshot.prompt}</pre>
-              </details>
-              <label className="ai-consent">
-                <input
-                  type="checkbox"
-                  disabled={busy}
-                  checked={summaryConsent}
-                  onChange={(e) => setSummaryConsent(e.target.checked)}
-                />{" "}
-                Send this summary to ChatGPT for this request
-              </label>
-              <button
-                className="btn btn-primary"
-                disabled={busy || !model || !summaryConsent}
-                onClick={() => summary(true)}
-              >
-                Generate {task === "collections" ? "drafts" : "review"}
-              </button>
-            </div>
-          )}
-        </section>
-      )}
-      <div
-        className="ai-conversation"
-        ref={log}
-        role="log"
-        aria-label="Conversation"
-        aria-live="polite"
-        aria-relevant="additions"
-        tabIndex={0}
-      >
-        {!messages.length && !busy && (
-          <div className="ai-chat-empty">
-            <span className="knowai-symbol" aria-hidden="true" />
-            <h2>What would you like to know?</h2>
-            <p>
-              Ask about an invoice, a payment, or a product.
-              <br />
-              I’ll look up the records and show you the sources.
-            </p>
-            <div className="ai-starters">
-              <button
-                onClick={() =>
-                  starter("Show me recent invoices that need attention.")
-                }
-                type="button"
-              >
-                Review recent invoices <ArrowUpRight size={14} />
-              </button>
-              <button
-                onClick={() => starter("Find products with low stock.")}
-                type="button"
-              >
-                Check my products <ArrowUpRight size={14} />
-              </button>
-              <button
-                onClick={() => {
-                  setTask("monthly");
-                  setToolsOpen(true);
-                }}
-                type="button"
-              >
-                Review this month <ArrowUpRight size={14} />
-              </button>
-            </div>
-          </div>
-        )}
-        {messages.map((message) => (
-          <article
-            className={`ai-message ai-message-${message.role}`}
-            key={message.id}
-            aria-label={
-              message.role === "user" ? "Your message" : "Assistant reply"
-            }
+        <span className="ai-readonly">Reviewed assistance</span>
+        {workspaceTab === "chat" && (
+          <button
+            className="btn btn-secondary"
+            aria-expanded={toolsOpen}
+            aria-controls="ai-review-tools"
+            onClick={() => setToolsOpen((v) => !v)}
           >
-            <div className="ai-message-author">
-              {message.role === "user" ? (
-                "You"
-              ) : (
-                <>
-                  <span className="knowai-symbol" aria-hidden="true" /> KNOWGST
-                </>
-              )}
-            </div>
-            <div
-              className={
-                message.role === "assistant" ? "ai-answer" : "ai-question"
-              }
+            <SlidersHorizontal size={14} /> Reviews & drafts
+          </button>
+        )}
+      </div>
+      {workspaceTab !== "chat" && (
+        <div
+          id="ai-workspace-panel"
+          role="tabpanel"
+          aria-label={workspaces[workspaceTab]}
+        >
+          <Suspense fallback={<p role="status">Loading workspace…</p>}>
+            {workspaceTab === "documents" && (
+              <AiDocumentInbox
+                activeProfile={activeProfile}
+                model={model}
+                onNavigate={onNavigate}
+              />
+            )}
+            {workspaceTab === "imports" && (
+              <AiImportReview
+                activeProfile={activeProfile}
+                model={model}
+                onNavigate={onNavigate}
+              />
+            )}
+            {workspaceTab === "matching" && (
+              <AiMatching
+                activeProfile={activeProfile}
+                model={model}
+                onNavigate={onNavigate}
+              />
+            )}
+            {workspaceTab === "catalog" && (
+              <AiCatalogReview
+                activeProfile={activeProfile}
+                model={model}
+                onNavigate={onNavigate}
+              />
+            )}
+            {workspaceTab === "insights" && (
+              <AiReviewInsights
+                activeProfile={activeProfile}
+                model={model}
+                onNavigate={onNavigate}
+              />
+            )}
+          </Suspense>
+        </div>
+      )}
+      {workspaceTab === "chat" && (
+        <div
+          id="ai-workspace-panel"
+          role="tabpanel"
+          aria-label="Chat"
+          className="ai-chat-panel"
+        >
+          {toolsOpen && (
+            <section
+              id="ai-review-tools"
+              className="ai-review-tools"
+              aria-label="Reviews and drafts"
             >
-              {message.text}
-            </div>
-            {message.coverage && (
+              <div className="ai-fields">
+                <label>
+                  Task
+                  <select
+                    disabled={busy}
+                    value={task}
+                    onChange={(e) => option(setTask, e.target.value)}
+                  >
+                    {Object.entries(titles).map(([key, title]) => (
+                      <option key={key} value={key}>
+                        {title}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Month
+                  <input
+                    type="month"
+                    disabled={busy}
+                    value={month}
+                    onChange={(e) => option(setMonth, e.target.value)}
+                  />
+                </label>
+                <label>
+                  Currency
+                  <input
+                    maxLength={3}
+                    disabled={busy}
+                    value={currency}
+                    onChange={(e) =>
+                      option(setCurrency, e.target.value.toUpperCase())
+                    }
+                  />
+                </label>
+                <button
+                  className="btn btn-secondary"
+                  disabled={busy || !activeProfile?.id}
+                  onClick={() => summary(false)}
+                >
+                  Preview data to share
+                </button>
+              </div>
               <p className="ai-caption">
-                Source coverage: {message.coverage.returned} of{" "}
-                {message.coverage.total} matching {message.coverage.module}{" "}
-                records.
-                {message.coverage.more
-                  ? " More matches exist; narrow the question for detail."
-                  : ""}
+                These one-off reviews use your saved totals. Preview the summary
+                before sharing.
               </p>
+              {snapshot && (
+                <div className="ai-summary-preview">
+                  <details>
+                    <summary>Review what ChatGPT will receive</summary>
+                    <pre>{snapshot.prompt}</pre>
+                  </details>
+                  <label className="ai-consent">
+                    <input
+                      type="checkbox"
+                      disabled={busy}
+                      checked={summaryConsent}
+                      onChange={(e) => setSummaryConsent(e.target.checked)}
+                    />{" "}
+                    Send this summary to ChatGPT for this request
+                  </label>
+                  <button
+                    className="btn btn-primary"
+                    disabled={busy || !model || !summaryConsent}
+                    onClick={() => summary(true)}
+                  >
+                    Generate {task === "collections" ? "drafts" : "review"}
+                  </button>
+                </div>
+              )}
+            </section>
+          )}
+          <div
+            className="ai-conversation"
+            ref={log}
+            role="log"
+            aria-label="Conversation"
+            aria-live="polite"
+            aria-relevant="additions"
+            tabIndex={0}
+          >
+            {!messages.length && !busy && (
+              <div className="ai-chat-empty">
+                <span className="knowai-symbol" aria-hidden="true" />
+                <h2>What would you like to know?</h2>
+                <p>
+                  Ask about an invoice, a payment, or a product.
+                  <br />
+                  I’ll look up the records and show you the sources.
+                </p>
+                <div className="ai-starters">
+                  <button
+                    onClick={() =>
+                      starter("Show me recent invoices that need attention.")
+                    }
+                    type="button"
+                  >
+                    Review recent invoices <ArrowUpRight size={14} />
+                  </button>
+                  <button
+                    onClick={() => starter("Find products with low stock.")}
+                    type="button"
+                  >
+                    Check my products <ArrowUpRight size={14} />
+                  </button>
+                  <button
+                    onClick={() => {
+                      setTask("monthly");
+                      setToolsOpen(true);
+                    }}
+                    type="button"
+                  >
+                    Review this month <ArrowUpRight size={14} />
+                  </button>
+                </div>
+              </div>
             )}
-            {message.sources?.length > 0 && (
-              <details className="ai-sources">
-                <summary>Sources · {message.sources.length}</summary>
-                <ul>
-                  {message.sources.map((source, i) => (
-                    <li key={i}>
-                      <span>{source.reference}</span>
-                      <button
-                        className="btn btn-secondary"
-                        onClick={() =>
-                          onNavigate(routes[source.module] || "reports", {
-                            search: source.reference,
-                          })
-                        }
-                      >
-                        Open source register <ArrowUpRight size={12} />
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </details>
-            )}
-            {message.kind === "snapshot" && (
-              <p className="ai-caption">
-                Snapshot review · Start a specific record question below to
-                investigate further.
-              </p>
-            )}
-            {message.role === "assistant" && (
-              <button
-                className="ai-copy"
-                aria-label="Copy reply"
-                onClick={() =>
-                  navigator.clipboard
-                    .writeText(message.text)
-                    .catch(() =>
-                      setError(
-                        "Copy failed. Select and copy the reply manually.",
-                      ),
-                    )
+            {messages.map((message) => (
+              <article
+                className={`ai-message ai-message-${message.role}`}
+                key={message.id}
+                aria-label={
+                  message.role === "user" ? "Your message" : "Assistant reply"
                 }
               >
-                <Copy size={13} /> Copy
-              </button>
+                <div className="ai-message-author">
+                  {message.role === "user" ? (
+                    "You"
+                  ) : (
+                    <>
+                      <span className="knowai-symbol" aria-hidden="true" />{" "}
+                      KNOWGST
+                    </>
+                  )}
+                </div>
+                <div
+                  className={
+                    message.role === "assistant" ? "ai-answer" : "ai-question"
+                  }
+                >
+                  {message.text}
+                </div>
+                {message.coverage && (
+                  <p className="ai-caption">
+                    Source coverage: {message.coverage.returned} of{" "}
+                    {message.coverage.total} matching {message.coverage.module}{" "}
+                    records.
+                    {message.coverage.more
+                      ? " More matches exist; narrow the question for detail."
+                      : ""}
+                  </p>
+                )}
+                {message.sources?.length > 0 && (
+                  <details className="ai-sources">
+                    <summary>Sources · {message.sources.length}</summary>
+                    <ul>
+                      {message.sources.map((source, i) => (
+                        <li key={i}>
+                          <span>{source.reference}</span>
+                          <button
+                            className="btn btn-secondary"
+                            onClick={() =>
+                              onNavigate(routes[source.module] || "reports", {
+                                search: source.reference,
+                              })
+                            }
+                          >
+                            Open source register <ArrowUpRight size={12} />
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
+                )}
+                {message.kind === "snapshot" && (
+                  <p className="ai-caption">
+                    Snapshot review · Start a specific record question below to
+                    investigate further.
+                  </p>
+                )}
+                {message.role === "assistant" && (
+                  <button
+                    className="ai-copy"
+                    aria-label="Copy reply"
+                    onClick={() =>
+                      navigator.clipboard
+                        .writeText(message.text)
+                        .catch(() =>
+                          setError(
+                            "Copy failed. Select and copy the reply manually.",
+                          ),
+                        )
+                    }
+                  >
+                    <Copy size={13} /> Copy
+                  </button>
+                )}
+              </article>
+            ))}
+            {busy && (
+              <div className="ai-chat-progress" role="status">
+                <span className="ai-progress-dot" />
+                {progress || "Preparing your review…"}
+              </div>
             )}
-          </article>
-        ))}
-        {busy && (
-          <div className="ai-chat-progress" role="status">
-            <span className="ai-progress-dot" />
-            {progress || "Preparing your review…"}
           </div>
-        )}
-      </div>
-      <div className="ai-composer-wrap">
-        {error && (
-          <div className="ai-chat-error" role="alert">
-            {error}{" "}
-            <button className="btn btn-secondary" onClick={() => setError("")}>
-              Dismiss
-            </button>
+          <div className="ai-composer-wrap">
+            {error && (
+              <div className="ai-chat-error" role="alert">
+                {error}{" "}
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => setError("")}
+                >
+                  Dismiss
+                </button>
+              </div>
+            )}
+            <form className="ai-composer" onSubmit={send}>
+              <textarea
+                aria-label="Message"
+                ref={composer}
+                placeholder="Ask about your business…"
+                maxLength={1000}
+                rows={2}
+                disabled={busy || !ready}
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (
+                    e.key === "Enter" &&
+                    !e.shiftKey &&
+                    !e.nativeEvent.isComposing
+                  ) {
+                    e.preventDefault();
+                    send();
+                  }
+                }}
+              />
+              <div className="ai-composer-actions">
+                <span>Enter to send · Shift + Enter for a new line</span>
+                <button
+                  className="btn btn-primary"
+                  type="submit"
+                  aria-label="Send message"
+                  disabled={
+                    busy ||
+                    !draft.trim() ||
+                    !access ||
+                    !model ||
+                    !activeProfile?.id
+                  }
+                >
+                  <ArrowUp size={18} />
+                </button>
+              </div>
+            </form>
+            <label className="ai-consent">
+              <input
+                type="checkbox"
+                checked={access}
+                disabled={busy || !ready}
+                onChange={(e) => setAccess(e.target.checked)}
+              />{" "}
+              Allow relevant business records to be shared with ChatGPT in this
+              chat
+            </label>
+            <details className="ai-privacy">
+              <summary>Data access & chat history</summary>
+              <p>
+                Only this business is searched, up to five matching records per
+                question. Party, tax and financial details may be shared;
+                credentials, attachments and other businesses are excluded.
+                Recent questions help resolve follow-ups; records are read again
+                for each answer. History stays in memory and clears when you
+                leave this page, switch business/model or start a new chat. No
+                records are changed.
+              </p>
+              <p>
+                AI has no access to credentials, SQL, files or sending tools.
+                Requests are checked against the current business before sharing
+                data. Draft suggestions need your review and a separate save or
+                send action. GST and invoice totals use the app’s calculator.
+              </p>
+            </details>
+            <p className="ai-caption ai-chat-footnote">
+              AI suggests. You review and decide.
+            </p>
           </div>
-        )}
-        <form className="ai-composer" onSubmit={send}>
-          <textarea
-            aria-label="Message"
-            ref={composer}
-            placeholder="Ask about your business…"
-            maxLength={1000}
-            rows={2}
-            disabled={busy || !ready}
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => {
-              if (
-                e.key === "Enter" &&
-                !e.shiftKey &&
-                !e.nativeEvent.isComposing
-              ) {
-                e.preventDefault();
-                send();
-              }
-            }}
-          />
-          <div className="ai-composer-actions">
-            <span>Enter to send · Shift + Enter for a new line</span>
-            <button
-              className="btn btn-primary"
-              type="submit"
-              aria-label="Send message"
-              disabled={
-                busy || !draft.trim() || !access || !model || !activeProfile?.id
-              }
-            >
-              <ArrowUp size={18} />
-            </button>
-          </div>
-        </form>
-        <label className="ai-consent">
-          <input
-            type="checkbox"
-            checked={access}
-            disabled={busy || !ready}
-            onChange={(e) => setAccess(e.target.checked)}
-          />{" "}
-          Allow relevant business records to be shared with ChatGPT in this chat
-        </label>
-        <details className="ai-privacy">
-          <summary>Data access & chat history</summary>
-          <p>
-            Only this business is searched, up to five matching records per
-            question. Party, tax and financial details may be shared;
-            credentials, attachments and other businesses are excluded. Recent
-            questions help resolve follow-ups; records are read again for each
-            answer. History stays in memory and clears when you leave this page,
-            switch business/model or start a new chat. No records are changed.
-          </p>
-          <p>
-            AI has no access to credentials, SQL, files or sending tools.
-            Requests are checked against the current business before sharing
-            data. Draft suggestions need your review and a separate save or
-            send action. GST and invoice totals use the app’s calculator.
-          </p>
-        </details>
-        <p className="ai-caption ai-chat-footnote">
-          AI suggests. You review and decide.
-        </p>
-      </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,39 +1,67 @@
-# KNOWGST
+<p align="center"><img src="apps/parity/public/brand/knowai-icon.svg" width="64" alt="KnowAI"></p>
+<h1 align="center">KNOWGST</h1>
+<p align="center">Invoicing, bookkeeping and reviewed AI assistance for Indian businesses.</p>
+<p align="center">
+  <a href="https://github.com/KnowAI-club/KNOWGST/actions/workflows/ci.yml"><img src="https://github.com/KnowAI-club/KNOWGST/actions/workflows/ci.yml/badge.svg" alt="Validation"></a>
+  <a href="https://github.com/KnowAI-club/KNOWGST/releases"><img src="https://img.shields.io/github/v/release/KnowAI-club/KNOWGST" alt="Latest release"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0--only-blue" alt="GPL-3.0-only"></a>
+</p>
 
-Open-source invoicing and bookkeeping. New KNOWGST code is GPL-3.0-only; reused Free GST code retains its MIT notices.
+KNOWGST is a single-user desktop application for macOS and Windows. Keep multiple businesses on your own device, create GST documents, track payments and stock, and maintain books with an audit trail. Core bookkeeping works without an internet connection. Optional ChatGPT and email features connect only when you use them.
 
-**Release candidate: use test data until your books and workflows have been reviewed.** Native macOS and Windows installer builds are available through the desktop pipeline. Publisher signing, Apple notarization and taxpayer-specific compliance approval remain release gates.
+[**Download desktop app**](https://github.com/KnowAI-club/KNOWGST/releases/latest) · [Installation](docs/DESKTOP-RELEASE.md) · [User guide](docs/USER-GUIDE.md) · [Contributing](CONTRIBUTING.md) · [Release notes](CHANGELOG.md)
 
-## Desktop builds
+![KNOWGST dashboard with fictional demonstration records](apps/parity/public/docs/screenshots/dashboard.png)
 
-The [Desktop installers workflow](https://github.com/KnowAI-club/KNOWGST/actions/workflows/desktop.yml) builds native installers and tests installation, SQLite, PDF export, backup/restore and restart persistence. Download the artifact only from a successful run. Candidates are versioned `1.0.0-rc.1` and are not publisher-signed.
+## What you can do
 
-See [desktop installation, data migration and build instructions](docs/DESKTOP-RELEASE.md). Installed apps bundle their runtime and do not require Node or a development server. Upgrades preserve the separate data directory; import existing development data using a verified backup.
+| Workspace | Capabilities |
+| --- | --- |
+| Sales | Tax invoices, quotations, proforma/estimates, bills of supply, composition documents, credit notes and delivery challans; PDF output; recurring invoices; customer receipts and payment history |
+| People and stock | Business-scoped clients and products, stock movements, purchases and partial supplier payments |
+| Books and reports | Balanced INR journals, automatic supported sales/receipt/expense postings, append-only reversals, account history, source-based reports and historical posting review |
+| Tax | GST particulars and deterministic calculations, GST return preparation and income-tax tools with supported-year boundaries |
+| AI assistance | Chat with source references; reviewed invoice drafts and image extraction; category suggestions; email drafts; document inbox, matching rules, catalog review, books review and import assistance |
+| Your workspace | Neutral light/dark UI, configurable business profiles, local app lock, complete verified backups including PDFs, built-in illustrated guide |
+
+AI suggestions remain proposals. Confirm a draft before applying it; save a financial document or send an email separately. Amounts, tax and stock changes use the application’s transaction logic. See [AI capabilities and boundaries](docs/AI-WORKFLOWS.md).
+
+## Install
+
+Download the installer for your system from [GitHub Releases](https://github.com/KnowAI-club/KNOWGST/releases). macOS packages are provided separately for Apple silicon and Intel; Windows uses a per-user x64 setup. The app bundles its runtime, so users do not need Node.js or a development server.
+
+Release notes identify signing and native test status. These community builds are not publisher-signed or Apple-notarized. Read [installation and verification](docs/DESKTOP-RELEASE.md) before installing, and verify the published SHA-256 checksum. Replacing the app preserves its separate workspace. Use a verified backup when moving between computers or from the developer preview.
 
 ## Run from source
 
-Node.js 22.22+ and pnpm 9.15.9, Python 3 and a C/C++ build toolchain (macOS Command Line Tools or Linux build-essential):
+Requirements: **Node.js 22.22.3**, **pnpm 9.15.9**, Python 3 and a native C/C++ toolchain. On macOS, install Xcode Command Line Tools; on Windows, use Visual Studio Build Tools with Desktop development with C++.
 
 ```sh
+git clone https://github.com/KnowAI-club/KNOWGST.git
+cd KNOWGST
 pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-Open http://127.0.0.1:4173. Both interface and protected local service start together. OCR assets are prepared from locked dependencies. SQLite 3.54.1 is compiled from checksum-pinned official source on first startup. Records are stored in `.local/parity/data/knowgst.sqlite`; generated PDFs live under `.local/parity/Saved Invoices`. `KNOWGST_RUNTIME` selects another runtime directory. Keep this development service on loopback.
+Open **http://127.0.0.1:4173**. The command starts both the interface and protected local service. SQLite **3.54.1** is compiled from checksum-pinned official source on first startup.
 
-## Included modules
+The development workspace is `.local/parity/`; its database is `data/knowgst.sqlite`. `KNOWGST_RUNTIME` selects another workspace and `KNOWGST_WEB_PORT` selects another preview port. Keep the service on loopback. Never point tests at real books.
 
-Dashboard, seven invoice/document types and PDF output, clients, inventory, purchases, expenses, receipts, recurring invoices, reports, GST returns, income-tax calculations, settings, print settings, backups, control panel, onboarding and local app lock. These reuse the audited upstream implementation; importing a module does not establish complete end-to-end parity or current tax compliance.
+## Data and integrations
 
-The approved minimal interface uses neutral surfaces, Inter, restrained neutral accents and light/dark themes. See [implementation status](docs/IMPLEMENTATION-STATUS.md) for test coverage and remaining boundaries.
+- **Local storage:** SQLite WAL transactions with full synchronous commits. Generated PDFs and integration credentials are stored separately from the database.
+- **Backups:** Full verified backups include records, review state, source documents and saved/deleted invoice PDFs. Credentials are excluded. Restore checks file hashes and supports interrupted-restore recovery. [Backup details](docs/BACKUP-RESTORE.md)
+- **ChatGPT:** Connect your own eligible account in Settings → Integrations. Available models come from that account. AI requests require an internet connection and use the official OpenAI SDK; no shared developer subscription or hidden API-key fallback. [Integration details](docs/research/AI-GUARDRAILS.md)
+- **Email:** Configure your own Resend API key and verified sender to send reviewed invoices and receipts. Drafting does not send anything.
+- **Credentials:** Local integration credentials are in an owner-protected file, not an encrypted vault or macOS Keychain. Protect the operating-system account and disk. [Security](SECURITY.md)
 
-The dashboard reads business-scoped records with month and currency filters, sales excluding GST/TCS, recorded money movement, current customer/supplier balances, an attention queue and a searchable activity inspector. The full document workflow remains under **Invoices**. Balances cover all dates; the money-movement chart excludes manual journals and untracked purchase payments and is not a bank balance.
+## Accounting scope
 
-## User guide
+KNOWGST prepares documents and records bookkeeping activity; it does not submit government returns, obtain an IRN, execute bank transfers or certify tax eligibility. The ledger currently supports INR, while document workflows retain their supported currencies. Purchase/expense input-tax eligibility remains a review task. Source-based reports and ledger-based explanations use distinct, stated accounting bases.
 
-Open **User Guide** in the app, or visit http://127.0.0.1:4173/docs/. The guide includes 21 topics and actual screenshots of the implemented interface using sample records. [Guide maintenance](docs/USER-GUIDE.md) · [Complete backup and restore](docs/BACKUP-RESTORE.md) · [Tax-rule review](docs/TAX-RULE-REVIEW.md).
+Keep your own verified tax rates and business particulars. Review the [tax-rule coverage](docs/TAX-RULE-REVIEW.md), [accounting boundaries](docs/SQLITE-ACCOUNTING.md) and [feature parity evidence](docs/FEATURE-PARITY.md) for your use case.
 
-## Validate
+## Develop and verify
 
 ```sh
 pnpm check
@@ -43,19 +71,19 @@ pnpm exec playwright install chromium
 pnpm test:e2e
 ```
 
-Browser tests create a separate temporary runtime. Never point tests at real books.
+Browser tests create isolated fictional workspaces. Native installer tests exercise launch, sandboxing, PDF output, backup/restore and restart persistence on each target platform. See [desktop build instructions](docs/DESKTOP-RELEASE.md) and [architecture](docs/ARCHITECTURE.md).
 
-## Architecture
+| Path | Purpose |
+| --- | --- |
+| `apps/parity` | Active React UI, protected Express service, financial workflows and SQLite record storage |
+| `apps/desktop` | Electron shell, local gateway and standalone runtime dependency lock |
+| `scripts/desktop` | Native packaging, installer smoke tests and checksums |
+| `tests/e2e` | Browser workflow, security, accounting, document and layout tests |
+| `apps/parity/public/docs` | Bundled user guide and real app screenshots using fictional data |
+| `apps/api`, `apps/web`, `packages/domain` | Earlier isolated prototype; not the installed application's active storage |
 
-- `apps/parity`: active React interface and protected Express compatibility service, preserving original financial helpers.
-- `scripts/parity-dev.ts`: local lifecycle, server-only secret and same-origin proxy.
-- `apps/api`, `apps/web`, `packages/domain`: earlier transactional SQLite prototype, retained for incremental architectural migration. Run separately with `pnpm dev:prototype`; its `.local/knowgst.sqlite` data is not shared with the compatibility app.
-- `docs/UPSTREAM-MANIFEST.json`: original source hashes; financial helper drift is checked automatically.
+## Contribute and support
 
-The active application now uses SQLite 3.54.1 with WAL, full synchronous commits and a schema-versioned record store. Legacy JSON payloads are preserved during migration; the complete domain model is not yet normalized into separate relational tables. Self-hosted PostgreSQL, hosted authentication and Tauri packaging remain future stages. AI and expanded integrations follow feature parity. See [proposal](docs/TECHNICAL-PROPOSAL.md) and [provenance](THIRD-PARTY-NOTICES.md).
+Use [Issues](https://github.com/KnowAI-club/KNOWGST/issues) for reproducible bugs and focused feature requests. Read [CONTRIBUTING.md](CONTRIBUTING.md) before changing financial calculations or migrations. Report vulnerabilities through the process in [SECURITY.md](SECURITY.md); do not attach private books, credentials or OAuth callbacks to public issues.
 
-## Accounts and business stock
-
-Reports → **Accounts & history** provides balanced INR journals, reversals, account balances, audit events and stock movements. Products are scoped to the active business; legacy stock requires explicit assignment. Purchases → **Payments** records partial payments, rejects overpayments and retains reversal history.
-
-Accounting supports manual journals, supplier-payable/payment postings and automatic INR sales, credit notes, linked customer payments, standalone receipts and gross expenses. Source corrections append reversals. Historical records can be reviewed and posted through Reports → Accounts & history → Historical backfill; purchase/expense tax remains unclassified for input credit, and the existing P&L is unchanged. See [SQLite migration and accounting boundaries](docs/SQLITE-ACCOUNTING.md) before using real books.
+KNOWGST is published under **GPL-3.0-only**. Existing third-party code retains its original notices. See [LICENSE](LICENSE) and [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) for provenance and attribution. KnowAI branding is separate from the source-code license.

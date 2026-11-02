@@ -59,6 +59,15 @@ test('compatibility service: module persistence, isolation and recovery', async 
       for(const key of Object.keys(updated).filter(k=>k!=='_revision'))assert.deepEqual(after[key],updated[key]);
     });
     const bill = { id:'INV-TEST-1', invoiceNumber:'INV-TEST-1', invoiceDate:'2026-10-29', clientName:'Example Client', totalAmount:118, totalTaxAmount:18, status:'unpaid', paidAmount:0, payments:[], data:{profile, client:records.clients, details:{invoiceNumber:'INV-TEST-1',invoiceDate:'2026-10-29'},items:[{name:'Service',quantity:1,rate:100,taxPercent:18}],totals:{total:118,totalTaxAmount:18},invoiceType:'tax-invoice'} };
+    await t.test('invalid expense GST cannot write an expense or journal', async () => {
+      const before=(await call('/accounting')).body;
+      for(const invalid of [{gstAmount:-1},{gstAmount:119},{gstAmount:0.001},{gstAmount:'18'},{gstAmount:null},{gstPercent:101},{gstPercent:18.001},{taxAmount:-1}]) {
+        const response=await call('/expenses','POST',{id:'invalid-gst',date:'2026-10-29',description:'Invalid tax fixture',category:'Other',amount:118,...invalid});
+        assert.equal(response.status,400,JSON.stringify(invalid));
+      }
+      assert.equal((await call('/expenses')).body.some(e=>e.id==='invalid-gst'),false);
+      assert.deepEqual((await call('/accounting')).body,before);
+    });
     await t.test('sales duplicate protection, trash and restore', async () => {
       assert.equal((await call('/bills','POST',bill)).status,200);
       assert.equal((await call('/bills','POST',bill)).status,409);

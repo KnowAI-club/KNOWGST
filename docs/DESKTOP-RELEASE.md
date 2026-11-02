@@ -1,27 +1,81 @@
-# KNOWGST desktop release candidate
+# Desktop installation and release process
 
-The desktop shell retains the existing KnowAI logo, UI, financial engine and SQLite 3.54.1 service. It bundles Electron, a matching Node runtime, compiled SQLite binding, OCR data and the user guide. No Node installation or development server is required on the user's computer.
+KNOWGST bundles Electron, its Node service, SQLite 3.54.1, the application and illustrated user guide. Users do not need Node.js or a development server. Core bookkeeping works offline; ChatGPT image extraction and email require a connection and the user's configured account.
 
-## Build and test
+## Choose an installer
 
-Use Node 22.22.3, pnpm 9.15.9 and the platform's native compiler tools. Run `pnpm install --frozen-lockfile`, then `pnpm desktop:build --mac` on macOS or `pnpm desktop:build --win` on Windows. Do not cross-copy native SQLite bindings between operating systems or architectures. The staging script verifies the actual bundled SQLite version before packaging. Output is in `release/`.
+Download only from [KNOWGST GitHub Releases](https://github.com/KnowAI-club/KNOWGST/releases).
 
-Set `KNOWGST_TEST_INSTALLER` to the absolute DMG/setup EXE path and run `pnpm desktop:test`. On macOS the test mounts the DMG, copies the application and launches that installed copy. On Windows it silently installs NSIS into a temporary folder and launches that installed executable. The test uses a separate data folder, checks sandboxing, unauthenticated service access, invoice PDF output, backup/restore including archived PDF bytes, persistence after restart, sandboxed report windows, offline OCR with external requests blocked, and the bundled guide. Evidence is in `release/smoke/`. `node scripts/desktop/checksums.mjs` writes SHA256SUMS.
+| Computer | File |
+| --- | --- |
+| Mac with Apple silicon | `KNOWGST-1.0.0-mac-arm64.dmg` |
+| Mac with Intel processor | `KNOWGST-1.0.0-mac-x64.dmg` |
+| Windows x64 | `KNOWGST-1.0.0-win-x64.exe` |
 
-The `Desktop installers` workflow builds and tests on native macOS and Windows runners and retains installers and test evidence as workflow artifacts. The native matrix does not certify all printer drivers, operating system versions, hardware or third-party integrations.
+Mac ZIP packages are also supplied. Check the release asset names if using a later version. On macOS, About This Mac identifies the chip/processor.
 
-## Installation and data
+Verify the file against `SHA256SUMS` downloaded from the same release:
 
-- macOS: open the DMG and copy KNOWGST into Applications.
-- Windows: run the KNOWGST setup EXE. It creates KNOWGST Start Menu and optional desktop shortcuts; no administrator access is required for a per-user installation.
-- Data is outside the application: under Electron's KNOWGST user-data folder, in `workspace/`. Use File → Open data folder to locate it. Logs rotate at 2 MiB.
-- Existing development/browser workspaces are not silently moved. Create a verified backup from the existing workspace, then restore it through the installed application's Backups section.
-- Replacing the application preserves data. Windows uninstall preserves user data. Before upgrades, create a backup; restore drills and source regression tests cover supported backup formats.
+```sh
+# macOS, in the download folder
+shasum -a 256 KNOWGST-1.0.0-mac-arm64.dmg
+```
 
-## Security and release gates
+```powershell
+# Windows PowerShell, in the download folder
+Get-FileHash .\KNOWGST-1.0.0-win-x64.exe -Algorithm SHA256
+```
 
-The renderer has no Node access, uses context isolation and sandboxing, denies permission prompts/webviews and restricts navigation to its local origin. A per-launch random secret is injected by the main process only for the application's own web contents. The loopback gateway rejects missing secrets, unexpected origins and hosts; the API also requires the secret. Shutdown uses IPC so the service can flush and release its workspace lock on both platforms. A lost parent connection also shuts down the service.
+Compare the entire digest. A matching checksum confirms the file matches the published artifact; it is not publisher signing.
 
-These are **1.0.0-rc.1 test installers**, not a signed general-availability release. Apple Developer ID signing/notarization and Windows publisher signing need owner-managed certificates and CI secrets. The current build intentionally does not claim publisher verification or automatic signed updates. Do not label the release final until these gates and the native installation tests pass. IRP integration and taxpayer-specific compliance remain separate from desktop packaging.
+## Install and open
 
-The GPL source is the corresponding KNOWGST repository commit. LICENSE, upstream notices, dependency licenses, Electron licenses and the embedded Node license accompany the build. The icon is derived from the existing KnowAI symbol, not a new brand.
+- **macOS:** Open the DMG and copy KNOWGST to Applications. Open KNOWGST from Applications. This community release is not Developer ID signed or notarized. macOS may require a specific approval in System Settings → Privacy & Security after the first open attempt. Do not disable system-wide security controls.
+- **Windows:** Run the KNOWGST setup file and choose the installation location. Per-user installation creates KNOWGST Start Menu and optional desktop shortcuts without administrator access. The installer is not publisher-signed; Windows may show an unrecognized-app prompt. Review the source and checksum before choosing to proceed.
+
+The releases page records which native installation tests passed. It does not certify every OS version, printer driver, antivirus configuration or device.
+
+## Data, upgrades and moving computers
+
+Data lives outside the installed application in Electron's KNOWGST user-data folder, under `workspace/`. Choose **File → Open data folder** to locate it. The database is `data/knowgst.sqlite`; generated PDFs, backups and local integration credentials occupy separate folders. Logs rotate at 2 MiB.
+
+Before an upgrade, create a verified full backup. Replacing the application preserves its workspace, and Windows uninstall preserves user data. There is no automatic updater in v1.
+
+Development/browser workspaces are not moved silently into the installed app. Create a verified backup in the existing workspace, then restore it through the installed app's backup controls. Full backups preserve PDFs, AI document originals and review state; integration credentials are intentionally excluded, so reconnect providers on the new computer. See [backup and restore](BACKUP-RESTORE.md).
+
+## Build from the corresponding source
+
+Check out the exact release tag. Use Node 22.22.3, pnpm 9.15.9, Python 3 and the platform's C/C++ compiler tools.
+
+```sh
+pnpm install --frozen-lockfile
+# On a native Mac of the selected architecture:
+pnpm desktop:build --mac --arm64
+# Or on Intel Mac:
+pnpm desktop:build --mac --x64
+# On Windows x64:
+pnpm desktop:build --win --x64
+```
+
+Never copy a native SQLite binding between platforms or architectures. The staging script verifies the embedded SQLite version, records the source commit and bundles the exact Node runtime license. Output is in `release/`.
+
+## Test the installed package
+
+Set `KNOWGST_TEST_INSTALLER` to the absolute DMG or setup EXE path, then run `pnpm desktop:test`. The test mounts/copies the Mac app or silently installs Windows into a temporary folder, then launches that installed copy with an isolated fictional workspace.
+
+Checks cover installed launch, SQLite version, renderer isolation, unauthenticated gateway denial, invoice PDF output, verified backup/restore including PDF bytes, restart persistence, sandboxed report windows, extraction consent and bundled guide. Provider responses are not inferred from this packaging test; real ChatGPT/Resend access requires the owner's credentials. Evidence is written to `release/smoke/`.
+
+The [Desktop installers workflow](../.github/workflows/desktop.yml) builds and tests natively on macOS arm64, macOS x64 and Windows x64. `node scripts/desktop/checksums.mjs` hashes the resulting packages. Only artifacts from successful platform jobs are eligible for publication.
+
+## Release checklist
+
+1. Run source checks, unit/financial tests, production web build and browser tests on the release commit.
+2. Push the source commit; verify the Validate workflow.
+3. Dispatch Desktop installers against that exact commit and require all native jobs to pass.
+4. Download the installers and their smoke evidence; verify file hashes and version/source identity.
+5. Publish the Git tag, release notes, native installers and combined checksums. Record unsigned status and any known limitations.
+6. Verify the public release assets and tag resolve to the tested source.
+
+Publisher signing and Apple notarization are tracked follow-up work requiring owner-managed certificates. They are not represented as completed by this community release. No signing identity or private key belongs in the repository.
+
+GPL source is available at the corresponding release tag. LICENSE, third-party notices, dependency licenses, Electron licenses and the embedded Node license accompany builds. The application retains the KnowAI symbol and neutral UI.

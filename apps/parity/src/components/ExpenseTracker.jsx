@@ -29,6 +29,7 @@ const emptyForm = {
   amount: '',
   gstAmount: '',
   gstPercent: '',
+  manualGst: false,
   // P1 #15: interstate flag. When on, ITC on GST paid routes to IGST in
   // GSTR-3B Table 4(A) instead of splitting 50/50 into CGST + SGST. Real
   // scenario: AWS / Google / Adobe / SaaS bills from out-of-state offices.
@@ -43,7 +44,7 @@ const emptyForm = {
 
 // v1.10.6 — audit L4: local copy removed, imported from utils above.
 
-export default function ExpenseTracker() {
+export default function ExpenseTracker({ initialAiDraft, onDraftConsumed }) {
   const [expenses, setExpenses] = useState([]);
   // v1.10.65 (#58 item 3) — the business these records belong to.
   const [ownerProfile, setOwnerProfile] = useState(null);
@@ -89,6 +90,16 @@ export default function ExpenseTracker() {
     loadExpenses();
   }, []);
 
+  useEffect(() => {
+    if (!initialAiDraft || !ownerProfile?.id) return;
+    if (initialAiDraft.kind !== 'expense' || initialAiDraft.businessId !== ownerProfile.id) {
+      toast('The document draft belongs to another business. Reopen the inbox.', 'error');
+      onDraftConsumed?.(); return;
+    }
+    setForm({ ...emptyForm, ...initialAiDraft.draft, manualGst: true, id: 'exp_' + crypto.randomUUID(), paymentMode: 'Bank Transfer' });
+    setEditingId(null); setShowForm(true); onDraftConsumed?.();
+  }, [initialAiDraft, ownerProfile?.id]);
+
   const filtered = expenses.filter(exp => {
     if (search.trim()) {
       const q = search.toLowerCase();
@@ -124,6 +135,7 @@ export default function ExpenseTracker() {
       amount: exp.amount || '',
       gstAmount: exp.gstAmount || '',
       gstPercent: exp.gstPercent || '',
+      manualGst: !Number(exp.gstPercent) && Number(exp.gstAmount) > 0,
       vendorName: exp.vendorName || '',
       vendorGstin: exp.vendorGstin || '',
       invoiceNo: exp.invoiceNo || '',
@@ -145,7 +157,9 @@ export default function ExpenseTracker() {
     if (!form.description.trim()) { toast('Description is required', 'warning'); return; }
     if (!form.amount || parseFloat(form.amount) <= 0) { toast('Enter a valid amount', 'warning'); return; }
     // v1.10.74 - GST % must be 0 to 100 (40% is a real rate, so no 28 cap).
-    const gstPct = form.gstPercent === '' ? 0 : parseFloat(form.gstPercent);
+    const gstPct = form.manualGst || form.gstPercent === '' ? 0 : parseFloat(form.gstPercent);
+    const gstAmount = form.gstAmount === '' ? 0 : Number(form.gstAmount);
+    if (!Number.isFinite(gstAmount) || gstAmount < 0 || gstAmount > Number(form.amount)) { toast('GST amount must be between zero and the expense total.', 'warning'); return; }
     if (!(gstPct >= 0 && gstPct <= 100)) { toast('GST % must be between 0 and 100', 'warning'); return; }
     try {
       const expense = {
@@ -156,7 +170,7 @@ export default function ExpenseTracker() {
         category: form.category,
         amount: parseFloat(form.amount),
         gstAmount: form.gstAmount ? parseFloat(form.gstAmount) : 0,
-        gstPercent: form.gstPercent ? parseFloat(form.gstPercent) : 0,
+        gstPercent: form.manualGst ? 0 : form.gstPercent ? parseFloat(form.gstPercent) : 0,
         vendorName: form.vendorName.trim(),
         vendorGstin: form.vendorGstin.trim(),
         invoiceNo: form.invoiceNo.trim(),
@@ -201,6 +215,7 @@ export default function ExpenseTracker() {
   // of either (it used the old amount), and zero it when either is empty/0.
   const updateAmountOrGST = (field, value) => setForm(prev => {
     const next = { ...prev, [field]: value };
+    if (next.manualGst && field === 'amount') return next;
     const base = parseFloat(next.amount) || 0;
     const pct = parseFloat(next.gstPercent) || 0;
     const gst = base > 0 && pct > 0 ? (base * pct) / (100 + pct) : 0;
@@ -314,10 +329,11 @@ export default function ExpenseTracker() {
                   placeholder="0.00" min="0" />
               </div>
               <div className="form-group">
-                <label className="form-label">GST % (for ITC)</label>
-                <input type="number" className="form-input" value={form.gstPercent}
-                  onChange={e => updateAmountOrGST('gstPercent', e.target.value)} placeholder="18" min="0" max="100" />
-                {form.gstAmount > 0 && <p className="field-hint">GST: {formatCurrency(form.gstAmount)}</p>}
+                <label className="form-label">{form.manualGst ? 'GST amount on receipt' : 'GST % (for ITC)'}</label>
+                {form.manualGst ? <input type="number" aria-label="GST amount on receipt" className="form-input" value={form.gstAmount} min="0" max={form.amount || undefined} step="0.01" onChange={e => updateField('gstAmount', e.target.value)} /> : <input type="number" className="form-input" value={form.gstPercent}
+                  onChange={e => updateAmountOrGST('gstPercent', e.target.value)} placeholder="18" min="0" max="100" />}
+                <label className="field-hint" style={{ display: 'flex', gap: 6, alignItems: 'center' }}><input type="checkbox" checked={!!form.manualGst} onChange={e => setForm(prev => ({ ...prev, manualGst: e.target.checked, ...(e.target.checked ? {} : { gstAmount: Math.round((Number(prev.amount) || 0) * (Number(prev.gstPercent) || 0) / (100 + (Number(prev.gstPercent) || 0)) * 100) / 100 }) }))} /> Use GST amount from receipt</label>
+                {!form.manualGst && form.gstAmount > 0 && <p className="field-hint">GST: {formatCurrency(form.gstAmount)}</p>}
               </div>
               <div className="form-group">
                 <label className="form-label">Vendor Name</label>

@@ -36,7 +36,7 @@ const STATUS_COLORS = {
   cancelled: { label: 'Cancelled', color: '#64748b', bg: '#f1f5f9' },
 };
 
-export default function ClientsView({ onEdit, onDuplicate, onNew }) {
+export default function ClientsView({ onEdit, onDuplicate, onNew, initialAiDraft, onDraftConsumed }) {
   const [clients, setClients] = useState([]);
   const [unassignedClients, setUnassignedClients] = useState([]);
   const [assigningClient, setAssigningClient] = useState(null);
@@ -47,6 +47,22 @@ export default function ClientsView({ onEdit, onDuplicate, onNew }) {
   const [modalClient, setModalClient] = useState(null);
   const [editingClientId, setEditingClientId] = useState(null);
   const [profileCountry, setProfileCountry] = useState('');
+  const consumedAiDraft = useRef(null);
+
+  useEffect(() => {
+    if (!initialAiDraft || initialAiDraft.kind !== 'clients' || consumedAiDraft.current === initialAiDraft.reviewId) return;
+    let alive = true;
+    getProfile().then(profile => {
+      if (!alive) return;
+      if (profile?.id !== initialAiDraft.businessId) throw new Error('Business changed. Review the client draft again.');
+      consumedAiDraft.current = initialAiDraft.reviewId;
+      setModalClient({ ...initialAiDraft.draft });
+      setEditingClientId(null);
+      setShowForm(true);
+      onDraftConsumed?.();
+    }).catch(error => { if (alive) toast(error.message, 'error'); });
+    return () => { alive = false; };
+  }, [initialAiDraft, onDraftConsumed]);
 
   useEffect(() => {
     getProfile().then(p => { if (p?.country) setProfileCountry(p.country); }).catch(() => {});

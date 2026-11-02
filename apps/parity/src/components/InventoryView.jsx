@@ -21,7 +21,7 @@ const emptyForm = {
   name: '', hsn: '', purchasePrice: '', sellingPrice: '', taxPercent: '', unit: 'Pcs', stock: '', description: '',
 };
 
-export default function InventoryView({ onOpenSettings }) {
+export default function InventoryView({ onOpenSettings, initialAiDraft, onDraftConsumed }) {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
   const loadSequence = useRef(0);
@@ -36,6 +36,21 @@ export default function InventoryView({ onOpenSettings }) {
   const [form, setForm] = useState({ ...emptyForm });
   const [units, setUnits] = useState(getAllUnits());
   const [profileCountry, setProfileCountry] = useState('India');
+  const consumedAiDraft = useRef(null);
+  useEffect(() => {
+    if (!initialAiDraft || initialAiDraft.kind !== 'products' || consumedAiDraft.current === initialAiDraft.reviewId) return;
+    let alive = true;
+    getProfile().then(profile => {
+      if (!alive) return;
+      if (profile?.id !== initialAiDraft.businessId) throw new Error('Business changed. Review the item draft again.');
+      consumedAiDraft.current = initialAiDraft.reviewId;
+      setForm({ ...emptyForm, name: initialAiDraft.draft.name || '', description: initialAiDraft.draft.description || '', unit: initialAiDraft.draft.unit || 'Pcs' });
+      setEditingId(null);
+      setShowForm(true);
+      onDraftConsumed?.();
+    }).catch(error => { if (alive) toast(error.message, 'error'); });
+    return () => { alive = false; };
+  }, [initialAiDraft, onDraftConsumed]);
   const profileCurrency = getCountryConfig(profileCountry).currency;
   // The colour-coded stock badge in the table respects the user's threshold
   // — defaults to 5 if no setting saved yet. When alerts are disabled
@@ -314,6 +329,7 @@ export default function InventoryView({ onOpenSettings }) {
                   {form.unit && !units.some(u => u.label === form.unit) && (
                     <option value={form.unit}>{form.unit}</option>
                   )}
+                  {form.unit && !units.some(u => u.label === form.unit) && <option value={form.unit}>{form.unit} (review)</option>}
                   {units.map(u => <option key={u.label} value={u.label}>{u.label}{u.custom ? ' ★' : ''}</option>)}
                 </select>
               </div>

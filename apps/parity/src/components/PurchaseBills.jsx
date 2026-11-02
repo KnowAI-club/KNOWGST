@@ -88,7 +88,7 @@ function calcPurchaseTotal(items, applyRoundOff = false) {
 
 // v1.10.6 — audit L4: local copy removed, imported from utils above.
 
-export default function PurchaseBills() {
+export default function PurchaseBills({ initialAiDraft, onDraftConsumed }) {
   const [paymentPurchase,setPaymentPurchase]=useState(null);
   const [purchases, setPurchases] = useState([]);
   // v1.10.65 (#58 item 3) — the business these records belong to.
@@ -137,6 +137,7 @@ export default function PurchaseBills() {
       supplierGstin: extracted.supplierGstin || '',
       invoiceNumber: extracted.invoiceNumber || '',
       items,
+      applyRoundOff: extracted.applyRoundOff === true,
       interstate: Number(tb.igst) > 0 && !Number(tb.cgst),
     });
     setShowForm(true);
@@ -145,6 +146,15 @@ export default function PurchaseBills() {
       : 'OCR values loaded — please review, then break the total into line items with correct GST.';
     toast(msg, 'info');
   };
+
+  useEffect(() => {
+    if (!initialAiDraft || !ownerProfile?.id) return;
+    if (initialAiDraft.kind !== 'purchase' || initialAiDraft.businessId !== ownerProfile.id) {
+      toast('The document draft belongs to another business. Reopen the inbox.', 'error');
+      onDraftConsumed?.(); return;
+    }
+    applyOCR(initialAiDraft.draft); onDraftConsumed?.();
+  }, [initialAiDraft, ownerProfile?.id]);
 
   const fyOptions = getFYOptions();
 

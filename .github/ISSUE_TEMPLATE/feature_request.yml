@@ -1,0 +1,17 @@
+name: Feature request
+description: Propose a focused improvement to KNOWGST.
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem should this solve?
+      description: Describe the affected workflow and who needs it.
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Proposed behavior
+      description: Include examples and alternatives, without private business data.
+    validations:
+      required: true

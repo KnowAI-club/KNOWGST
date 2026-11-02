@@ -78,6 +78,7 @@ try {
   const origin = new URL(page.url()).origin;
   const health = await api(page, "/api/health");
   expect(health.sqliteVersion).toBe("3.54.1");
+  expect(health.version).toBe('1.0.0');
   expect((await fetch(origin + "/api/profile")).status).toBe(403);
   const prefs = await app.evaluate(({ BrowserWindow }) =>
     BrowserWindow.getAllWindows()[0].webContents.getLastWebPreferences(),
@@ -184,9 +185,13 @@ try {
     );
     if (!response.ok) throw Error("PDF archive failed");
   }, bytes.toString("base64"));
+  const image = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/mWQAAAAASUVORK5CYII=';
+  const inbox = await api(page, '/api/integrations/ai/documents/add', {businessId:profile.id, revision:0, name:'Installer demo.png', image});
+  expect(inbox.documents).toHaveLength(1);
   await api(page, "/api/backups/now", {});
   const backups = await api(page, "/api/backups");
   expect(backups.length).toBeGreaterThan(0);
+  await api(page, '/api/integrations/ai/documents/remove', {businessId:profile.id, revision:inbox.revision, documentId:inbox.documents[0].id, confirm:true});
   await api(page, "/api/profile", {
     ...profile,
     businessName: "Changed after backup",
@@ -195,10 +200,19 @@ try {
   expect((await api(page, "/api/profile")).businessName).toBe(
     profile.businessName,
   );
+  const restoredDocument = await api(page, '/api/integrations/ai/documents/get', {businessId:profile.id,documentId:inbox.documents[0].id});
+  expect(restoredDocument.document.image).toBe(image);
   const archived = path.join(
     work,
     "data/workspace/Saved Invoices/Demo/November2026/installer.pdf",
   );
+  expect(fs.readFileSync(archived).equals(bytes)).toBe(true);
+  const stamp = await api(page, '/api/saved-pdf/cancel-mark', {fileName:'installer.pdf',clientName:'Demo',cancelled:true});
+  expect(stamp).toEqual({updated:1,failed:0});
+  expect(fs.readFileSync(archived).equals(bytes)).toBe(false);
+  expect((await PDFDocument.load(fs.readFileSync(archived))).getPageCount()).toBe(1);
+  const unstamp = await api(page, '/api/saved-pdf/cancel-mark', {fileName:'installer.pdf',clientName:'Demo',cancelled:false});
+  expect(unstamp).toEqual({updated:1,failed:0});
   expect(fs.readFileSync(archived).equals(bytes)).toBe(true);
   const popupEvent = page.waitForEvent("popup");
   await page.evaluate(() => {
@@ -240,6 +254,8 @@ try {
       {
         platform: process.platform,
         arch: process.arch,
+        sourceCommit: process.env.GITHUB_SHA || null,
+        version: JSON.parse(fs.readFileSync(path.resolve('apps/desktop/package.json'), 'utf8')).version,
         installer: installer ? path.basename(installer) : null,
         checks: [
           "installed launch",
@@ -247,7 +263,9 @@ try {
           "unauthenticated gateway denied",
           "sandboxed renderer",
           "invoice PDF",
+          "server-side PDF cancellation and byte-exact undo",
           "backup and restore including PDF bytes",
+          "document original and AI review state restoration",
           "restart persistence",
           "bundled guide",
           "sandboxed report window",
