@@ -28,9 +28,11 @@ export function credentialStore(runtime) {
   function save() {
     const tmp = file + "." + randomUUID();
     try {
-      fs.writeFileSync(tmp, JSON.stringify(value), { mode: 0o600, flag: "wx" });
-      const fd = fs.openSync(tmp, "r");
+      // Windows FlushFileBuffers requires a writable handle. Keep the handle
+      // used for creation through the write and fsync before atomic replacement.
+      const fd = fs.openSync(tmp, "wx", 0o600);
       try {
+        fs.writeFileSync(fd, JSON.stringify(value));
         fs.fsyncSync(fd);
       } finally {
         fs.closeSync(fd);
