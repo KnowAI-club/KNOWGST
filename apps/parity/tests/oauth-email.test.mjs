@@ -588,6 +588,218 @@ test("failed new registration leaves a different connected account and its token
   assert.doesNotMatch(JSON.stringify(chat.status()), /private/);
 });
 
+test("explicit new-account sign-in preserves and can resume unfinished workspace registrations", async (t) => {
+  const { dir, store } = fixture(t);
+  const existing = {
+    clientId: "oaiapp_connected",
+    subject: "existing-subject",
+    accessToken: "keep-private-access",
+    refreshToken: "keep-private-refresh",
+  };
+  store.update((s) => {
+    s.accounts = [existing];
+    s.active = existing.clientId;
+    s.incompleteChatgptRegistration = { clientId: "oaiapp_workspace" };
+  });
+  const hostId = store.get().hostId;
+  let auth;
+  const chat = chatgptOAuth(store, {
+    fetcher: async (url) =>
+      String(url).endsWith("/oauth/token")
+        ? new Response(JSON.stringify({ error: "invalid_request" }), {
+            status: 400,
+          })
+        : response({ keys: [jwk] }),
+  });
+  t.after(() => chat.cancel());
+  auth = new URL((await chat.start()).url);
+  assert.equal(auth.searchParams.get("client_id"), "oaiapp_workspace");
+  auth = new URL((await chat.start(undefined, { newAccount: true })).url);
+  assert.equal(auth.searchParams.get("client_id"), "dynamic_agent_client");
+  assert.equal(auth.searchParams.get("ext_agent_host_id"), hostId);
+  assert.equal(auth.searchParams.get("agent_name_hint"), "KNOWGST");
+  const callback = new URL(auth.searchParams.get("redirect_uri"));
+  callback.search = new URLSearchParams({
+    code: "private-new-code",
+    state: auth.searchParams.get("state"),
+    client_id: "oaiapp_personal",
+  });
+  assert.equal((await fetch(callback)).status, 400);
+  assert.deepEqual(chat.status().unfinishedRegistrations, [
+    { clientId: "oaiapp_workspace" },
+    { clientId: "oaiapp_personal" },
+  ]);
+  assert.deepEqual(store.get().accounts, [existing]);
+  assert.equal(store.get().active, existing.clientId);
+  assert.equal(store.get().hostId, hostId);
+  assert.doesNotMatch(JSON.stringify(chat.status()), /private/);
+
+  const resumed = chatgptOAuth(credentialStore(dir), {
+    fetcher: async (url) =>
+      String(url).endsWith("/oauth/token")
+        ? response({
+            id_token: jwt(
+              identity(auth.searchParams.get("nonce"), {
+                aud: "oaiapp_personal",
+              }),
+            ),
+            access_token: "new-private-access",
+            refresh_token: "new-private-refresh",
+            token_type: "Bearer",
+            expires_in: 3600,
+            scope: "openid resource.invoke chatgpt.tokens.use.direct",
+          })
+        : response({ keys: [jwk] }),
+  });
+  t.after(() => resumed.cancel());
+  auth = new URL((await resumed.start()).url);
+  assert.equal(auth.searchParams.get("client_id"), "oaiapp_personal");
+  auth = new URL((await resumed.start("oaiapp_workspace")).url);
+  assert.equal(auth.searchParams.get("client_id"), "oaiapp_workspace");
+  assert.equal(auth.searchParams.has("agent_name_hint"), false);
+  auth = new URL((await resumed.start("oaiapp_personal")).url);
+  const personalCallback = new URL(auth.searchParams.get("redirect_uri"));
+  personalCallback.search = new URLSearchParams({
+    code: "private-personal-code",
+    state: auth.searchParams.get("state"),
+  });
+  assert.equal((await fetch(personalCallback)).status, 200);
+  assert.deepEqual(resumed.status().unfinishedRegistrations, [
+    { clientId: "oaiapp_workspace" },
+  ]);
+  const saved = credentialStore(dir).get();
+  assert.deepEqual(
+    saved.accounts.find((a) => a.clientId === existing.clientId),
+    existing,
+  );
+  assert.equal(saved.active, "oaiapp_personal");
+  assert.equal(saved.hostId, hostId);
+  assert.equal(
+    saved.incompleteChatgptRegistration.clientId,
+    "oaiapp_workspace",
+  );
+  assert.doesNotMatch(JSON.stringify(resumed.status()), /private/);
+});
+
+test("invalid account selection and new-account options do not cancel an active sign-in", async (t) => {
+  const { store } = fixture(t);
+  store.update((s) => {
+    s.incompleteChatgptRegistration = { clientId: "oaiapp_workspace" };
+  });
+  const chat = chatgptOAuth(store);
+  t.after(() => chat.cancel());
+  const { url } = await chat.start();
+  for (const [clientId, options] of [
+    [undefined, null],
+    [undefined, []],
+    [undefined, true],
+    [undefined, { newAccount: "true" }],
+    [undefined, { newAccount: 1 }],
+    [undefined, { newAccount: null }],
+    ["oaiapp_workspace", { newAccount: true }],
+    ["oaiapp_arbitrary", {}],
+    [123, {}],
+  ]) {
+    await assert.rejects(
+      chat.start(clientId, options),
+      (e) => e.status === 400,
+    );
+    assert.equal(chat.status().authorizationUrl, url);
+    assert.equal(chat.status().pending, true);
+  }
+  assert.equal(
+    store.get().incompleteChatgptRegistration.clientId,
+    "oaiapp_workspace",
+  );
+});
+
+test("a rejected new client only removes its own unfinished registration", async (t) => {
+  const { store } = fixture(t);
+  store.update((s) => {
+    s.incompleteChatgptRegistration = { clientId: "oaiapp_workspace" };
+    s.incompleteChatgptRegistrations = [
+      { clientId: "oaiapp_workspace", untrusted: "private-ignored-field" },
+      { clientId: "dynamic_agent_client" },
+      { clientId: "invalid/client" },
+    ];
+  });
+  const chat = chatgptOAuth(store, {
+    fetcher: async () =>
+      new Response(JSON.stringify({ error: "invalid_client" }), {
+        status: 400,
+      }),
+  });
+  t.after(() => chat.cancel());
+  assert.deepEqual(chat.status().unfinishedRegistrations, [
+    { clientId: "oaiapp_workspace" },
+  ]);
+  const auth = new URL((await chat.start(undefined, { newAccount: true })).url);
+  const callback = new URL(auth.searchParams.get("redirect_uri"));
+  callback.search = new URLSearchParams({
+    code: "private-code",
+    state: auth.searchParams.get("state"),
+    client_id: "oaiapp_rejected",
+  });
+  assert.equal((await fetch(callback)).status, 400);
+  assert.deepEqual(chat.status().unfinishedRegistrations, [
+    { clientId: "oaiapp_workspace" },
+  ]);
+  assert.equal(
+    store.get().incompleteChatgptRegistration.clientId,
+    "oaiapp_workspace",
+  );
+  assert.doesNotMatch(JSON.stringify(chat.status()), /private/);
+  const resumed = new URL((await chat.start()).url);
+  assert.equal(resumed.searchParams.get("client_id"), "oaiapp_workspace");
+});
+
+test("callback denials expose only recognized codes and never retry or discard registrations", async (t) => {
+  const { store } = fixture(t);
+  store.update((s) => {
+    s.incompleteChatgptRegistration = { clientId: "oaiapp_workspace" };
+  });
+  let calls = 0;
+  const chat = chatgptOAuth(store, {
+    fetcher: async () => {
+      calls++;
+      throw new Error("No token exchange is allowed after denial");
+    },
+  });
+  t.after(() => chat.cancel());
+  for (const code of [
+    "access_denied",
+    "3p_login_workspace_scope_denied",
+    "workspace_scope_denied",
+    "PRIVATE-CODE",
+  ]) {
+    const auth = new URL((await chat.start()).url);
+    const callback = new URL(auth.searchParams.get("redirect_uri"));
+    callback.search = new URLSearchParams({
+      error: code,
+      error_description: "PRIVATE-DESCRIPTION with private-token",
+      state: auth.searchParams.get("state"),
+      code: "private-auth-code",
+    });
+    const result = await fetch(callback, { redirect: "manual" });
+    const text = await result.text();
+    assert.equal(result.status, 400);
+    assert.equal(result.headers.get("location"), null);
+    assert.equal(calls, 0);
+    assert.equal(chat.status().pending, false);
+    assert.equal(chat.status().error, text);
+    assert.doesNotMatch(
+      text,
+      /PRIVATE|private-token|private-auth-code|you (declined|denied)/i,
+    );
+    if (code !== "PRIVATE-CODE") assert(text.includes(code));
+    if (code.includes("workspace_scope_denied"))
+      assert.match(text, /original.*workspace/i);
+    assert.deepEqual(chat.status().unfinishedRegistrations, [
+      { clientId: "oaiapp_workspace" },
+    ]);
+  }
+});
+
 test("OAuth invalid_grant redirects once with fresh PKCE and never replays the rejected code", async (t) => {
   const { store } = fixture(t);
   let auth;

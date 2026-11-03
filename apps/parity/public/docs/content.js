@@ -264,6 +264,7 @@ export const pages = [
       "Open Settings → Integrations. Under ChatGPT, select Continue with ChatGPT.",
       "Complete sign-in and consent in your system browser. Authorize ChatGPT plan usage if your account is eligible, then return to KNOWGST. No API key or shared subscription is required.",
       "Your account appears after its identity is verified. Use Reconnect, Use account or Sign out to manage saved connections. Manage ChatGPT usage opens the provider’s account limits.",
+      "If OpenAI says this account cannot access the app, the saved registration may belong to another workspace. Continue with its original account, or select Use another account or workspace to register a separate connection. Resume earlier attempts under Unfinished connections. Existing saved connections are preserved.",
       "Expand Ask ChatGPT, load your available models, choose one and enter a question. Only your typed question is sent; invoices, customer lists and books are not attached automatically.",
       "For email, create a Resend sending-access API key for your verified domain. Enter sender name, sender email, optional reply-to and API key; select Save email settings.",
       "Open an invoice’s More actions → Email PDF with Resend, or a receipt’s Email receipt PDF button. Review the PDF, recipient, subject and message.",

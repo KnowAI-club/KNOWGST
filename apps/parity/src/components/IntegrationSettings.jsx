@@ -51,13 +51,14 @@ export default function IntegrationSettings() {
   const active = status?.chatgpt.accounts.find(
     (a) => a.clientId === status.chatgpt.active,
   );
-  async function connect(clientId) {
+  const unfinished = status?.chatgpt.unfinishedRegistrations || [];
+  async function connect(clientId, newAccount) {
     const tab = navigator.userAgent.includes("Electron")
       ? null
       : window.open("about:blank", "_blank");
     await run(async () => {
       try {
-        const r = await api("/chatgpt/start", { clientId });
+        const r = await api("/chatgpt/start", { clientId, newAccount });
         setSignInUrl(r.url);
         if (tab) {
           tab.location.href = r.url;
@@ -111,6 +112,17 @@ export default function IntegrationSettings() {
               >
                 Continue with ChatGPT
               </button>
+              {(unfinished.length > 0 ||
+                status.chatgpt.accounts.length > 0) && (
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  disabled={busy || status.chatgpt.pending}
+                  onClick={() => connect(undefined, true)}
+                >
+                  Use another account or workspace
+                </button>
+              )}
               <a
                 href="https://chatgpt.com/settings/usage"
                 target="_blank"
@@ -140,6 +152,33 @@ export default function IntegrationSettings() {
               </p>
             )}
             {status.chatgpt.error && <p role="alert">{status.chatgpt.error}</p>}
+            {unfinished.length > 0 && (
+              <details className="integration-assistant">
+                <summary>Unfinished connections</summary>
+                <p>
+                  Continue with the account and workspace used for that
+                  connection. To connect a different one, choose Use another
+                  account or workspace above.
+                </p>
+                {unfinished.map((registration) => (
+                  <div
+                    className="integration-account"
+                    key={registration.clientId}
+                  >
+                    <span>Connection {registration.clientId.slice(-8)}</span>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      disabled={busy || status.chatgpt.pending}
+                      aria-label={`Resume connection ${registration.clientId.slice(-8)}`}
+                      onClick={() => connect(registration.clientId)}
+                    >
+                      Resume connection
+                    </button>
+                  </div>
+                ))}
+              </details>
+            )}
             {status.chatgpt.accounts.map((a, i) => (
               <div className="integration-account" key={a.clientId}>
                 <span>

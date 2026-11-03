@@ -41,7 +41,9 @@ export function integrationRoutes(app, runtime, readSummary, readModule, workflo
       }
     });
   route("get", "", () => ({ chatgpt: chat.status(), resend: mail.status() }));
-  route("post", "/chatgpt/start", (b) => chat.start(b.clientId));
+  route("post", "/chatgpt/start", (b) =>
+    chat.start(b.clientId, { newAccount: b.newAccount }),
+  );
   route("post", "/chatgpt/cancel", () => {
     chat.cancel();
     return { ok: true };

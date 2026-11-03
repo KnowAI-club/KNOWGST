@@ -24,6 +24,74 @@ const same = (a, b) =>
   Buffer.byteLength(a) === Buffer.byteLength(b) &&
   timingSafeEqual(Buffer.from(a), Buffer.from(b));
 const fail = (message) => Object.assign(new Error(message), { status: 400 });
+const isIssuedClientId = (value) =>
+  typeof value === "string" &&
+  /^[A-Za-z0-9_-]{1,250}$/.test(value) &&
+  value !== "dynamic_agent_client";
+function unfinishedRegistrations(s) {
+  const registrations = new Map();
+  const completed = new Set(s.accounts.map((a) => a.clientId));
+  for (const registration of [
+    ...(Array.isArray(s.incompleteChatgptRegistrations)
+      ? s.incompleteChatgptRegistrations
+      : []),
+    s.incompleteChatgptRegistration,
+  ]) {
+    const clientId = registration?.clientId;
+    if (isIssuedClientId(clientId) && !completed.has(clientId)) {
+      registrations.delete(clientId);
+      registrations.set(clientId, { clientId });
+    }
+  }
+  return [...registrations.values()];
+}
+function retainRegistration(s, clientId) {
+  s.incompleteChatgptRegistrations = [
+    ...unfinishedRegistrations(s).filter((a) => a.clientId !== clientId),
+    { clientId },
+  ];
+  // Keep the legacy pointer for normal retries and older credential files.
+  s.incompleteChatgptRegistration = { clientId };
+}
+function removeRegistration(s, clientId) {
+  const remaining = unfinishedRegistrations(s).filter(
+    (a) => a.clientId !== clientId,
+  );
+  if (remaining.length) {
+    s.incompleteChatgptRegistrations = remaining;
+    s.incompleteChatgptRegistration = remaining.at(-1);
+  } else {
+    delete s.incompleteChatgptRegistrations;
+    delete s.incompleteChatgptRegistration;
+  }
+}
+function callbackError(supplied) {
+  const workspaceMessage =
+    "This registration is restricted to its original ChatGPT workspace. Choose the original account and workspace, or use another account or workspace.";
+  const recovery = {
+    access_denied:
+      "OpenAI did not authorize this connection. Check the selected account, workspace access and requested permissions.",
+    "3p_login_workspace_scope_denied": workspaceMessage,
+    workspace_scope_denied: workspaceMessage,
+    temporarily_unavailable:
+      "ChatGPT is temporarily unavailable. Try again shortly.",
+    server_error: "ChatGPT is temporarily unavailable. Try again shortly.",
+    invalid_request:
+      "OpenAI rejected the sign-in parameters. Update KNOWGST and retry sign-in.",
+    invalid_scope:
+      "The requested ChatGPT permission was rejected. Review the sign-in permissions.",
+    unauthorized_client:
+      "This app registration is not authorized for this connection.",
+    invalid_client: "OpenAI rejected this app registration.",
+  };
+  // Callback descriptions and unknown codes may contain credentials or URLs.
+  // Keep provider denial separate from token-exchange recovery: never retry it.
+  return fail(
+    Object.hasOwn(recovery, supplied)
+      ? `ChatGPT sign-in was not completed (${supplied}). ${recovery[supplied]}`
+      : "ChatGPT sign-in was not completed. Check the OpenAI sign-in page for details.",
+  );
+}
 async function readOAuthError(response) {
   const reader = response.body?.getReader();
   if (!reader) return {};
@@ -183,6 +251,7 @@ export function chatgptOAuth(store, { fetcher = fetch } = {}) {
         connected: !!a.accessToken,
         planEnabled: !!a.scopes?.includes("chatgpt.tokens.use.direct"),
       })),
+      unfinishedRegistrations: unfinishedRegistrations(s),
       pending: !!attempt,
       authorizationUrl: attempt?.authorizationUrl || null,
       notice: attempt?.recoveries
@@ -191,22 +260,34 @@ export function chatgptOAuth(store, { fetcher = fetch } = {}) {
       error: lastError,
     };
   }
-  async function start(clientId) {
+  async function start(clientId, options = {}) {
+    if (
+      !options ||
+      typeof options !== "object" ||
+      Array.isArray(options) ||
+      (options.newAccount !== undefined &&
+        typeof options.newAccount !== "boolean")
+    )
+      throw fail("Choose whether to add a new ChatGPT account.");
+    const { newAccount = false } = options;
+    if (
+      (clientId !== undefined && !isIssuedClientId(clientId)) ||
+      (newAccount && clientId !== undefined)
+    )
+      throw fail("Choose a saved connection or add a new account, not both.");
+    const saved = store.get();
+    const old = saved.accounts.find((a) => a.clientId === clientId);
+    const unfinished = unfinishedRegistrations(saved);
+    const selected = unfinished.find((a) => a.clientId === clientId);
+    if (clientId && !old && !selected)
+      throw fail("Choose a saved account or add a new account.");
     cancel();
     const startedGeneration = authorizationGeneration;
     lastError = "";
-    const old = store.get().accounts.find((a) => a.clientId === clientId);
-    if (clientId && !old)
-      throw fail("Choose a saved account or add a new account.");
-    const pending = store.get().incompleteChatgptRegistration;
-    const recovering =
-      !clientId &&
-      typeof pending?.clientId === "string" &&
-      /^[A-Za-z0-9_-]{1,250}$/.test(pending.clientId) &&
-      pending.clientId !== "dynamic_agent_client"
-        ? pending.clientId
-        : null;
-    let expectedClientId = old?.clientId || recovering;
+    let expectedClientId =
+      old?.clientId ||
+      selected?.clientId ||
+      (!newAccount ? unfinished.at(-1)?.clientId : null);
     const a = {
       state: randomBytes(32).toString("base64url"),
       nonce: randomBytes(32).toString("base64url"),
@@ -274,12 +355,10 @@ export function chatgptOAuth(store, { fetcher = fetch } = {}) {
       const acceptedState = a.state;
       try {
         if (u.searchParams.has("error"))
-          throw fail("ChatGPT sign-in was not completed.");
+          throw callbackError(u.searchParams.get("error"));
         const issued = u.searchParams.get("client_id") || expectedClientId;
         if (
-          !issued ||
-          issued === "dynamic_agent_client" ||
-          issued.length > 250 ||
+          !isIssuedClientId(issued) ||
           (expectedClientId && issued !== expectedClientId)
         )
           throw fail(
@@ -293,7 +372,7 @@ export function chatgptOAuth(store, { fetcher = fetch } = {}) {
         a.issuedClientId = issued;
         if (!old)
           store.update((s) => {
-            s.incompleteChatgptRegistration = { clientId: issued };
+            retainRegistration(s, issued);
           });
         const tokens = await json(AUTH + "/api/accounts/oauth/token", {
           signal: AbortSignal.any([
@@ -346,8 +425,7 @@ export function chatgptOAuth(store, { fetcher = fetch } = {}) {
             expires: Date.now() + Number(tokens.expires_in) * 1000,
           });
           s.active = issued;
-          if (s.incompleteChatgptRegistration?.clientId === issued)
-            delete s.incompleteChatgptRegistration;
+          removeRegistration(s, issued);
         });
         res.end(
           "ChatGPT connected. You can close this tab and return to KNOWGST.",
@@ -387,10 +465,7 @@ export function chatgptOAuth(store, { fetcher = fetch } = {}) {
         ) {
           try {
             store.update((s) => {
-              if (
-                s.incompleteChatgptRegistration?.clientId === a.issuedClientId
-              )
-                delete s.incompleteChatgptRegistration;
+              removeRegistration(s, a.issuedClientId);
             });
           } catch {
             /* Preserve the original provider error if local recovery metadata cannot be saved. */

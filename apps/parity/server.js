@@ -71,9 +71,9 @@ app.use((req, res, next) => {
   res.setHeader('Cache-Control', 'no-store');
   res.setHeader('X-Content-Type-Options', 'nosniff');
   // Upstream updater/launcher must never replace KNOWGST with another product.
-  if (req.path === '/api/check-update') return res.json({ current: '1.0.1', latest: '1.0.1', updateAvailable: false });
+  if (req.path === '/api/check-update') return res.json({ current: '1.0.2', latest: '1.0.2', updateAvailable: false });
   if (req.path === '/api/control-panel/launch-script' || req.path === '/api/update') return res.status(409).json({ error: 'Signed KNOWGST updater is not available yet. Use the KNOWGST repository.' });
-  if (req.path === '/api/health') return res.json({ ok: true, version: '1.0.1', mode: 'desktop-local', storage:'sqlite',sqliteVersion:storeFor(DATA_DIR)?.version, uptimeSec: Math.round(process.uptime()) });
+  if (req.path === '/api/health') return res.json({ ok: true, version: '1.0.2', mode: 'desktop-local', storage:'sqlite',sqliteVersion:storeFor(DATA_DIR)?.version, uptimeSec: Math.round(process.uptime()) });
   next();
 });
 

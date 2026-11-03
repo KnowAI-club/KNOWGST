@@ -2,6 +2,12 @@
 
 KNOWGST uses a single assistant workspace with contextual draft actions in the existing forms. Connect your own eligible ChatGPT account under **Settings → Integrations**. Choose an available model in **AI assistant**. Local review, mappings and saved rules remain usable without connecting a model; scans and generated explanations need online access.
 
+### Connecting a different ChatGPT account or workspace
+
+Each ChatGPT registration belongs to the account and workspace chosen when it was created. **Continue with ChatGPT** resumes an unfinished registration; **Reconnect** uses the selected saved connection. If OpenAI says “This account can't access this app” (`3p_login_workspace_scope_denied`), sign in with that registration's original account and workspace, or deliberately choose **Use another account or workspace** to create a separate connection. Existing connections and this device's host identity are preserved. **Unfinished connections** lets you resume an earlier attempt.
+
+Enter email verification codes only on OpenAI's page. The app cannot grant workspace membership or override OpenAI's account eligibility. A successful email login alone does not mean KNOWGST is connected: return to Integrations and verify **Connected** and plan permission. See [OpenAI's account switching guidance](https://developers.openai.com/siwc/token-sharing-open-source/profiles-and-sessions).
+
 All data queries are scoped to the active business. AI cannot execute SQL, post journals, make bank transfers, file returns or send email. Source or account changes invalidate stale proposals. “Applied to draft” is different from “Saved”.
 
 ## Chat and contextual drafts

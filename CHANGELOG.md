@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.2 — 3 November 2026
+
+### ChatGPT account and workspace selection
+
+- Explicitly choose another ChatGPT account or workspace when an unfinished registration belongs to a different workspace. Ordinary retries still reuse the existing registration.
+- Retain and resume multiple unfinished connections without overwriting saved accounts or changing this device's host identity.
+- Show recognized authorization errors with safe recovery guidance. Authorization denial never creates a new registration automatically or changes the active account.
+- Update the integration guide with workspace recovery and verification steps.
+
 ## 1.0.1 — 2 November 2026
 
 ### ChatGPT sign-in recovery

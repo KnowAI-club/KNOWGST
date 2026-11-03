@@ -1,4 +1,64 @@
 import { test, expect } from "@playwright/test";
+test("ChatGPT lets users explicitly choose a different workspace or resume an unfinished connection", async ({
+  page,
+}) => {
+  const starts: any[] = [];
+  await page.addInitScript(() => {
+    window.open = (() => ({ location: { href: "" }, close() {} })) as any;
+  });
+  await page.route("**/api/integrations", async (route) =>
+    route.fulfill({
+      json: {
+        chatgpt: {
+          accounts: [],
+          active: null,
+          pending: false,
+          error: "",
+          unfinishedRegistrations: [{ clientId: "oaiapp_fixture_original" }],
+        },
+        resend: {
+          from: "",
+          name: "",
+          replyTo: "",
+          configured: false,
+          recent: [],
+        },
+      },
+    }),
+  );
+  await page.route("**/api/integrations/chatgpt/start", async (route) => {
+    starts.push(route.request().postDataJSON());
+    await route.fulfill({
+      json: {
+        url: "https://auth.openai.com/api/accounts/authorize?state=fixture",
+      },
+    });
+  });
+  await page.goto("/?view=settings");
+  const section = page.locator("#section-integrations");
+  await section
+    .getByRole("button", { name: "Use another account or workspace" })
+    .click();
+  expect(starts).toEqual([{ newAccount: true }]);
+  await section.getByText("Unfinished connections", { exact: true }).click();
+  await section
+    .getByRole("button", { name: "Resume connection original" })
+    .click();
+  expect(starts[1]).toEqual({ clientId: "oaiapp_fixture_original" });
+  await section
+    .getByRole("button", { name: "Continue with ChatGPT", exact: true })
+    .click();
+  expect(starts[2]).toEqual({});
+  for (const width of [1440, 800, 390]) {
+    await page.setViewportSize({ width, height: 950 });
+    await section.scrollIntoViewIfNeeded();
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+  }
+});
 test("ChatGPT recovery follows the current sign-in attempt and clears cancelled links", async ({
   page,
 }) => {
