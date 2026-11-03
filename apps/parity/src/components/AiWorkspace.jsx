@@ -545,7 +545,7 @@ export default function AiWorkspace({ activeProfile, onNavigate }) {
                   ) : (
                     <>
                       <span className="knowai-symbol" aria-hidden="true" />{" "}
-                      KNOWGST
+                      KnowGST
                     </>
                   )}
                 </div>

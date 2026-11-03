@@ -39,7 +39,7 @@ export function acquireRuntimeLock(root) {
       }
       if (alive)
         throw Error(
-          "KNOWGST is already running for this workspace. Close it before starting another server.",
+          "KnowGST is already running for this workspace. Close it before starting another server.",
         );
       if (JSON.parse(fs.readFileSync(file, "utf8")).token === previous.token)
         fs.unlinkSync(file);

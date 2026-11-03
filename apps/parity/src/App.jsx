@@ -738,8 +738,8 @@ function App() {
     return (
       <div className="server-down-overlay">
         <div className="server-down-modal">
-          <FileText size={48} color="#3b82f6" />
-          <h2>KNOWGST needs its local service</h2>
+          <span className="knowai-symbol" aria-hidden="true" style={{ width: 48, height: 48, margin: '0 auto 16px', color: 'var(--text-primary)' }} />
+          <h2>KnowGST needs its local service</h2>
           <p>
             Your data is <strong>100% safe</strong> on your computer — nothing is lost.
             The app just needs to be started once.
@@ -755,8 +755,8 @@ function App() {
           <div className="server-down-steps">
             <p className="server-down-hint">How to start it:</p>
             <ol>
-              <li>Double-click <strong>KNOWGST</strong> on your Desktop, then click <strong>Open App</strong></li>
-              <li>Or search <strong>"KNOWGST"</strong> in the Start Menu</li>
+              <li>Double-click <strong>KnowGST</strong> on your Desktop, then click <strong>Open App</strong></li>
+              <li>Or search <strong>"KnowGST"</strong> in the Start Menu</li>
             </ol>
           </div>
           <p className="server-down-safe">All your invoices, clients, and data are safely stored on your computer. They are never deleted or shared.</p>
@@ -820,7 +820,7 @@ function App() {
           aria-label="Open menu" aria-expanded={navOpen}>
           <Menu size={22} />
         </button>
-        <span className="mobile-topbar-title knowgst-mobile-brand"><span className="knowai-symbol" aria-hidden="true" />KNOWGST</span>
+        <span className="mobile-topbar-title knowgst-mobile-brand"><span className="knowai-symbol" aria-hidden="true" />KnowGST</span>
         <span className="mobile-topbar-business">{profile?.businessName || ''}</span>
       </div>
       {navOpen && <div className="sidebar-backdrop" onClick={() => setNavOpen(false)} aria-hidden="true" />}
@@ -828,7 +828,7 @@ function App() {
         <div className="sidebar-brand">
           <div className="sidebar-logo knowgst-brand-symbol" aria-hidden="true"><span className="knowai-symbol" /></div>
           <div>
-            <h2 className="sidebar-title">KNOWGST</h2>
+            <h2 className="sidebar-title">KnowGST</h2>
 
           </div>
           {/* Auto-hide as a ☰ button (was a text checkbox): pressed = the menu

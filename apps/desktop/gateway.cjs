@@ -55,7 +55,7 @@ exports.startGateway = async ({ root, apiPort, secret }) => {
           res.writeHead(503, { "Content-Type": "application/json" });
         res.end(
           JSON.stringify({
-            error: "Local service unavailable. Restart KNOWGST.",
+            error: "Local service unavailable. Restart KnowGST.",
           }),
         );
       });

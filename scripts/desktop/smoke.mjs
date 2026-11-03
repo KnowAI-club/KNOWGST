@@ -23,13 +23,13 @@ if (installer && process.platform === "darwin") {
   ]);
   try {
     execFileSync("ditto", [
-      path.join(mount, "KNOWGST.app"),
-      path.join(work, "KNOWGST.app"),
+      path.join(mount, "KnowGST.app"),
+      path.join(work, "KnowGST.app"),
     ]);
   } finally {
     execFileSync("hdiutil", ["detach", mount, "-quiet"]);
   }
-  executable = path.join(work, "KNOWGST.app/Contents/MacOS/KNOWGST");
+  executable = path.join(work, "KnowGST.app/Contents/MacOS/KnowGST");
 } else if (installer && process.platform === "win32") {
   const install = path.join(work, "installed");
   execFileSync(installer, ["/S", `/D=${install}`], { timeout: 120000 });
@@ -75,6 +75,9 @@ const api = (page, url, data) =>
   );
 try {
   let page = await launch();
+  const identity = await app.evaluate(({ app }) => ({ name: app.getName(), userData: app.getPath("userData") }));
+  expect(identity.name).toBe("KnowGST");
+  expect(identity.userData).toBe(path.join(work, "data"));
   const origin = new URL(page.url()).origin;
   const health = await api(page, "/api/health");
   expect(health.sqliteVersion).toBe("3.54.1");
@@ -219,11 +222,11 @@ try {
   await page.evaluate(() => {
     const report = window.open("", "_blank");
     if (!report) throw Error("Report window blocked");
-    report.document.write("<h1>KNOWGST report preview</h1>");
+    report.document.write("<h1>KnowGST report preview</h1>");
     report.document.close();
   });
   const popup = await popupEvent;
-  await expect(popup.locator("h1")).toHaveText("KNOWGST report preview");
+  await expect(popup.locator("h1")).toHaveText("KnowGST report preview");
   expect(await popup.evaluate(() => typeof window.require)).toBe("undefined");
   await popup.close();
   await page.evaluate(() => { for (const element of document.querySelectorAll('*')) if (element instanceof HTMLElement && element.scrollTop) element.scrollTop = 0; });
@@ -248,7 +251,7 @@ try {
   await expect(page.getByLabel('OCR method')).toHaveCount(0);
   expect(external).toEqual([]);
   await page.goto(new URL(page.url()).origin + "/docs/");
-  await expect(page.locator("body")).toContainText("KNOWGST");
+  await expect(page.locator("body")).toContainText("KnowGST");
   expect(errors).toEqual([]);
   fs.writeFileSync(
     path.join(output, "result.json"),
@@ -261,6 +264,7 @@ try {
         installer: installer ? path.basename(installer) : null,
         checks: [
           "installed launch",
+          "KnowGST display name and explicit workspace location",
           "SQLite 3.54.1",
           "unauthenticated gateway denied",
           "sandboxed renderer",

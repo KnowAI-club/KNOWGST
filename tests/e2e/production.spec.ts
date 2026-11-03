@@ -150,11 +150,11 @@ test("signature layouts persist and render in invoice preview", async ({
     signature = await preview.getByAltText("Signature").first().boundingBox();
   expect(stamp!.y).toBeLessThan(signature!.y);
 });
-test("release notes are local and identify KNOWGST", async ({ page }) => {
+test("release notes are local and identify KnowGST", async ({ page }) => {
   await page.goto("/?view=support");
   await expect(page.getByRole("heading", { name: "What's new" })).toBeVisible();
-  await expect(page.locator("details")).toContainText("KNOWGST 0.1.0");
-  await expect(page.locator("details")).toContainText("transactional writes");
+  await expect(page.locator("details").first()).toContainText("KnowGST 1.0.3");
+  await expect(page.locator("details").first()).toContainText("Existing business records");
 });
 
 test("a stopped purchase CSV import applies stock only for the bills already saved", async ({

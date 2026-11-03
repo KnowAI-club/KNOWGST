@@ -28,10 +28,10 @@ test('services stay out of alerts and short batch invoices use one page each',as
   await page.screenshot({path:testInfo.outputPath('invoice-register.png'),fullPage:true});
 });
 
-test('offline startup instructions identify KNOWGST only', async ({ page }) => {
+test('offline startup instructions identify KnowGST only', async ({ page }) => {
   await page.route('**/api/profile', route=>route.abort());
   await page.goto('/');
   await expect(page.locator('.server-down-modal')).toBeVisible({timeout:20000});
-  await expect(page.locator('.server-down-steps')).toContainText('"KNOWGST"');
+  await expect(page.locator('.server-down-steps')).toContainText('"KnowGST"');
   await expect(page.locator('.server-down-steps')).not.toContainText('Free GST');
 });

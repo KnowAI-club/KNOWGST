@@ -7,7 +7,7 @@ test.beforeEach(async ({request}) => {
 });
 const modules = [
   ['dashboard','Dashboard'], ['invoices','Invoices'], ['new','New Invoice'], ['clients','Clients'], ['inventory','Products'], ['expenses','Expenses'], ['purchases','Purchases'],
-  ['recurring','Recurring'], ['receipts','Receipts'], ['reports','Reports'], ['filing','GST Returns'], ['incometax','Income Tax'], ['settings','Settings'], ['controlpanel','Control Panel'], ['support','About KNOWGST'],
+  ['recurring','Recurring'], ['receipts','Receipts'], ['reports','Reports'], ['filing','GST Returns'], ['incometax','Income Tax'], ['settings','Settings'], ['controlpanel','Control Panel'], ['support','About KnowGST'],
 ];
 for (const [view,title] of modules) test(`${title} module loads without browser errors`,async ({page})=>{
   const errors:string[]=[]; page.on('pageerror',e=>errors.push(e.message));
@@ -15,7 +15,7 @@ for (const [view,title] of modules) test(`${title} module loads without browser 
   await page.goto(`/?view=${view}`);
   await expect(page.locator('.main-content')).toBeVisible();
   await expect(page.locator('.main-content')).toContainText(view === 'new' ? 'Invoice Details' : title!);
-  await expect(page.locator('.sidebar-title')).toHaveText('KNOWGST');
+  await expect(page.locator('.sidebar-title')).toHaveText('KnowGST');
   await expect(page.getByText('Loading…',{exact:true})).toHaveCount(0);
   expect(errors).toEqual([]); expect(failures).toEqual([]);
   if(view === 'dashboard') { await mkdir('docs/verification',{recursive:true}); await page.screenshot({path:'docs/verification/parity-dashboard.png',fullPage:true}); }

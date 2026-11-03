@@ -1,5 +1,5 @@
-<p align="center"><img src="apps/parity/public/brand/knowai-icon.svg" width="64" alt="KnowAI"></p>
-<h1 align="center">KNOWGST</h1>
+<p align="center"><img src="apps/parity/public/brand/knowgst-icon.svg" width="64" alt="KnowGST logo"></p>
+<h1 align="center">KnowGST</h1>
 <p align="center">Invoicing, bookkeeping and reviewed AI assistance for Indian businesses.</p>
 <p align="center">
   <a href="https://github.com/KnowAI-club/KNOWGST/actions/workflows/ci.yml"><img src="https://github.com/KnowAI-club/KNOWGST/actions/workflows/ci.yml/badge.svg" alt="Validation"></a>
@@ -7,11 +7,11 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0--only-blue" alt="GPL-3.0-only"></a>
 </p>
 
-KNOWGST is a single-user desktop application for macOS and Windows. Keep multiple businesses on your own device, create GST documents, track payments and stock, and maintain books with an audit trail. Core bookkeeping works without an internet connection. Optional ChatGPT and email features connect only when you use them.
+KnowGST is a single-user desktop application for macOS and Windows. Keep multiple businesses on your own device, create GST documents, track payments and stock, and maintain books with an audit trail. Core bookkeeping works without an internet connection. Optional ChatGPT and email features connect only when you use them.
 
 [**Download desktop app**](https://github.com/KnowAI-club/KNOWGST/releases/latest) · [Installation](docs/DESKTOP-RELEASE.md) · [User guide](docs/USER-GUIDE.md) · [Contributing](CONTRIBUTING.md) · [Release notes](CHANGELOG.md)
 
-![KNOWGST dashboard with fictional demonstration records](apps/parity/public/docs/screenshots/dashboard.png)
+![KnowGST dashboard with fictional demonstration records](apps/parity/public/docs/screenshots/dashboard.png)
 
 ## What you can do
 
@@ -57,7 +57,7 @@ The development workspace is `.local/parity/`; its database is `data/knowgst.sql
 
 ## Accounting scope
 
-KNOWGST prepares documents and records bookkeeping activity; it does not submit government returns, obtain an IRN, execute bank transfers or certify tax eligibility. The ledger currently supports INR, while document workflows retain their supported currencies. Purchase/expense input-tax eligibility remains a review task. Source-based reports and ledger-based explanations use distinct, stated accounting bases.
+KnowGST prepares documents and records bookkeeping activity; it does not submit government returns, obtain an IRN, execute bank transfers or certify tax eligibility. The ledger currently supports INR, while document workflows retain their supported currencies. Purchase/expense input-tax eligibility remains a review task. Source-based reports and ledger-based explanations use distinct, stated accounting bases.
 
 Keep your own verified tax rates and business particulars. Review the [tax-rule coverage](docs/TAX-RULE-REVIEW.md), [accounting boundaries](docs/SQLITE-ACCOUNTING.md) and [feature parity evidence](docs/FEATURE-PARITY.md) for your use case.
 
@@ -86,4 +86,4 @@ Browser tests create isolated fictional workspaces. Native installer tests exerc
 
 Use [Issues](https://github.com/KnowAI-club/KNOWGST/issues) for reproducible bugs and focused feature requests. Read [CONTRIBUTING.md](CONTRIBUTING.md) before changing financial calculations or migrations. Report vulnerabilities through the process in [SECURITY.md](SECURITY.md); do not attach private books, credentials or OAuth callbacks to public issues.
 
-KNOWGST is published under **GPL-3.0-only**. Existing third-party code retains its original notices. See [LICENSE](LICENSE) and [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) for provenance and attribution. KnowAI branding is separate from the source-code license.
+KnowGST is published under **GPL-3.0-only**. Existing third-party code retains its original notices. See [LICENSE](LICENSE) and [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) for provenance and attribution. KnowAI branding is separate from the source-code license.

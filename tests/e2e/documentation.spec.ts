@@ -39,25 +39,59 @@ test('documentation mobile navigation, theme and layout',async({page})=>{
 
 test('capture actual app screens for the published guide',async({page,request})=>{
  test.skip(process.env.CAPTURE_DOCS!=='1','Explicit screenshot refresh only');test.setTimeout(120000);
+ // Playwright starts this test in its isolated KNOWGST_RUNTIME. Persist the
+ // fictional records through normal APIs so screenshots and dashboard totals
+ // describe the same saved business, rather than a second set of UI mocks.
+ const save = async (url:string, data:unknown) => {
+  const response=await request.post(url,{data});
+  expect(response.ok(),`${url}: ${await response.text()}`).toBe(true);
+  return response.json();
+ };
  const profile={id:'guide-demo',businessName:'Sample Studio',address:'Pune, Maharashtra',state:'Maharashtra',country:'India',gstin:'',email:'studio@example.com'};
- await request.post('/api/profile',{data:profile});
- await request.post('/api/local-prefs',{data:{set:{gst_printSettings:JSON.stringify({onboardingComplete:true}),freegstbill_onboarded:'true'}}});
- const today=new Date().toISOString().slice(0,10);
- await page.route('**/api/clients',r=>r.fulfill({json:[{id:'guide-client',name:'Sample Client',email:'client@example.com',address:'Mumbai',state:'Maharashtra',country:'India'}]}));
- await page.route('**/api/products',r=>r.fulfill({json:[{id:'guide-product',name:'Design services',hsn:'998314',unit:'Nos',purchasePrice:2500,sellingPrice:5000,taxPercent:18,stock:10}]}));
- await page.route('**/api/purchases',r=>r.fulfill({json:[{id:'guide-purchase',invoiceNumber:'SUP-2026-001',date:today,supplierName:'Sample Supplier',supplierAddress:'Pune',paymentStatus:'Unpaid',interstate:false,ownerName:profile.businessName,profile,items:[{name:'Office supplies',quantity:2,rate:500,taxPercent:18}]}]}));
- await page.route('**/api/expenses',r=>r.fulfill({json:[{id:'guide-expense',description:'Workspace subscription',date:today,amount:1200,gstAmount:0,category:'Office',ownerName:profile.businessName,profile,currency:'INR'}]}));
- await page.route('**/api/receipts',r=>r.fulfill({json:[]}));
+ await save('/api/profile',profile);
+ await save('/api/local-prefs',{set:{gst_printSettings:JSON.stringify({onboardingComplete:true}),freegstbill_onboarded:'true',freegstbill_theme:'light'}});
+ const now=new Date();
+ const today=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+ const fy=now.getMonth()>=3?now.getFullYear():now.getFullYear()-1;
+ const invoiceNumber=`INV/${String(fy).slice(-2)}-${String(fy+1).slice(-2)}/0001`;
+ const supplierInvoice=`SUP-${now.getFullYear()}-001`;
+ const client={id:'guide-client',businessId:profile.id,name:'Sample Client',email:'client@example.com',address:'Mumbai',state:'Maharashtra',country:'India'};
+ await save('/api/clients',client);
+ await save('/api/products',{id:'guide-product',businessId:profile.id,name:'Design services',type:'service',hsn:'998314',unit:'Service',purchasePrice:2500,sellingPrice:5000,taxPercent:18,trackStock:false,stock:0});
+ const bill={
+  id:'guide-invoice',businessId:profile.id,invoiceNumber,invoiceDate:today,clientName:client.name,invoiceType:'tax-invoice',totalAmount:5900,totalTaxAmount:900,status:'partial',paidAmount:2000,currency:'INR',
+  payments:[{id:'guide-payment',receiptNo:'RCPT-GUIDE-001',date:today,amount:2000,mode:'bank-transfer',note:'Fictional guide payment'}],
+  data:{profile,client,details:{invoiceDate:today,dueDate:today},invoiceType:'tax-invoice',invoiceOptions:{currency:'INR'},items:[{name:'Design services',hsn:'998314',unit:'Service',quantity:1,rate:5000,taxPercent:18,cessPercent:0}],totals:{subtotal:5000,taxableAmount:5000,total:5900,totalTaxAmount:900,cgst:450,sgst:450,igst:0,cess:0}},
+ };
+ await save('/api/invoice-transactions',{operations:[{bill}]});
+ await save('/api/purchases',{id:'guide-purchase',businessId:profile.id,invoiceNumber:supplierInvoice,date:today,supplierName:'Sample Supplier',supplierAddress:'Pune',paymentStatus:'Unpaid',interstate:false,ownerName:profile.businessName,profile,currency:'INR',totalAmount:1180,totalTaxAmount:180,items:[{name:'Office supplies',quantity:2,rate:500,taxPercent:18,cessPercent:0}]});
+ const purchase=(await (await request.get('/api/purchases')).json()).find((row:{id:string})=>row.id==='guide-purchase');
+ await save('/api/accounting/supplier-payments',{id:'guide-supplier-payment',purchaseId:purchase.id,revision:purchase._revision,amount:'400',date:today,account:'1000'});
+ await save('/api/expenses',{id:'guide-expense',businessId:profile.id,description:'Workspace subscription',date:today,amount:1200,gstAmount:0,category:'Office',ownerName:profile.businessName,profile,currency:'INR'});
+ const summaryResponse=await request.get(`/api/dashboard?month=${today.slice(0,7)}&currency=INR`);
+ expect(summaryResponse.ok()).toBe(true);
+ const summary=await summaryResponse.json();
+ expect(summary).toMatchObject({businessId:profile.id,sales:500000,received:200000,spent:160000,outstanding:390000,payable:78000,unassigned:0,warnings:[],activityTotal:4});
+ expect(summary.activity.map((row:{id:string})=>row.id)).toEqual(expect.arrayContaining(['guide-invoice','guide-payment','guide-purchase','guide-expense']));
  await page.route('**/api/recurring',r=>r.fulfill({json:[]}));
- await page.route('**/api/bills',r=>r.fulfill({json:[{id:'guide-invoice',invoiceNumber:'INV/26-27/0001',invoiceDate:today,clientName:'Sample Client',invoiceType:'tax-invoice',totalAmount:5900,totalTaxAmount:900,status:'unpaid',paidAmount:0,currency:'INR',data:{profile,client:{name:'Sample Client',state:'Maharashtra',country:'India'},details:{invoiceDate:today},invoiceType:'tax-invoice',invoiceOptions:{currency:'INR'},items:[{name:'Design services',quantity:1,rate:5000,taxPercent:18}],totals:{subtotal:5000,taxableAmount:5000,total:5900,totalTaxAmount:900,cgst:450,sgst:450,igst:0}}}]}));
  const dir='apps/parity/public/docs/screenshots';await mkdir(dir,{recursive:true});
  const screens=[['dashboard','dashboard'],['invoice-register','invoices'],['invoice','new'],['clients','clients'],['products','inventory'],['purchases','purchases'],['expenses','expenses'],['receipts','receipts'],['recurring','recurring'],['reports','reports'],['gst','filing'],['income-tax','incometax'],['settings','settings'],['control-panel','controlpanel']];
  const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
  for(const [name,view] of screens){
   await page.goto(`/?view=${view}`);await expect(page.locator('.main-content')).toBeVisible();
   await expect(page.getByText('Loading…',{exact:true})).toHaveCount(0);await page.evaluate(()=>document.fonts.ready);
-  const loaded:Record<string,string>={dashboard:'Recent activity',invoices:'INV/26-27/0001',clients:'Sample Client',inventory:'Design services',purchases:'SUP-2026-001',expenses:'Workspace subscription'};
+  const loaded:Record<string,string>={dashboard:'Recent activity',invoices:invoiceNumber,clients:'Sample Client',inventory:'Design services',purchases:supplierInvoice,expenses:'Workspace subscription',receipts:'RCPT-GUIDE-001'};
   if(loaded[view!]) await expect(page.locator('.main-content')).toContainText(loaded[view!]!);
+  if(view==='dashboard'){
+   await expect(page.locator('.overview-metric').filter({hasText:'Sales · excluding GST'})).toContainText('5,000.00');
+   await expect(page.locator('.overview-metric').filter({hasText:'Money received'})).toContainText('2,000.00');
+   await expect(page.locator('.overview-metric').filter({hasText:'Customers owe you'})).toContainText('3,900.00');
+   await expect(page.locator('.overview-metric').filter({hasText:'You owe suppliers'})).toContainText('780.00');
+   await expect(page.locator('.overview-table tbody tr')).toHaveCount(4);
+   await expect(page.locator('.overview-table')).toContainText('Sample Client');
+   await expect(page.locator('.overview-table')).toContainText('Workspace subscription');
+   await expect(page.locator('.overview-warning')).toHaveCount(0);
+  }
   if(view==='new'){
    await page.getByPlaceholder('Type client name to search or add new').fill('Sample Client');
    await page.getByPlaceholder('Item',{exact:true}).fill('Design services');
@@ -69,11 +103,11 @@ test('capture actual app screens for the published guide',async({page,request})=
   await page.screenshot({path:`${dir}/${name}.png`});
  }
  await page.goto('/?view=settings');await page.getByRole('navigation',{name:'Settings sections'}).getByRole('link',{name:'Integrations',exact:true}).click();await expect(page.getByRole('navigation',{name:'Settings sections'}).getByRole('link',{name:'Integrations',exact:true})).toHaveAttribute('aria-current','location');await expect(page.locator('#section-integrations').getByRole('button',{name:'Continue with ChatGPT'})).toBeVisible();await page.screenshot({path:`${dir}/integrations.png`});
- await request.post('/api/integrations/resend',{data:{from:'studio@example.com',name:'Sample Studio',apiKey:'re_fictional_guide_only_123456'}});
- await page.goto('/?view=invoices');await page.getByRole('row').filter({hasText:'INV/26-27/0001'}).getByRole('button',{name:/^More actions/}).click();await page.getByText('Email PDF with Resend',{exact:true}).click();await expect(page.getByRole('dialog',{name:'Email invoice'}).getByRole('link',{name:/Review PDF/})).toBeVisible();await page.getByRole('dialog').getByLabel('Recipient email').fill('client@example.com');await page.screenshot({path:`${dir}/email-invoice.png`});await page.getByRole('dialog').getByRole('button',{name:'Close',exact:true}).click();
+ await save('/api/integrations/resend',{from:'studio@example.com',name:'Sample Studio',apiKey:'re_fictional_guide_only_123456'});
+ await page.goto('/?view=invoices');await page.getByRole('row').filter({hasText:invoiceNumber}).getByRole('button',{name:/^More actions/}).click();await page.getByText('Email PDF with Resend',{exact:true}).click();await expect(page.getByRole('dialog',{name:'Email invoice'}).getByRole('link',{name:/Review PDF/})).toBeVisible();await page.getByRole('dialog').getByLabel('Recipient email').fill('client@example.com');await page.screenshot({path:`${dir}/email-invoice.png`});await page.getByRole('dialog').getByRole('button',{name:'Close',exact:true}).click();
  await page.goto('/?view=purchases');await page.getByRole('button',{name:'Add Purchase',exact:true}).first().click();
  await page.getByPlaceholder(/^(Vendor \/ Supplier name|Type or pick a previous supplier)$/).fill('Sample Supplier');
- await page.getByPlaceholder('Supplier invoice no.').fill('SUP-2026-002');
+ await page.getByPlaceholder('Supplier invoice no.').fill(`SUP-${now.getFullYear()}-002`);
  await page.getByPlaceholder(/^(Item name|Type or pick a previous item)$/).fill('Office supplies');
  await page.locator('.form-group').filter({has:page.locator('label').filter({hasText:/^Rate$/})}).locator('input').fill('500');
  await page.getByRole('heading',{name:'Add Purchase Bill'}).click();

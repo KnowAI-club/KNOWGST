@@ -71,9 +71,9 @@ app.use((req, res, next) => {
   res.setHeader('Cache-Control', 'no-store');
   res.setHeader('X-Content-Type-Options', 'nosniff');
   // Upstream updater/launcher must never replace KNOWGST with another product.
-  if (req.path === '/api/check-update') return res.json({ current: '1.0.2', latest: '1.0.2', updateAvailable: false });
-  if (req.path === '/api/control-panel/launch-script' || req.path === '/api/update') return res.status(409).json({ error: 'Signed KNOWGST updater is not available yet. Use the KNOWGST repository.' });
-  if (req.path === '/api/health') return res.json({ ok: true, version: '1.0.2', mode: 'desktop-local', storage:'sqlite',sqliteVersion:storeFor(DATA_DIR)?.version, uptimeSec: Math.round(process.uptime()) });
+  if (req.path === '/api/check-update') return res.json({ current: '1.0.3', latest: '1.0.3', updateAvailable: false });
+  if (req.path === '/api/control-panel/launch-script' || req.path === '/api/update') return res.status(409).json({ error: 'Signed KnowGST updater is not available yet. Use the KnowGST repository.' });
+  if (req.path === '/api/health') return res.json({ ok: true, version: '1.0.3', mode: 'desktop-local', storage:'sqlite',sqliteVersion:storeFor(DATA_DIR)?.version, uptimeSec: Math.round(process.uptime()) });
   next();
 });
 
@@ -1815,7 +1815,7 @@ app.get('{*path}', (req, res) => {
 function servePlaceholder(req, res) {
     if (req.path.startsWith('/api')) return res.status(404).json({ error: 'No such endpoint' });
     res.status(503).send(`<!doctype html>
-<html><head><meta charset="utf-8"><title>KNOWGST — building…</title>
+<html><head><meta charset="utf-8"><title>KnowGST — building…</title>
 <meta http-equiv="refresh" content="3">
 <style>
   body { font-family: -apple-system, Segoe UI, Inter, sans-serif; max-width: 560px;
@@ -1830,7 +1830,7 @@ function servePlaceholder(req, res) {
   .box { background: #f8fafc; border: 1px solid #e2e8f0; padding: 0.85rem 1rem; border-radius: 8px; margin-top: 1rem; }
 </style></head>
 <body>
-  <h1>KNOWGST</h1>
+  <h1>KnowGST</h1>
   <p><span class="spinner"></span> The app is still building. This page refreshes every 3 seconds.</p>
   <div class="box">
     <p style="margin:0 0 0.5rem"><strong>Local install?</strong></p>

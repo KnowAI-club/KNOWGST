@@ -1,7 +1,7 @@
 export const pages = [
   {
     "id": "index",
-    "title": "Welcome to KNOWGST",
+    "title": "Welcome to KnowGST",
     "group": "Start here",
     "intro": "A practical guide to your local billing workspace. Follow the steps, compare the screens, and check your records before sharing or filing.",
     "steps": [
@@ -10,7 +10,7 @@ export const pages = [
       "Create an invoice, check the preview and save the PDF.",
       "Record purchases and payments, then review your reports."
     ],
-    "notes": "This guide shows the implemented KNOWGST app with fictional sample records, refreshed on 1 November 2026. Your business records remain local. Optional ChatGPT and Resend connections use the internet only for the requests you initiate. Bank feeds and automatic tax filing are not included.",
+    "notes": "This guide shows the implemented KnowGST app with fictional sample records, refreshed on 1 November 2026. Your business records remain local. Optional ChatGPT and Resend connections use the internet only for the requests you initiate. Bank feeds and automatic tax filing are not included.",
     "screen": "dashboard",
     "view": "dashboard"
   },
@@ -24,7 +24,7 @@ export const pages = [
       "Review numbering, bank details and the modules you want to show.",
       "Save changes. Create a test document and inspect its business details before issuing real invoices."
     ],
-    "notes": "Use the KNOWGST desktop app, or the local development preview started with pnpm dev. This guide uses fictional business data; enter your own verified business details before issuing documents.",
+    "notes": "Use the KnowGST desktop app, or the local development preview started with pnpm dev. This guide uses fictional business data; enter your own verified business details before issuing documents.",
     "screen": "settings",
     "view": "settings"
   },
@@ -217,7 +217,7 @@ export const pages = [
       "Import the relevant GSTR-2B information for reconciliation. Investigate mismatched, books-only and portal-only records.",
       "Export the supported file, validate it with the current government utilities and complete filing through your authorized process."
     ],
-    "notes": "KNOWGST does not currently submit returns or register invoices with an IRP. Export success is not filing acceptance. Verify rates, time of supply and credit eligibility.",
+    "notes": "KnowGST does not currently submit returns or register invoices with an IRP. Export success is not filing acceptance. Verify rates, time of supply and credit eligibility.",
     "screen": "gst",
     "view": "filing"
   },
@@ -262,7 +262,7 @@ export const pages = [
     "view": "settings",
     "steps": [
       "Open Settings → Integrations. Under ChatGPT, select Continue with ChatGPT.",
-      "Complete sign-in and consent in your system browser. Authorize ChatGPT plan usage if your account is eligible, then return to KNOWGST. No API key or shared subscription is required.",
+      "Complete sign-in and consent in your system browser. Authorize ChatGPT plan usage if your account is eligible, then return to KnowGST. No API key or shared subscription is required.",
       "Your account appears after its identity is verified. Use Reconnect, Use account or Sign out to manage saved connections. Manage ChatGPT usage opens the provider’s account limits.",
       "If OpenAI says this account cannot access the app, the saved registration may belong to another workspace. Continue with its original account, or select Use another account or workspace to register a separate connection. Resume earlier attempts under Unfinished connections. Existing saved connections are preserved.",
       "Expand Ask ChatGPT, load your available models, choose one and enter a question. Only your typed question is sent; invoices, customer lists and books are not attached automatically.",
@@ -277,7 +277,7 @@ export const pages = [
     "id": "backups",
     "title": "Back up and restore",
     "group": "Workspace",
-    "intro": "Protect both your records and the PDF files saved by KNOWGST.",
+    "intro": "Protect both your records and the PDF files saved by KnowGST.",
     "steps": [
       "Open Control Panel and choose Create Backup. Wait for the success message.",
       "Open the backups folder and keep a separate copy on another disk or protected location.",
@@ -433,7 +433,7 @@ export const pages = [
     "steps": [
       "Open AI assistant → Import assistant. Choose Clients or Products and a CSV of up to 250 KB / 300 data rows.",
       "Map each source column to a supported field. Inspect the ready/skipped/error summary and correct all errors.",
-      "Confirm the reviewed import. KNOWGST first creates a complete verified snapshot, then creates the new records and batch history together.",
+      "Confirm the reviewed import. KnowGST first creates a complete verified snapshot, then creates the new records and batch history together.",
       "Review the imported records. Undo import is available only while they are unchanged and have no linked documents, stock history or aliases."
     ],
     "notes": "This local workflow does not send your CSV to AI. Existing records are not replaced. Opening stock, balances and historical transactions are excluded. Find the pre-import backup in Control Panel.",
@@ -450,7 +450,7 @@ export const pages = [
       "Keep independent backups and validate financial exports before external use.",
       "Track release evidence and remaining work in the repository documentation."
     ],
-    "notes": "This is not a claim of exhaustive parity or production certification. Hosted authentication, PostgreSQL migration, packaged macOS builds, live integration validation, broader security/accessibility work and broader AI workflows remain unfinished. KNOWGST is GPL-3.0-only with retained upstream MIT notices.",
+    "notes": "This is not a claim of exhaustive parity or production certification. Hosted authentication, PostgreSQL migration, packaged macOS builds, live integration validation, broader security/accessibility work and broader AI workflows remain unfinished. KnowGST is GPL-3.0-only with retained upstream MIT notices.",
     "screen": null,
     "view": null
   }

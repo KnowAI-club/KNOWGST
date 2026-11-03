@@ -174,7 +174,7 @@ test("OAuth validates callback, uses issued client and PKCE, preserves host and 
   t.after(() => chat.cancel());
   authURL = new URL((await chat.start()).url);
   assert.equal(authURL.searchParams.get("client_id"), "dynamic_agent_client");
-  assert.equal(authURL.searchParams.get("agent_name_hint"), "KNOWGST");
+  assert.equal(authURL.searchParams.get("agent_name_hint"), "KnowGST");
   const host = authURL.searchParams.get("ext_agent_host_id");
   const callback = new URL(authURL.searchParams.get("redirect_uri"));
   callback.search = new URLSearchParams({
@@ -617,7 +617,7 @@ test("explicit new-account sign-in preserves and can resume unfinished workspace
   auth = new URL((await chat.start(undefined, { newAccount: true })).url);
   assert.equal(auth.searchParams.get("client_id"), "dynamic_agent_client");
   assert.equal(auth.searchParams.get("ext_agent_host_id"), hostId);
-  assert.equal(auth.searchParams.get("agent_name_hint"), "KNOWGST");
+  assert.equal(auth.searchParams.get("agent_name_hint"), "KnowGST");
   const callback = new URL(auth.searchParams.get("redirect_uri"));
   callback.search = new URLSearchParams({
     code: "private-new-code",

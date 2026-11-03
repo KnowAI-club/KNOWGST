@@ -29,7 +29,7 @@ html[data-theme=dark] .sidebar .nav-btn:not(.nav-btn-active){color:var(--text-se
 html[data-theme=dark] .form-input{background:var(--card-bg);color:var(--text);border-color:var(--border)}
 
 /* Official KnowAI symbol, paired with the product wordmark. */
-.knowai-symbol{display:block;width:32px;height:32px;flex-shrink:0;background:currentColor;-webkit-mask:url('/brand/knowai-icon.svg') center/contain no-repeat;mask:url('/brand/knowai-icon.svg') center/contain no-repeat}
+.knowai-symbol{display:block;width:32px;height:32px;flex-shrink:0;background:currentColor;-webkit-mask:url('/brand/knowgst-icon.svg') center/contain no-repeat;mask:url('/brand/knowgst-icon.svg') center/contain no-repeat}
 .sidebar .sidebar-brand{gap:11px;min-height:40px;align-items:center}
 .sidebar .sidebar-logo.knowgst-brand-symbol{background:transparent;width:32px;height:32px;border-radius:0;box-shadow:none;color:var(--text)}
 .sidebar .sidebar-title{font-size:18px;font-weight:600;letter-spacing:-.65px;white-space:nowrap;line-height:1.2}

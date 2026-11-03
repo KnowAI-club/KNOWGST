@@ -77,7 +77,7 @@ function callbackError(supplied) {
       "ChatGPT is temporarily unavailable. Try again shortly.",
     server_error: "ChatGPT is temporarily unavailable. Try again shortly.",
     invalid_request:
-      "OpenAI rejected the sign-in parameters. Update KNOWGST and retry sign-in.",
+      "OpenAI rejected the sign-in parameters. Update KnowGST and retry sign-in.",
     invalid_scope:
       "The requested ChatGPT permission was rejected. Review the sign-in permissions.",
     unauthorized_client:
@@ -191,15 +191,15 @@ export function chatgptOAuth(store, { fetcher = fetch } = {}) {
         invalid_client:
           "The app registration was rejected. Start a new ChatGPT connection.",
         invalid_request:
-          "OpenAI rejected the sign-in parameters. Update KNOWGST and retry sign-in.",
+          "OpenAI rejected the sign-in parameters. Update KnowGST and retry sign-in.",
         unauthorized_client:
           "This app registration is not authorized for this connection.",
         invalid_scope:
           "The requested ChatGPT permission was rejected. Review the sign-in permissions.",
         invalid_resource:
-          "OpenAI rejected the requested service. Update KNOWGST and retry sign-in.",
+          "OpenAI rejected the requested service. Update KnowGST and retry sign-in.",
         unsupported_grant_type:
-          "OpenAI rejected the authorization method. Update KNOWGST and retry sign-in.",
+          "OpenAI rejected the authorization method. Update KnowGST and retry sign-in.",
         access_denied:
           "ChatGPT access was not approved. Start sign-in and review the requested permissions.",
         temporarily_unavailable:
@@ -312,7 +312,7 @@ export function chatgptOAuth(store, { fetcher = fetch } = {}) {
         code_challenge: createHash("sha256")
           .update(a.verifier)
           .digest("base64url"),
-        ...(!expectedClientId ? { agent_name_hint: "KNOWGST" } : {}),
+        ...(!expectedClientId ? { agent_name_hint: "KnowGST" } : {}),
         ...(old?.email ? { login_hint: old.email } : {}),
       }).toString();
       return url.href;
@@ -348,7 +348,7 @@ export function chatgptOAuth(store, { fetcher = fetch } = {}) {
         attempt !== a
       ) {
         res.writeHead(400);
-        res.end("Invalid or expired sign-in. Return to KNOWGST.");
+        res.end("Invalid or expired sign-in. Return to KnowGST.");
         return;
       }
       a.claimed = true;
@@ -428,14 +428,14 @@ export function chatgptOAuth(store, { fetcher = fetch } = {}) {
           removeRegistration(s, issued);
         });
         res.end(
-          "ChatGPT connected. You can close this tab and return to KNOWGST.",
+          "ChatGPT connected. You can close this tab and return to KnowGST.",
         );
       } catch (e) {
         // A cancelled exchange must never report an error into a newer sign-in
         // or remove its retained registration.
         if (attempt !== a) {
           res.writeHead(400);
-          res.end("This sign-in was cancelled. Return to KNOWGST.");
+          res.end("This sign-in was cancelled. Return to KnowGST.");
           return;
         }
         if (

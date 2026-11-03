@@ -227,7 +227,7 @@ export default function IntegrationSettings() {
                           setNotice(
                             r.revoked
                               ? "Signed out."
-                              : "Signed out on this device. Remote revocation was not confirmed; disconnect KNOWGST in ChatGPT settings.",
+                              : "Signed out on this device. Remote revocation was not confirmed; disconnect KnowGST in ChatGPT settings.",
                           );
                         })
                       }

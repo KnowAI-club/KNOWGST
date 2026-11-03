@@ -11,5 +11,5 @@ restorePrefs().then(restored => {
   startMirroring(restored);
   createRoot(document.getElementById('root')).render(<StrictMode><AppLockGate><App /></AppLockGate></StrictMode>);
 }).catch(() => {
-  createRoot(document.getElementById('root')).render(<main role="alert" style={{padding:32}}>KNOWGST could not open local preferences. Restart the local service and reload.</main>);
+  createRoot(document.getElementById('root')).render(<main role="alert" style={{padding:32}}>KnowGST could not open local preferences. Restart the local service and reload.</main>);
 });

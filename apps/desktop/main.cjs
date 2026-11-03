@@ -4,10 +4,8 @@ const { randomBytes } = require("node:crypto");
 const fs = require("node:fs");
 const path = require("node:path");
 const { startGateway } = require("./gateway.cjs");
-app.setName("KNOWGST");
-// Explicit override is for isolated installer tests and portable test workspaces.
-if (process.env.KNOWGST_DESKTOP_DATA)
-  app.setPath("userData", path.resolve(process.env.KNOWGST_DESKTOP_DATA));
+const { configureIdentity } = require("./identity.cjs");
+configureIdentity(app);
 let service,
   gateway,
   window,
@@ -29,7 +27,7 @@ if (!app.requestSingleInstanceLock()) {
       if (process.env.KNOWGST_DESKTOP_TEST === "1") console.error(error);
       else
         dialog.showErrorBox(
-          "KNOWGST could not start",
+          "KnowGST could not start",
           `${error.message}\nYour business data has not been deleted.`,
         );
       app.quit();
@@ -96,7 +94,7 @@ async function start() {
     secret,
   });
   window = new BrowserWindow({
-    title: "KNOWGST",
+    title: "KnowGST",
     width: 1440,
     height: 960,
     minWidth: 760,
@@ -144,7 +142,7 @@ async function start() {
       return {
         action: "allow",
         overrideBrowserWindowOptions: {
-          title: "KNOWGST document",
+          title: "KnowGST document",
           autoHideMenuBar: true,
           webPreferences: {
             nodeIntegration: false,
@@ -181,7 +179,7 @@ async function start() {
   );
   session.on("will-download", (_event, item) => {
     item.setSaveDialogOptions({
-      title: "Save KNOWGST document",
+      title: "Save KnowGST document",
       defaultPath: path.join(
         app.getPath("downloads"),
         path.basename(item.getFilename()),
@@ -193,7 +191,7 @@ async function start() {
       ...(process.platform === "darwin"
         ? [
             {
-              label: "KNOWGST",
+              label: "KnowGST",
               submenu: [
                 { role: "about" },
                 { type: "separator" },
@@ -237,7 +235,7 @@ async function start() {
         label: "Help",
         submenu: [
           {
-            label: "KNOWGST guide",
+            label: "KnowGST guide",
             click: () => window.loadURL(gateway.origin + "/docs/"),
           },
         ],
@@ -247,8 +245,8 @@ async function start() {
   service.on("exit", () => {
     if (!quitting) {
       dialog.showErrorBox(
-        "KNOWGST service stopped",
-        "Close and reopen KNOWGST to recover the local service. Your saved records remain in the application data folder.",
+        "KnowGST service stopped",
+        "Close and reopen KnowGST to recover the local service. Your saved records remain in the application data folder.",
       );
       app.quit();
     }

@@ -31,7 +31,7 @@ export default function ReleaseNotes() {
         entries.map((entry) => (
           <details key={entry.version} open>
             <summary>
-              KNOWGST {entry.version} · {entry.date}
+              KnowGST {entry.version} · {entry.date}
             </summary>
             {entry.sections.map((section) => (
               <div key={section.title}>

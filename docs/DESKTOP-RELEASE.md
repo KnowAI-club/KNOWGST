@@ -1,47 +1,53 @@
 # Desktop installation and release process
 
-KNOWGST bundles Electron, its Node service, SQLite 3.54.1, the application and illustrated user guide. Users do not need Node.js or a development server. Core bookkeeping works offline; ChatGPT image extraction and email require a connection and the user's configured account.
+KnowGST bundles Electron, its Node service, SQLite 3.54.1, the application and illustrated user guide. Users do not need Node.js or a development server. Core bookkeeping works offline; ChatGPT image extraction and email require a connection and the user's configured account.
 
 ## Choose an installer
 
-Download only from [KNOWGST GitHub Releases](https://github.com/KnowAI-club/KNOWGST/releases).
+Download only from [KnowGST GitHub Releases](https://github.com/KnowAI-club/KNOWGST/releases).
 
 | Computer | File |
 | --- | --- |
-| Mac with Apple silicon | `KNOWGST-1.0.0-mac-arm64.dmg` |
-| Mac with Intel processor | `KNOWGST-1.0.0-mac-x64.dmg` |
-| Windows x64 | `KNOWGST-1.0.0-win-x64.exe` |
+| Mac with Apple silicon | `KNOWGST-1.0.3-mac-arm64.dmg` |
+| Mac with Intel processor | `KNOWGST-1.0.3-mac-x64.dmg` |
+| Windows x64 | `KNOWGST-1.0.3-win-x64.exe` |
 
-Mac ZIP packages are also supplied. Check the release asset names if using a later version. On macOS, About This Mac identifies the chip/processor.
+Mac ZIP packages are also supplied. Check the release asset names for the version you download. Release filenames retain the `KNOWGST-` prefix; previously published files are not renamed. On macOS, About This Mac identifies the chip/processor.
 
 Verify the file against `SHA256SUMS` downloaded from the same release:
 
 ```sh
 # macOS, in the download folder
-shasum -a 256 KNOWGST-1.0.0-mac-arm64.dmg
+shasum -a 256 KNOWGST-1.0.3-mac-arm64.dmg
 ```
 
 ```powershell
 # Windows PowerShell, in the download folder
-Get-FileHash .\KNOWGST-1.0.0-win-x64.exe -Algorithm SHA256
+Get-FileHash .\KNOWGST-1.0.3-win-x64.exe -Algorithm SHA256
 ```
 
 Compare the entire digest. A matching checksum confirms the file matches the published artifact; it is not publisher signing.
 
 ## Install and open
 
-- **macOS:** Open the DMG and copy KNOWGST to Applications. Open KNOWGST from Applications. This community release is not Developer ID signed or notarized. macOS may require a specific approval in System Settings → Privacy & Security after the first open attempt. Do not disable system-wide security controls.
-- **Windows:** Run the KNOWGST setup file and choose the installation location. Per-user installation creates KNOWGST Start Menu and optional desktop shortcuts without administrator access. The installer is not publisher-signed; Windows may show an unrecognized-app prompt. Review the source and checksum before choosing to proceed.
+- **macOS:** Open the DMG and copy `KnowGST.app` to Applications. Open **KnowGST** from Applications. This community release is not Developer ID signed or notarized. macOS may require a specific approval in System Settings → Privacy & Security after the first open attempt. Do not disable system-wide security controls.
+- **Windows:** Run the KnowGST setup file and choose the installation location. Per-user installation creates **KnowGST** Start Menu and optional desktop shortcuts without administrator access. The installer is not publisher-signed; Windows may show an unrecognized-app prompt. Review the source and checksum before choosing to proceed.
 
 The releases page records which native installation tests passed. It does not certify every OS version, printer driver, antivirus configuration or device.
 
 ## Data, upgrades and moving computers
 
-Data lives outside the installed application in Electron's KNOWGST user-data folder, under `workspace/`. Choose **File → Open data folder** to locate it. The database is `data/knowgst.sqlite`; generated PDFs, backups and local integration credentials occupy separate folders. Logs rotate at 2 MiB.
+Data lives outside the installed application in the existing `KNOWGST` user-data folder, under `workspace/`. The folder name stays uppercase even though the displayed product name is **KnowGST**. On macOS the default is `~/Library/Application Support/KNOWGST`; on Windows it is `%APPDATA%\KNOWGST`. Choose **File → Open data folder** to locate it. The database is `data/knowgst.sqlite`; generated PDFs, backups and local integration credentials occupy separate folders. Logs rotate at 2 MiB.
 
-Before an upgrade, create a verified full backup. Replacing the application preserves its workspace, and Windows uninstall preserves user data. There is no automatic updater in v1.
+Before an upgrade, create a verified full backup and quit the older app. Replace the application bundle or run the Windows installer; leave the separate data folder in place. When upgrading from `KNOWGST.app` to `KnowGST.app` on a case-sensitive Mac disk, replace the old bundle rather than leaving both copies in Applications. Windows uninstall preserves user data. There is no automatic updater in v1.
 
 Development/browser workspaces are not moved silently into the installed app. Create a verified backup in the existing workspace, then restore it through the installed app's backup controls. Full backups preserve PDFs, AI document originals and review state; integration credentials are intentionally excluded, so reconnect providers on the new computer. See [backup and restore](BACKUP-RESTORE.md).
+
+## Product branding and ChatGPT sign-in
+
+The app, installer and guide use the approved KnowAI symbol with the **KnowGST** wordmark. New ChatGPT registrations send **KnowGST** as their display-name hint. Previously saved registrations retain their own issued client IDs and verified account identity; a branding update does not reconnect or replace them.
+
+OpenAI hosts its own sign-in and approval pages. Its documented open-source registration parameters support an app-name hint, but do not document a custom-logo parameter. Updating the bundled KnowGST icon therefore does not change the logo on OpenAI's hosted page. See [OpenAI's registration contract](https://developers.openai.com/siwc/token-sharing-open-source/sign-in).
 
 ## Build from the corresponding source
 
@@ -63,7 +69,7 @@ Never copy a native SQLite binding between platforms or architectures. The stagi
 
 Set `KNOWGST_TEST_INSTALLER` to the absolute DMG or setup EXE path, then run `pnpm desktop:test`. The test mounts/copies the Mac app or silently installs Windows into a temporary folder, then launches that installed copy with an isolated fictional workspace.
 
-Checks cover installed launch, SQLite version, renderer isolation, unauthenticated gateway denial, invoice PDF output, verified backup/restore including PDF bytes, restart persistence, sandboxed report windows, extraction consent and bundled guide. Provider responses are not inferred from this packaging test; real ChatGPT/Resend access requires the owner's credentials. Evidence is written to `release/smoke/`.
+Checks cover installed launch, product display name, isolated data location, SQLite version, renderer isolation, unauthenticated gateway denial, invoice PDF output, verified backup/restore including PDF bytes, restart persistence, sandboxed report windows, extraction consent and bundled guide. Provider responses are not inferred from this packaging test; real ChatGPT/Resend access requires the owner's credentials. Evidence is written to `release/smoke/`.
 
 The [Desktop installers workflow](../.github/workflows/desktop.yml) builds and tests natively on macOS arm64, macOS x64 and Windows x64. `node scripts/desktop/checksums.mjs` hashes the resulting packages. Only artifacts from successful platform jobs are eligible for publication.
 

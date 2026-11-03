@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.0.3 — 3 November 2026
+
+### Consistent KnowGST branding
+
+- Use **KnowGST** across the app, assistant, onboarding, guide, desktop menus and shortcuts while retaining the approved KnowAI symbol and neutral interface.
+- Add a product-named icon asset for the app, guide and repository. Customer business logos on invoices remain separate.
+- New ChatGPT registrations use the **KnowGST** display-name hint. Existing account registrations and their credentials remain intact; the locally bundled icon does not replace OpenAI's hosted sign-in icon.
+- Keep the existing `KNOWGST` data directory, application ID, Windows executable name and release asset filename format stable. The Mac app bundle is now `KnowGST.app`. Display-name changes do not move business records or integration settings.
+- Cover legacy workspace preservation and explicit test-directory overrides with desktop identity regression checks.
+
 ## 1.0.2 — 3 November 2026
 
 ### ChatGPT account and workspace selection

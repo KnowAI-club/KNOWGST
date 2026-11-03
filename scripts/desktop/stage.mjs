@@ -83,7 +83,7 @@ const probe = spawnSync(
 if (probe.status !== 0)
   throw Error("Packaged SQLite runtime verification failed");
 const brand = fs
-  .readFileSync(path.join(source, "public/brand/knowai-icon.svg"), "utf8")
+  .readFileSync(path.join(source, "public/brand/knowgst-icon.svg"), "utf8")
   .replace(/<style>[\s\S]*?<\/style>/, "")
   .replace(
     "<svg ",

@@ -590,7 +590,7 @@ export default function SettingsView({ onSaved }) {
     try {
       const text = await file.text();
       const inspection = inspectBackup(text);
-      if (!inspection.valid) { toast("This file doesn't look like a KNOWGST-compatible backup.", 'error'); return; }
+      if (!inspection.valid) { toast("This file doesn't look like a KnowGST-compatible backup.", 'error'); return; }
       setImportInspection(inspection);
       setImportJsonText(text);
       // Auto-tick only the parts that actually have data in the file

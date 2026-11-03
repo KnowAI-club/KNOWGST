@@ -43,7 +43,7 @@ export default function StarBanner() {
     }}>
       <Star size={18} style={{ color: '#f59e0b', fill: '#f59e0b', flexShrink: 0 }} />
       <span style={{ flex: '1 1 240px' }}>
-        Finding KNOWGST useful? A star on GitHub helps other businesses find it. It takes one click.
+        Finding KnowGST useful? A star on GitHub helps other businesses find it. It takes one click.
       </span>
       <a className="btn btn-primary" href={REPO} target="_blank" rel="noopener noreferrer"
         onClick={() => save({ done: true })} style={{ padding: '0.3rem 0.8rem', fontSize: '0.8rem', textDecoration: 'none' }}>

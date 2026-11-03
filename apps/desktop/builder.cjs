@@ -1,12 +1,12 @@
 module.exports = {
   appId: "club.knowai.knowgst",
-  productName: "KNOWGST",
+  productName: "KnowGST",
   directories: {
     app: "apps/desktop",
     output: "release",
     buildResources: ".local/desktop/icons",
   },
-  files: ["main.cjs", "gateway.cjs", "package.json"],
+  files: ["main.cjs", "gateway.cjs", "identity.cjs", "package.json"],
   asar: true,
   npmRebuild: false,
   extraResources: [
@@ -30,14 +30,14 @@ module.exports = {
     icon: "icon.icns",
     identity: null,
   },
-  win: { target: [{ target: "nsis", arch: ["x64"] }], icon: "icon.ico" },
+  win: { executableName: "KNOWGST", target: [{ target: "nsis", arch: ["x64"] }], icon: "icon.ico" },
   nsis: {
     oneClick: false,
     perMachine: false,
     allowToChangeInstallationDirectory: true,
     createDesktopShortcut: true,
     createStartMenuShortcut: true,
-    shortcutName: "KNOWGST",
+    shortcutName: "KnowGST",
     deleteAppDataOnUninstall: false,
     runAfterFinish: false,
   },
