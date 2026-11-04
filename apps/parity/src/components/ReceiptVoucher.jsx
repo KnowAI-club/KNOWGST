@@ -58,7 +58,7 @@ export default function ReceiptVoucher() {
   const loadData = async () => {
     try {
       const [recs, bls, prof] = await Promise.all([getAllReceipts(), getAllBills(), getProfile()]);
-      // v1.10.66 (#64 item 2) — receipts belong to one business, like its
+      // v1.10.66 (#64 item 2) - receipts belong to one business, like its
       // invoices. Both lists are narrowed: the receipts shown, and the
       // invoices offered in Quick Select and matched by "Against Invoice".
       // Two businesses can each have an INV/2026-27/0001, so matching across
@@ -106,7 +106,7 @@ export default function ReceiptVoucher() {
     setShowForm(true);
   };
 
-  // v1.10.16 — reported: "here also add edit option" — the Payment Receipts
+  // v1.10.16 - reported: "here also add edit option" - the Payment Receipts
   // list only had Print + Delete. Delete + re-create lost the original
   // receipt number and the paid-against linkage. Now Edit opens the same
   // form pre-filled with the receipt fields; save re-POSTs with the same
@@ -137,7 +137,7 @@ export default function ReceiptVoucher() {
       ...prev,
       clientName: bill.clientName || '',
       clientAddress: bill.data?.client?.address || '',
-      // v1.10.23 — clamp negative (overpaid) to 0 so the new-receipt
+      // v1.10.23 - clamp negative (overpaid) to 0 so the new-receipt
       // amount input doesn't start pre-filled with a negative number.
       amount: String(Math.max(0, Math.round((amountDue(bill) - (bill.paidAmount || 0)) * 100) / 100)),
       againstInvoice: bill.invoiceNumber || '',
@@ -148,7 +148,7 @@ export default function ReceiptVoucher() {
     if (!form.clientName.trim()) { toast('Client name required', 'warning'); return; }
     if (!form.amount || parseFloat(form.amount) <= 0) { toast('Enter valid amount', 'warning'); return; }
     try {
-      // v1.10.16 — Edit mode preserves the original receipt number and id so
+      // v1.10.16 - Edit mode preserves the original receipt number and id so
       // the server upserts in place. Only new receipts reserve a fresh
       // atomic number from the RCP counter.
       let receiptNo = form.receiptNo;
@@ -160,7 +160,7 @@ export default function ReceiptVoucher() {
         } catch { receiptNo = receiptNo.trim() || previewedNoRef.current; /* fall back to peeked number */ }
       }
 
-      // v1.10.66 (#64 item 2) — a NEW receipt is stamped with the business
+      // v1.10.66 (#64 item 2) - a NEW receipt is stamped with the business
       // selected now. An edited receipt keeps what it had, including no business
       // at all: an older receipt is assigned only through the explicit "Assign
       // to" banner, never as a side effect of fixing a typo while some other
@@ -242,11 +242,11 @@ export default function ReceiptVoucher() {
     }, 100);
   };
 
-  // v1.10.67 (#66 item 12) — no money is owed on a cancelled invoice.
+  // v1.10.67 (#66 item 12) - no money is owed on a cancelled invoice.
   // v1.10.74 - nor on quotes, challans or credit notes: real sales only.
   const unpaidBills = bills.filter(b => b.status !== 'paid' && countsAsSales(b));
 
-  // v1.10.66 (#64 item 2) — receipts saved before this release carry no
+  // v1.10.66 (#64 item 2) - receipts saved before this release carry no
   // business. As with expenses they are never assigned automatically: only the
   // user knows which business took the money.
   const unassignedReceipts = receipts.filter(isUnassignedToBusiness);
@@ -262,7 +262,7 @@ export default function ReceiptVoucher() {
   return (
     <div className="dashboard-container">
       <PageHeader title="Receipts" subtitle={<>Generate payment receipts for clients</>}>
-          <HelpButton title="Receipts — how to use" doc="receipts">
+          <HelpButton title="Receipts - how to use" doc="receipts">
             <ul style={{ paddingLeft: '1.1rem', margin: 0 }}>
               <li><strong>New Receipt</strong>: pick an unpaid invoice to fill in the client, amount and invoice number.</li>
               <li>When <strong>Against Invoice</strong> matches one of your invoice numbers, the payment is also recorded on that invoice.</li>
@@ -288,10 +288,10 @@ export default function ReceiptVoucher() {
             {/* Quick select from unpaid invoices */}
             {unpaidBills.length > 0 && !form.againstInvoice && (
               <div style={{ marginBottom: '1rem' }}>
-                <label className="form-label">Quick Select — Unpaid Invoices</label>
-                {/* v1.10.57 — reported (#44 item 2, @sangwanmail-eng):
+                <label className="form-label">Quick Select - Unpaid Invoices</label>
+                {/* v1.10.57 - reported (#44 item 2, @sangwanmail-eng):
                     "payment receipt overlapped". This capped the height of
-                    `.client-picker`, which has no overflow handling — the
+                    `.client-picker`, which has no overflow handling - the
                     class that scrolls is `.client-picker-list`. Ten unpaid
                     invoices in a 150px box with nothing to clip them simply
                     spilled out and painted over Receipt No / Date / Amount
@@ -305,7 +305,7 @@ export default function ReceiptVoucher() {
                         <strong>{bill.clientName}</strong>
                         <span style={{ marginLeft: '0.5rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>{bill.invoiceNumber}</span>
                       </div>
-                      {/* v1.10.23 — hide the outstanding chip on overpaid
+                      {/* v1.10.23 - hide the outstanding chip on overpaid
                           bills (they don't need another receipt). */}
                       {(bill.totalAmount - (bill.paidAmount || 0)) > 0.005 && (
                         <span style={{ fontWeight: 600 }}>{formatCurrency(bill.totalAmount - (bill.paidAmount || 0))}</span>

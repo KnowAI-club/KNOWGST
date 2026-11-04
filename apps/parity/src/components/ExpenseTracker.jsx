@@ -5,6 +5,7 @@ import { getAllExpenses, saveExpense, deleteExpense, getProfile } from '../store
 import { formatCurrency, getFYOptions, belongsToProfile, isUnassignedToBusiness } from '../utils';
 import UnassignedBanner from './UnassignedBanner';
 import { toast } from './Toast';
+import { validateGstin, validatePin, validateCity } from '../utils/addressValidation';
 import { confirmAction } from './ConfirmModal';
 import HelpButton from './HelpButton';
 import TableExport from './TableExport';
@@ -42,11 +43,11 @@ const emptyForm = {
   note: '',
 };
 
-// v1.10.6 — audit L4: local copy removed, imported from utils above.
+// v1.10.6 - audit L4: local copy removed, imported from utils above.
 
 export default function ExpenseTracker({ initialAiDraft, onDraftConsumed }) {
   const [expenses, setExpenses] = useState([]);
-  // v1.10.65 (#58 item 3) — the business these records belong to.
+  // v1.10.65 (#58 item 3) - the business these records belong to.
   const [ownerProfile, setOwnerProfile] = useState(null);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
@@ -59,7 +60,7 @@ export default function ExpenseTracker({ initialAiDraft, onDraftConsumed }) {
   const defaultFy = fyOptions[0]?.value || '';
 
 
-  // v1.10.65 (#58 item 3) — assign records saved before businesses were kept
+  // v1.10.65 (#58 item 3) - assign records saved before businesses were kept
   // separate. Never automatic: only the user knows which business an old
   // record belonged to, so guessing would file it into the wrong books.
   const unassignedExpenses = expenses.filter(isUnassignedToBusiness);
@@ -76,7 +77,7 @@ export default function ExpenseTracker({ initialAiDraft, onDraftConsumed }) {
     try {
       const [rows, prof] = await Promise.all([getAllExpenses(), getProfile().catch(() => null)]);
       setOwnerProfile(prof);
-      // v1.10.65 (#58 item 3) — show only this business's records. Anything
+      // v1.10.65 (#58 item 3) - show only this business's records. Anything
       // saved before businesses were separated has no owner recorded and is
       // always shown, so nothing disappears from an existing ledger.
       setExpenses((rows || []).filter(r => belongsToProfile(r, prof)));
@@ -154,6 +155,7 @@ export default function ExpenseTracker({ initialAiDraft, onDraftConsumed }) {
   };
 
   const handleSave = async () => {
+    if (!validateGstin(form.vendorGstin).ok) { toast(validateGstin(form.vendorGstin).message, 'warning'); return; }
     if (!form.description.trim()) { toast('Description is required', 'warning'); return; }
     if (!form.amount || parseFloat(form.amount) <= 0) { toast('Enter a valid amount', 'warning'); return; }
     // v1.10.74 - GST % must be 0 to 100 (40% is a real rate, so no 28 cap).
@@ -178,7 +180,7 @@ export default function ExpenseTracker({ initialAiDraft, onDraftConsumed }) {
         interstate: !!form.interstate,
         note: form.note.trim(),
         // Stamp the business this expense belongs to. `vendorGstin` above is
-        // the SUPPLIER — filing an expense under your own supplier would be
+        // the SUPPLIER - filing an expense under your own supplier would be
         // exactly backwards, so the owner is kept in its own field.
         ownerGstin: ownerProfile?.gstin || '',
         ownerName: ownerProfile?.businessName || '',
@@ -241,7 +243,7 @@ export default function ExpenseTracker({ initialAiDraft, onDraftConsumed }) {
   return (
     <div className="dashboard-container">
       <PageHeader title="Expenses" subtitle={<>Track business expenses for P&L and ITC claims</>}>
-          <HelpButton title="Expenses — how to use" doc="expenses">
+          <HelpButton title="Expenses - how to use" doc="expenses">
             <ul style={{ paddingLeft: '1.1rem', margin: 0 }}>
               <li>For costs that are not stock: rent, electricity, internet, software, travel, fees.</li>
               <li><strong>Amount</strong> is what you paid, including GST. Enter the <strong>GST %</strong> and the GST inside it is worked out and counted as input tax credit.</li>
@@ -343,7 +345,9 @@ export default function ExpenseTracker({ initialAiDraft, onDraftConsumed }) {
               <div className="form-group">
                 <label className="form-label">Vendor GSTIN</label>
                 <input type="text" className="form-input" value={form.vendorGstin}
-                  onChange={e => updateField('vendorGstin', e.target.value)} placeholder="For ITC claim" maxLength={15} />
+                  style={validateGstin(form.vendorGstin).ok ? undefined : { borderColor: '#dc2626' }}
+                  onChange={e => updateField('vendorGstin', e.target.value.toUpperCase())} placeholder="For ITC claim" maxLength={15} />
+                {!validateGstin(form.vendorGstin).ok && <small style={{ color: '#dc2626', fontSize: '0.7rem', display: 'block', marginTop: '0.2rem' }}>{validateGstin(form.vendorGstin).message}</small>}
               </div>
               <div className="form-group">
                 <label className="form-label">Invoice / Bill No</label>
@@ -362,9 +366,9 @@ export default function ExpenseTracker({ initialAiDraft, onDraftConsumed }) {
                     onChange={e => updateField('interstate', e.target.checked)}
                     style={{ width: 16, height: 16, accentColor: 'var(--primary)' }} />
                   <span>
-                    <strong>Inter-state expense</strong> — vendor charged IGST (different state)
+                    <strong>Inter-state expense</strong> - vendor charged IGST (different state)
                     <span style={{ color: '#94a3b8', fontSize: '0.72rem', display: 'block' }}>
-                      Routes ITC to IGST in GSTR-3B. Common: AWS / Google / Adobe / SaaS billed from an out-of-state office. Tip: check the vendor's GSTIN — first 2 digits are their state code.
+                      Routes ITC to IGST in GSTR-3B. Common: AWS / Google / Adobe / SaaS billed from an out-of-state office. Tip: check the vendor's GSTIN - first 2 digits are their state code.
                     </span>
                   </span>
                 </label>

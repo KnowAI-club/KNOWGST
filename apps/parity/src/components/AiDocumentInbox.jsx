@@ -1,3 +1,4 @@
+import { validateGstin } from "../utils/addressValidation";
 import { useEffect, useRef, useState } from "react";
 import {
   Upload,
@@ -374,10 +375,17 @@ export default function AiDocumentInbox({ activeProfile, model, onNavigate }) {
                             field,
                             field === "grandTotal"
                               ? numberValue(e.target.value)
-                              : e.target.value,
+                              : field === "supplierGstin"
+                                ? e.target.value.toUpperCase()
+                                : e.target.value,
                           )
                         }
                       />
+                      {field === "supplierGstin" && !validateGstin(extracted[field]).ok && (
+                        <small style={{ color: "#dc2626", fontSize: "0.7rem" }}>
+                          {validateGstin(extracted[field]).message}
+                        </small>
+                      )}
                     </label>
                   ))}
                   {[
@@ -503,7 +511,7 @@ export default function AiDocumentInbox({ activeProfile, model, onNavigate }) {
                 <button
                   type="button"
                   className="btn btn-primary"
-                  disabled={busy || !reviewed || !currencyConfirmed}
+                  disabled={busy || !reviewed || !currencyConfirmed || !validateGstin(extracted?.supplierGstin).ok}
                   onClick={apply}
                 >
                   Open {kind} draft <ArrowUpRight size={14} />

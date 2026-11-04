@@ -10,14 +10,14 @@ import { commitInvoices, planInvoices, invoiceRevision, versionedInvoice } from 
 import { readRecord, durableWrite, commitJsonBatch, recoverJsonTransaction, validateObject, validateId, storageError } from './json-storage.mjs';
 import { createVerifiedBackup, verifyBackup, replaceDirectory, restoreVerifiedBackup, recoverInterruptedRestore, claimBackupFolder } from './verified-backup.mjs';
 import express from 'express';
-// v1.10.0 — `cors` package no longer imported. The CORS-lockdown
+// v1.10.0 - `cors` package no longer imported. The CORS-lockdown
 // middleware below is intentionally custom + strict (localhost only)
 // where `cors()` echoed `*` for every origin.
 import {recordFs as fs} from './sqlite-storage.mjs';
 import crypto from 'crypto';
 import path from 'path';
 import { fileURLToPath } from 'url';
-// v1.10.31 — Data-F3.1: share computeInvoiceTotals with the client so
+// v1.10.31 - Data-F3.1: share computeInvoiceTotals with the client so
 // server-generated recurring invoices honour UTGST, cess, RCM, TDS/TCS,
 // discount modes (percent / unit / with-tax), tax-inclusive back-calc,
 // invoice-level discount, and round-off. Previously the recurring auto-fire
@@ -35,19 +35,19 @@ recoverInterruptedRestore(DATA_DIR);
 recoverJsonTransaction(DATA_DIR);
 openRecordDatabase(DATA_DIR);
 
-// Port choice — we deliberately default to a high, unusual number rather than
+// Port choice - we deliberately default to a high, unusual number rather than
 // the conventional 3001. The 3000-range is heavily used by every other Node /
 // Vite / React / Express app, dev servers, Grafana, etc., which means every
 // other install would land on 3002 / 3003 / etc. and the user would be left
 // guessing which URL is "theirs". 47371 is in IANA's unassigned range
 // (between registered 1024-49151 and dynamic 49152-65535) and isn't claimed
 // by any common software we could find. The persisted `data/port.txt` always
-// wins over this default — so a single user who genuinely needs 47371 for
+// wins over this default - so a single user who genuinely needs 47371 for
 // something else can edit that file and we'll respect it forever.
 const DEFAULT_PORT = 47371;
 const PORT_FILE = path.join(DATA_DIR, 'port.txt');
 
-// Read the persisted port (if any) — written once on first successful start
+// Read the persisted port (if any) - written once on first successful start
 // and every time we get bumped off our preferred port by EADDRINUSE.
 const persistedPort = (() => {
   try {
@@ -90,7 +90,7 @@ function requireSnapshotIdle() {
   if(pendingMutations>1) throw new Error('Another change is in progress. Wait for it to finish, then try again.');
 }
 
-// v1.10.0 — CORS lockdown. Previously `app.use(cors())` echoed
+// v1.10.0 - CORS lockdown. Previously `app.use(cors())` echoed
 // Access-Control-Allow-Origin: *, which meant any site the user visited
 // could `fetch('http://localhost:47371/api/bills')` and read/wipe all
 // data. This is a local desktop-style app: legitimate callers either
@@ -119,7 +119,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// v1.10.0 — Body size lowered from 50mb → 5mb. Legit invoice payloads
+// v1.10.0 - Body size lowered from 50mb → 5mb. Legit invoice payloads
 // are single-digit kilobytes; a full import archive with 5000 bills fits
 // comfortably in 2-3mb. 50mb + wildcard CORS previously meant any site
 // could OOM the Node process with a nested-JSON payload.
@@ -203,7 +203,7 @@ function safeFileName(id) {
   return String(id).replace(/[/\\:*?"<>|]/g, '_');
 }
 
-// v1.10.0 — Path-traversal-safe user-string → single path segment.
+// v1.10.0 - Path-traversal-safe user-string → single path segment.
 // Strips path separators, drive letters, and every `..` occurrence
 // (including URL-encoded variants after decode). Used for the
 // save-pdf / trash-pdf endpoints that construct paths from query
@@ -221,7 +221,7 @@ function safePathSegment(input, fallback = 'Untitled') {
   return s || fallback;
 }
 
-// v1.10.0 — Enforce that `resolved` lives strictly inside `root`.
+// v1.10.0 - Enforce that `resolved` lives strictly inside `root`.
 // Returns true if inside, false otherwise. Callers should reject on
 // false and log server-side.
 function isPathInside(resolved, root) {
@@ -232,7 +232,7 @@ function isPathInside(resolved, root) {
   return p === r || p.startsWith(r + path.sep);
 }
 
-// v1.10.0 — Generic error response helper. Never returns raw Node
+// v1.10.0 - Generic error response helper. Never returns raw Node
 // error messages to the client (they leak absolute filesystem paths,
 // EACCES/EPERM strings that hint at server structure). Server-side
 // logs the full detail; client sees a stable code + generic phrase.
@@ -258,21 +258,21 @@ function errRes(res, status, code, err) {
   return res.status(status).json({ error: MESSAGES[code] || code, code });
 }
 
-// v1.10.0 — Atomic file write. Writes to `<file>.tmp` then renames
+// v1.10.0 - Atomic file write. Writes to `<file>.tmp` then renames
 // over the target so a mid-write crash / power loss cannot leave a
 // truncated file on disk. Critical for META_PATH which stores the
-// invoice counter — a truncated meta.json read back as `{}` reissues
+// invoice counter - a truncated meta.json read back as `{}` reissues
 // invoice numbers from zero.
 function writeFileAtomic(filePath, contents) {
   durableWrite(filePath, contents);
 }
 
-// Errors log path — declared here so errRes() can find it. The actual
+// Errors log path - declared here so errRes() can find it. The actual
 // file is created lazily; ERRORS_LOG constant below still points here.
 const ERRORS_LOG = path.join(DATA_DIR, 'errors.log');
 
-// In-memory cache for directory reads — invalidated on write/delete.
-// v1.10.6 — audit L12: added a 5s TTL. Users are documented as being
+// In-memory cache for directory reads - invalidated on write/delete.
+// v1.10.6 - audit L12: added a 5s TTL. Users are documented as being
 // able to hand-edit JSON files in data/*; prior code never noticed
 // external edits until a POST/DELETE happened to invalidate. Now: any
 // cached entry older than 5 seconds is treated as stale and re-read.
@@ -299,7 +299,7 @@ function readJSON(filePath, fallback = null) {
   return readRecord(filePath, fallback);
 }
 
-// Helper: write JSON file (with cache invalidation). v1.10.0 — writes
+// Helper: write JSON file (with cache invalidation). v1.10.0 - writes
 // atomically via temp+rename so a crash mid-write can't leave a
 // truncated meta.json that resets the invoice counter.
 function writeJSON(filePath, data) {
@@ -356,7 +356,7 @@ app.post('/api/bills', (req, res) => {
   // Dupe-check: the invoice-number field is free-text on the client, so a
   // typo (INV/2026/0007 typed again for a fresh bill) would silently
   // overwrite the previous saved bill. That's data loss. Require the
-  // client to pass ?overwrite=1 to allow it — used for edits + auto-fire
+  // client to pass ?overwrite=1 to allow it - used for edits + auto-fire
   // re-processing. Otherwise refuse with 409 so the UI can prompt the user.
   const overwrite = req.query.overwrite === '1' || req.query.overwrite === 'true';
   if (!overwrite && fs.existsSync(filePath)) {
@@ -372,7 +372,7 @@ app.post('/api/bills', (req, res) => {
   res.json({ success: true });
 });
 
-// v1.10.31 — Data-F9.1: block deletion of a bill that's a client-credit
+// v1.10.31 - Data-F9.1: block deletion of a bill that's a client-credit
 // SOURCE for another live bill. Deleting it would leave the target bill
 // showing "paid" via credit-applied without a real source, breaking the
 // dual-entry integrity guaranteed by v1.10.24. Client can force-delete
@@ -881,15 +881,15 @@ app.get('/api/export', (req, res) => {
 });
 
 app.post('/api/import', (req, res) => {
-  // v1.10.0 — Match POST /api/bills' overwrite semantics for bills.
-  // v1.10.31 — Data-F5.1 fix: overwrite gating now applies to EVERY
+  // v1.10.0 - Match POST /api/bills' overwrite semantics for bills.
+  // v1.10.31 - Data-F5.1 fix: overwrite gating now applies to EVERY
   // collection, not just bills. Previously clients / templates / products
   // / expenses / recurring / receipts / profiles / purchases / meta were
   // ALWAYS overwritten regardless of the `?overwrite` flag. A user
   // restoring an old backup expecting a bill-only merge lost every new
-  // client / product / template they'd added since the backup — plus the
+  // client / product / template they'd added since the backup - plus the
   // meta counter reset caused invoice-number 409 loops on next save.
-  // Also v1.10.31 — Data-F12.2: after any import, scan the imported bills
+  // Also v1.10.31 - Data-F12.2: after any import, scan the imported bills
   // and reconcile the meta counter with each prefix's max existing suffix
   // so the next reservation doesn't collide.
   requireSnapshotIdle();
@@ -953,7 +953,7 @@ app.post('/api/import', (req, res) => {
   (data.profiles || []).forEach(p => upsertOne('profiles', p, 'profileCount', 'profileSkipped'));
   (data.purchases || []).forEach(p => upsertOne('purchases', p, 'purchaseCount', 'purchaseSkipped'));
 
-  // meta.json — same gating. Previously always overwrote → counters could
+  // meta.json - same gating. Previously always overwrote → counters could
   // regress below existing bill numbers → collision loop on next save.
   if (data.meta) {
     if (overwrite || !fs.existsSync(META_PATH)) {
@@ -973,7 +973,7 @@ app.post('/api/import', (req, res) => {
     }
   }
 
-  // v1.10.31 — Data-F12.2: reconcile meta counter with imported bill nums.
+  // v1.10.31 - Data-F12.2: reconcile meta counter with imported bill nums.
   // For every bill just imported (or already on disk), extract the numeric
   // suffix from its invoice number. Bump each `counter_<PREFIX>` in meta
   // to at least max(existing) so the next reservation doesn't collide.
@@ -1036,7 +1036,7 @@ if (!fs.existsSync(INVOICES_DIR)) fs.mkdirSync(INVOICES_DIR, { recursive: true }
 
 app.post('/api/save-pdf', express.raw({ type: 'application/pdf', limit: '20mb' }), (req, res) => {
   try {
-    // v1.10.0 — Path traversal fix. Previous filter stripped
+    // v1.10.0 - Path traversal fix. Previous filter stripped
     // `<>:"/\|?*` but NOT `..`, so `?client=..&month=..&name=x.bat`
     // resolved to `INVOICES_DIR/../../x.bat` and wrote attacker bytes
     // above the app root. safePathSegment collapses `..` and control
@@ -1060,7 +1060,7 @@ app.post('/api/save-pdf', express.raw({ type: 'application/pdf', limit: '20mb' }
     if (isPathInside(keptOriginal, path.join(DATA_DIR, 'cancelled-pdf-originals')) && fs.existsSync(keptOriginal)) {
       try { fs.unlinkSync(keptOriginal); } catch { /* leave it */ }
     }
-    // Don't leak absolute FS path — client only needs to know it saved
+    // Don't leak absolute FS path - client only needs to know it saved
     // and where (relative). Absolute path revealed OS username +
     // install dir to any origin.
     res.json({ saved: true, relPath: path.relative(RUNTIME_DIR, filePath).split(path.sep).join('/') });
@@ -1189,14 +1189,14 @@ app.post('/api/trash-pdf', express.json(), (req, res) => {
     const { fileName, clientName } = req.body;
     if (!fileName) return errRes(res, 400, 'bad-request');
 
-    // v1.10.0 — Path traversal fix (see save-pdf comment). Prior code
+    // v1.10.0 - Path traversal fix (see save-pdf comment). Prior code
     // didn't strip `..` so `fileName: '../../../etc/passwd'` moved
     // arbitrary local files into the Trash.
     const safeClient = safePathSegment(clientName, 'General');
     const safeName = safePathSegment(fileName, 'Untitled.pdf');
 
     const clientDir = path.join(INVOICES_DIR, safeClient);
-    // Extra guard — reject if the constructed client dir somehow escaped.
+    // Extra guard - reject if the constructed client dir somehow escaped.
     if (!isPathInside(clientDir, INVOICES_DIR)) return errRes(res, 400, 'invalid-path');
     let found = false;
 
@@ -1259,7 +1259,7 @@ app.get('/api/version', (req, res) => {
   res.json({ current: pkg.version });
 });
 
-// Naive semver compare — returns +1 if a > b, -1 if a < b, 0 if equal.
+// Naive semver compare - returns +1 if a > b, -1 if a < b, 0 if equal.
 // "1.4.10" > "1.4.2" correctly (numeric parts), unlike a string compare.
 function compareSemver(a, b) {
   const pa = String(a || '0').split('.').map(n => parseInt(n, 10) || 0);
@@ -1325,9 +1325,9 @@ app.get('/api/check-update', async (req, res) => {
 });
 
 // ============================================================
-// v1.10.44 — In-app Control Panel API
+// v1.10.44 - In-app Control Panel API
 // Powers /control-panel in the app. Each endpoint shells out to
-// a platform-appropriate script under `_system-scripts/` — the copy inside
+// a platform-appropriate script under `_system-scripts/` - the copy inside
 // `_system/` in a release install, or `release-templates/_system-scripts/`
 // when running from the source repo.
 // ============================================================
@@ -1339,9 +1339,9 @@ const isMac = process.platform === 'darwin';
 // Where the launcher scripts live. In a release-ZIP install the app
 // is under `_system/` so `..` gets us to the launcher's script dir;
 // in dev the same relative path lands us at `release-templates/_system-scripts/`
-// which also holds them. If neither exists we degrade gracefully —
+// which also holds them. If neither exists we degrade gracefully -
 // the Control Panel just shows the buttons as disabled.
-// v1.10.72 (#73) — the release ZIP has always FLATTENED the scripts into
+// v1.10.72 (#73) - the release ZIP has always FLATTENED the scripts into
 // _system/, right next to this file (build-release-zip.mjs copies
 // _system-scripts/* into _system/). None of the old candidates existed in a
 // ZIP install, so every user since v1.10.44 got "Launcher scripts not
@@ -1374,10 +1374,10 @@ const controlActions = () => Object.fromEntries(CONTROL_ACTIONS.map(a => [a, !!p
 function runControlScript(scriptPath) {
   return new Promise((resolve) => {
     if (!scriptPath) { resolve({ ok: false, error: 'Not available here: the script for this action is not in the app folder. Download the latest ZIP to get it.' }); return; }
-    // v1.10.66 (#59) — update-unix.sh is plain POSIX sh, so it runs under `sh`
+    // v1.10.66 (#59) - update-unix.sh is plain POSIX sh, so it runs under `sh`
     // and therefore also where bash does not exist (Alpine / BusyBox NAS
     // images). The other Unix scripts use bash features and keep running under
-    // bash, found on PATH as before — /usr/local/bin/bash on TrueNAS CORE,
+    // bash, found on PATH as before - /usr/local/bin/bash on TrueNAS CORE,
     // /run/current-system/sw/bin/bash on NixOS.
     const unixShell = path.basename(scriptPath) === 'update-unix.sh' ? 'sh' : 'bash';
     const [cmd, args] = isWindows
@@ -1474,15 +1474,15 @@ app.post('/api/control-panel/launch-script', async (req, res) => {
 // The static middleware silently no-ops when dist/ doesn't exist; the catch-all
 // then checks per-request and serves either index.html (build ready) or the
 // friendly "still building" page (build not ready). This means the server can
-// start before `vite build` finishes — common in StackBlitz, Codespaces, or
-// when a user accidentally runs `node server.js` directly — and seamlessly
+// start before `vite build` finishes - common in StackBlitz, Codespaces, or
+// when a user accidentally runs `node server.js` directly - and seamlessly
 // flips to serving the app the moment dist/ appears.
 const distPath = path.join(__dirname, 'dist');
 const indexPath = path.join(distPath, 'index.html');
 app.use(express.static(distPath, { fallthrough: true })); // fallthrough = ok if dist doesn't exist
 
 // ============================================================
-// v1.9.5 — Automatic daily backup + retention (keep last 30 days).
+// v1.9.5 - Automatic daily backup + retention (keep last 30 days).
 // MUST be registered BEFORE the SPA catch-all below, otherwise
 // GET /api/backups and GET /api/trash get swallowed by the catch-all
 // and return 404. Bug discovered by smoke test after v1.9.5 shipped.
@@ -1501,9 +1501,9 @@ function copyDirRecursive(src, dst) {
   }
 }
 
-// v1.10.0 — Local-timezone date, not UTC. Previous code used
+// v1.10.0 - Local-timezone date, not UTC. Previous code used
 // `new Date().toISOString().split('T')[0]` which flips at midnight UTC
-// (05:30 IST) — an IST reboot at 05:29 vs 05:31 IST computed different
+// (05:30 IST) - an IST reboot at 05:29 vs 05:31 IST computed different
 // "today" values → duplicate backup dirs or a skipped calendar day.
 // Uses the sv-SE locale hack for guaranteed YYYY-MM-DD output.
 function todayLocalIso() {
@@ -1601,7 +1601,7 @@ app.get('/api/backups', (req, res) => {
   } catch (err) { errRes(res, 500, 'server-error', err); }
 });
 
-// v1.10.22 — Manual delete of a specific dated backup. Reported: "add
+// v1.10.22 - Manual delete of a specific dated backup. Reported: "add
 // here delete option i know u added 30 days auto delete but manual delete
 // also u add". Guarded by the same path-inside + calendar-date checks the
 // restore endpoint uses so a crafted `:date` cannot escape BACKUPS_DIR.
@@ -1653,7 +1653,7 @@ app.post('/api/backups/:date/restore', (req, res) => {
   }
 });
 
-// v1.10.6 — audit L11: throttle. Prior code let any caller spam this
+// v1.10.6 - audit L11: throttle. Prior code let any caller spam this
 // endpoint and each hit walked the whole data tree + 30-day pruning.
 // The `if (fs.existsSync(target)) return` inside runDailyBackup makes
 // this idempotent per day, but the fs walks still happen. Now: at most
@@ -1775,7 +1775,7 @@ function purgeOldTrash() {
 setTimeout(purgeOldTrash, 10000);
 setInterval(purgeOldTrash, 24 * 60 * 60 * 1000);
 
-// v1.10.0 — Health-check endpoint moved here (was registered AFTER the
+// v1.10.0 - Health-check endpoint moved here (was registered AFTER the
 // SPA catch-all → every GET /api/health returned "No such endpoint" →
 // the UI's health-banner was permanently broken). Now registered
 // before the catch-all so it actually serves.
@@ -1808,14 +1808,14 @@ app.get('{*path}', (req, res) => {
   if (fs.existsSync(indexPath)) {
     return res.sendFile(indexPath);
   }
-  // Build not ready yet — serve friendly waiting page (auto-refreshes every 3s).
+  // Build not ready yet - serve friendly waiting page (auto-refreshes every 3s).
   return servePlaceholder(req, res);
 });
 
 function servePlaceholder(req, res) {
     if (req.path.startsWith('/api')) return res.status(404).json({ error: 'No such endpoint' });
     res.status(503).send(`<!doctype html>
-<html><head><meta charset="utf-8"><title>KnowGST — building…</title>
+<html><head><meta charset="utf-8"><title>KnowGST - building…</title>
 <meta http-equiv="refresh" content="3">
 <style>
   body { font-family: -apple-system, Segoe UI, Inter, sans-serif; max-width: 560px;
@@ -1846,12 +1846,12 @@ function servePlaceholder(req, res) {
 </body></html>`);
 }
 
-// v1.10.0 — Global error handler. Registered LAST so all preceding
+// v1.10.0 - Global error handler. Registered LAST so all preceding
 // route handlers can forward errors to it. Express 5 auto-catches
 // synchronous throws and async rejections from route handlers, so we
 // no longer need try/catch around every writeJSON call. Server-side
 // logs full detail; client sees a generic JSON error with a stable
-// code — no leaked stack traces or absolute filesystem paths.
+// code - no leaked stack traces or absolute filesystem paths.
 // Preserves upstream status codes from body-parser (413 payload too
 // large, 400 malformed JSON) so clients can differentiate.
 // 4-arg signature is required by Express
@@ -1873,10 +1873,10 @@ app.use((err, req, res, next) => {
 // ERRORS_LOG was declared once at the top of this file (v1.10.0)
 // where errRes() needs it. See line ~145.
 
-// v1.10.0 — log rotation. Previously `data/errors.log` grew unbounded;
+// v1.10.0 - log rotation. Previously `data/errors.log` grew unbounded;
 // a tight failure loop (e.g. daily backup hitting a corrupted template)
 // would fill the disk. Now we keep only the last ~200KB. Called
-// opportunistically from logFatal — no separate timer.
+// opportunistically from logFatal - no separate timer.
 const ERRORS_LOG_MAX = 200 * 1024;
 function rotateErrorsIfLarge() {
   try {
@@ -1904,7 +1904,7 @@ function logFatal(err, source = 'fatal') {
   } catch { /* nothing we can do if even appending fails */ }
 }
 
-// Last-resort handlers — log the error but do NOT call process.exit so the
+// Last-resort handlers - log the error but do NOT call process.exit so the
 // running server keeps serving healthy requests. Per Node best-practice,
 // uncaughtException leaves the process in an unknown state, so we write the
 // log and let the OS / a wrapper script decide whether to restart.
@@ -1916,7 +1916,7 @@ process.on('unhandledRejection', (err) => { logFatal(err, 'unhandledRejection');
 // endpoint". Moved above the catch-all in v1.10.0. See earlier in file.
 
 // Try ports starting from STARTING_PORT (persisted preference) until one is available.
-// Bound to 127.0.0.1 explicitly so the server can NEVER be reached from the LAN —
+// Bound to 127.0.0.1 explicitly so the server can NEVER be reached from the LAN -
 // every byte stays on the user's machine, which the privacy promise depends on.
 let activeServer = null;
 let activeChatSocket = null;
@@ -1926,7 +1926,7 @@ function startServer(port) {
     activeChatSocket = chatSocket;
     const boundPort = server.address().port;
     process.send?.({ type: 'ready', port: boundPort });
-    // Persist the chosen port — the .bat launcher reads this for the browser URL.
+    // Persist the chosen port - the .bat launcher reads this for the browser URL.
     // Writing on EVERY successful boot means: if our preferred 47371 was busy and
     // we landed on 47372 instead, next launch tries 47372 first (cuts collision
     // scans in half on repeated reboots of whatever was holding 47371).
@@ -1940,10 +1940,10 @@ function startServer(port) {
       console.log(`  Port ${port} is busy, trying ${port + 1}...`);
       startServer(port + 1);
     } else if (err.code === 'EADDRINUSE') {
-      // We've exhausted the scan range. Tell the OS to pick anything free — at
+      // We've exhausted the scan range. Tell the OS to pick anything free - at
       // this point the user has 50+ apps fighting for the 47371-47421 range,
       // which we treat as "do whatever works" rather than failing to start.
-      console.warn(`  Scanned ${MAX_PORT_SCAN} ports from ${STARTING_PORT} — letting OS assign a free one.`);
+      console.warn(`  Scanned ${MAX_PORT_SCAN} ports from ${STARTING_PORT} - letting OS assign a free one.`);
       startServer(0);
     } else {
       console.error(`  Failed to start server: ${err.message}`);
@@ -1955,7 +1955,7 @@ function startServer(port) {
   });
 }
 
-// Graceful shutdown — the launcher's Stop Server runs taskkill /f, which can
+// Graceful shutdown - the launcher's Stop Server runs taskkill /f, which can
 // interrupt a sync write mid-flight. SIGINT (Ctrl+C in foreground) and SIGTERM
 // (clean kill) get a 3-second window to flush.
 function gracefulShutdown(signal) {
@@ -1981,7 +1981,7 @@ if (process.send) {
 }
 
 // =====================================================
-// Recurring invoices — auto-fire on boot + daily interval
+// Recurring invoices - auto-fire on boot + daily interval
 // =====================================================
 // For every recurring template with `nextDate <= today` and `active === true`,
 // generate a new invoice (with a fresh sequential number for the matching
@@ -1991,7 +1991,7 @@ if (process.send) {
 // Why server-side (and not in the React app): if the user opens the app on
 // the 5th but the template was due on the 1st, the missed-cycle invoice still
 // fires here. The frontend would only see it if the user happened to open the
-// app between firings — fragile.
+// app between firings - fragile.
 //
 // Why no Windows scheduled task (yet): the server starts on every Windows
 // login via the Startup-folder shortcut, so booting your PC = a check.
@@ -2041,7 +2041,7 @@ function nextInvoiceNumber(meta, prefix, invoiceType = 'tax-invoice', businessKe
   return formatDocNumber({ settings: series, typePrefix: prefix, next, fyLabel: getFinancialYearLabel() });
 }
 
-// v1.10.6 — audit L19: made async and yields between templates via
+// v1.10.6 - audit L19: made async and yields between templates via
 // setImmediate. Prior code was one uninterrupted sync loop over every
 // recurring template with sync FS writes; N templates × K items
 // blocked the event loop → HTTP handlers froze until it finished.
@@ -2093,13 +2093,13 @@ function generateFromTemplate(tpl, today, requestId) {
       if(fs.existsSync(recordPath(DATA_DIR,'bills',invoiceNumber)))throw storageError('No unused invoice number found','conflict',409);
       const invoiceDate = today;
 
-      // v1.10.31 — Data-F3.1: use shared computeInvoiceTotals so every math
+      // v1.10.31 - Data-F3.1: use shared computeInvoiceTotals so every math
       // fix (UTGST, cess, RCM, TDS/TCS ₹50L threshold, discount modes,
       // tax-inclusive, invoice-level discount, round-off) applies here too.
       // Prior inline math didn't recognise ANY of those and silently produced
       // wrong tax buckets for recurring bills. All the v1.10.1 audit fixes
       // were being reintroduced here.
-      // v1.10.66 (#61) — the client's country decides whether the supply is
+      // v1.10.66 (#61) - the client's country decides whether the supply is
       // an export (IGST); place of supply and SEZ decide the split as on the
       // invoice screen. templateTotals (src/utils.js) is shared with the
       // Recurring screen, so the amount it shows is the amount billed.
@@ -2141,7 +2141,7 @@ function generateFromTemplate(tpl, today, requestId) {
           // GSTR-1 and the printed invoice fell back to the client's state.
           details: { invoiceNumber, invoiceDate, dueDate, placeOfSupply: tpl.placeOfSupply || '' },
           // Normalize item.name from legacy description field (v1.6.7-and-earlier
-          // templates used `description` — auto-fired bills rendered blank rows).
+          // templates used `description` - auto-fired bills rendered blank rows).
           items: (tpl.items || []).map(i => ({
             ...i,
             name: i.name || i.description || '',
@@ -2226,7 +2226,7 @@ app.post('/api/recurring/:id/generate', (req, res) => {
 startServer(STARTING_PORT);
 // Fire once after a short delay so the listener is up first; then once a day
 // for users whose server stays up >24h.
-// v1.10.6 — audit L19: async caller. Uncaught rejections logged via
+// v1.10.6 - audit L19: async caller. Uncaught rejections logged via
 // the top-level unhandledRejection handler installed above.
 setTimeout(() => { processDueRecurring().catch(err => logFatal(err, 'recurring')); }, 3000);
 // Hourly: a template only fires once its nextDate has come, so checking more

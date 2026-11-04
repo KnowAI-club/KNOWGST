@@ -1,11 +1,11 @@
 // ============================================================================
-// Indian Income Tax helpers — FY 2024-25 and FY 2025-26 (current filing season)
+// Indian Income Tax helpers - FY 2024-25 and FY 2025-26 (current filing season)
 // ----------------------------------------------------------------------------
 // Everything here is pure math. UI components in components/IncomeTax*.jsx
 // consume these helpers. Kept in a separate file so the tax logic can be
 // unit-tested and audited by a CA without loading React.
 //
-// v1.10.31 — Comprehensive tax law update from audit findings:
+// v1.10.31 - Comprehensive tax law update from audit findings:
 //   - Budget 2025 new-regime slabs + ₹60k / ₹12L 87A rebate for FY 25-26
 //   - Finance (No. 2) Act 2024 STCG 20%, LTCG 12.5% + ₹1.25L exemption
 //     (effective 23-Jul-2024)
@@ -19,7 +19,7 @@
 // ============================================================================
 
 /**
- * v1.10.31 — Current filing season. Change ONE constant here; every
+ * v1.10.31 - Current filing season. Change ONE constant here; every
  * FY-relative slab / rate / due-date resolves via this. Setting a different
  * FY as CURRENT_FY makes the app default to that year end-to-end. Callers
  * that need a specific FY pass it explicitly.
@@ -34,7 +34,7 @@ export function assertSupportedFilingYear(fy) {
 // ----------------------------- Regimes ---------------------------------------
 
 /**
- * OLD REGIME slabs — individuals below 60 years.
+ * OLD REGIME slabs - individuals below 60 years.
  *
  * Rebate under Section 87A: full rebate if total income ≤ ₹5L (up to ₹12.5k tax).
  * Standard Deduction: ₹50,000 (for salaried / pensioners only).
@@ -44,9 +44,9 @@ export function assertSupportedFilingYear(fy) {
  *   > ₹50L up to ₹1Cr  → 10%
  *   > ₹1Cr up to ₹2Cr  → 15%
  *   > ₹2Cr up to ₹5Cr  → 25%
- *   > ₹5Cr             → 37% (or 25% if opted for 115BAC — new regime)
+ *   > ₹5Cr             → 37% (or 25% if opted for 115BAC - new regime)
  *
- * v1.10.31 — Old-regime slabs unchanged in Budget 2025.
+ * v1.10.31 - Old-regime slabs unchanged in Budget 2025.
  */
 export const OLD_REGIME_SLABS = [
   { upto: 250_000, rate: 0 },
@@ -55,7 +55,7 @@ export const OLD_REGIME_SLABS = [
   { upto: Infinity, rate: 0.30 },
 ];
 
-// Senior citizen (60+ but < 80) old-regime slabs — ₹3L basic exemption.
+// Senior citizen (60+ but < 80) old-regime slabs - ₹3L basic exemption.
 export const OLD_REGIME_SLABS_SENIOR = [
   { upto: 300_000, rate: 0 },
   { upto: 500_000, rate: 0.05 },
@@ -63,7 +63,7 @@ export const OLD_REGIME_SLABS_SENIOR = [
   { upto: Infinity, rate: 0.30 },
 ];
 
-// Super senior (80+) old-regime slabs — ₹5L basic exemption.
+// Super senior (80+) old-regime slabs - ₹5L basic exemption.
 export const OLD_REGIME_SLABS_SUPER_SENIOR = [
   { upto: 500_000, rate: 0 },
   { upto: 1_000_000, rate: 0.20 },
@@ -71,7 +71,7 @@ export const OLD_REGIME_SLABS_SUPER_SENIOR = [
 ];
 
 /**
- * v1.10.31 — Pick the right old-regime slab table by taxpayer age.
+ * v1.10.31 - Pick the right old-regime slab table by taxpayer age.
  *   age >= 80  → super senior (₹5L basic exemption)
  *   60 ≤ age < 80 → senior (₹3L basic exemption)
  *   else → regular (₹2.5L basic exemption)
@@ -84,7 +84,7 @@ export function getOldRegimeSlabs(age) {
 }
 
 /**
- * NEW REGIME (Section 115BAC) — Budget 2024 slabs for FY 2024-25:
+ * NEW REGIME (Section 115BAC) - Budget 2024 slabs for FY 2024-25:
  *   0     - 3L  : 0%
  *   3L    - 7L  : 5%
  *   7L    - 10L : 10%
@@ -106,7 +106,7 @@ export const NEW_REGIME_SLABS_FY_2024_25 = [
 ];
 
 /**
- * NEW REGIME — Budget 2025 slabs for FY 2025-26 (major restructure):
+ * NEW REGIME - Budget 2025 slabs for FY 2025-26 (major restructure):
  *   0     - 4L   : 0%
  *   4L    - 8L   : 5%
  *   8L    - 12L  : 10%
@@ -132,7 +132,7 @@ export const NEW_REGIME_SLABS_FY_2025_26 = [
 ];
 
 /**
- * v1.10.31 — Backward-compat alias for pre-v1.10.31 callers that read
+ * v1.10.31 - Backward-compat alias for pre-v1.10.31 callers that read
  * NEW_REGIME_SLABS directly. Resolves to the CURRENT_FY's table.
  */
 export const NEW_REGIME_SLABS = CURRENT_FY === '2025-26'
@@ -140,7 +140,7 @@ export const NEW_REGIME_SLABS = CURRENT_FY === '2025-26'
   : NEW_REGIME_SLABS_FY_2024_25;
 
 /**
- * v1.10.31 — Pick the new-regime slab table for a given FY. Extending
+ * v1.10.31 - Pick the new-regime slab table for a given FY. Extending
  * to a new FY = add a new SLABS constant + a case here.
  */
 export function getNewRegimeSlabs(fy = CURRENT_FY) {
@@ -150,7 +150,7 @@ export function getNewRegimeSlabs(fy = CURRENT_FY) {
 }
 
 /**
- * v1.10.31 — 87A rebate parameters per FY. Old regime unchanged.
+ * v1.10.31 - 87A rebate parameters per FY. Old regime unchanged.
  * New regime FY 25-26 raised threshold from ₹7L → ₹12L and cap from
  * ₹25,000 → ₹60,000 (Budget 2025).
  */
@@ -165,7 +165,7 @@ export function get87AConfig(regime, fy = CURRENT_FY) {
 }
 
 /**
- * v1.10.31 — Capital gains rates changed on 23-Jul-2024 (Finance No.2 Act 2024).
+ * v1.10.31 - Capital gains rates changed on 23-Jul-2024 (Finance No.2 Act 2024).
  * §111A STCG on listed equity: 15% → 20%
  * §112A LTCG on listed equity: 10% → 12.5%, exemption ₹1L → ₹1.25L
  *
@@ -178,7 +178,7 @@ export function get87AConfig(regime, fy = CURRENT_FY) {
 export function getCapitalGainsConfig(fy = CURRENT_FY) {
   assertSupportedFilingYear(fy);
   if (fy === '2024-25') {
-    // Transitional year — new rates apply to gains on/after 23-Jul-2024.
+    // Transitional year - new rates apply to gains on/after 23-Jul-2024.
     // Since the app can't reliably split, default to the newer regime
     // (protects users from under-payment; caller can request 'preTransition'
     // for the exact pre-23-Jul-2024 rates).
@@ -189,7 +189,7 @@ export function getCapitalGainsConfig(fy = CURRENT_FY) {
       preTransition: { stcgRate: 0.15, ltcgRate: 0.10, ltcgExemption: 100_000 },
     };
   }
-  // FY 2025-26 and later — post-transition rates.
+  // FY 2025-26 and later - post-transition rates.
   return {
     stcgRate: 0.20,
     ltcgRate: 0.125,
@@ -200,7 +200,7 @@ export function getCapitalGainsConfig(fy = CURRENT_FY) {
 
 /**
  * Deduction caps under OLD regime (per Section reference).
- * New regime disallows most of these — only NPS employer contribution (80CCD(2))
+ * New regime disallows most of these - only NPS employer contribution (80CCD(2))
  * is available.
  */
 export const DEDUCTION_CAPS = {
@@ -209,8 +209,8 @@ export const DEDUCTION_CAPS = {
   '80D':     100_000,   // MAXIMUM only when BOTH self+family AND parents are seniors
   '80TTA':   10_000,    // Savings-account interest (individuals below 60)
   '80TTB':   50_000,    // Bank/PO deposit interest (senior citizens 60+)
-  '80E':     Infinity,  // Education loan interest — no cap, 8-year max claim
-  '80G':     Infinity,  // Donations — 50% or 100% of qualifying, subject to limits
+  '80E':     Infinity,  // Education loan interest - no cap, 8-year max claim
+  '80G':     Infinity,  // Donations - 50% or 100% of qualifying, subject to limits
   '80GG':    60_000,    // Rent paid when HRA not received (min 25% of AGI - rent-10%AGI - ₹5000/month)
   '80DDB':   100_000,   // Specified serious illness (₹1L for seniors, ₹40k otherwise)
   '80U':     125_000,   // Self-disability (₹75k / ₹1.25L for severe)
@@ -218,13 +218,13 @@ export const DEDUCTION_CAPS = {
 };
 
 /**
- * v1.10.1 — 80D and 80DDB caps are context-sensitive on senior status.
+ * v1.10.1 - 80D and 80DDB caps are context-sensitive on senior status.
  * The static DEDUCTION_CAPS entry is only the maximum. This helper
  * returns the actual cap given the taxpayer's family setup, so the UI
  * doesn't silently allow ₹1L of 80D for a 30-year-old with 40-year-old
  * parents (statutory max is ₹50k for that case).
  *
- * @param {string} section — '80D', '80DDB', etc.
+ * @param {string} section - '80D', '80DDB', etc.
  * @param {{selfSenior?: boolean, parentsSenior?: boolean}} ctx
  */
 export function effectiveDeductionCap(section, ctx = {}) {
@@ -273,15 +273,15 @@ export function computeSlabTax(taxableIncome, slabs) {
  * Surcharge on tax based on total income (both regimes use similar tiers).
  * New regime caps surcharge at 25% (instead of 37% for the top old-regime bracket).
  *
- * v1.10.1 — Finance Act 2022 caps surcharge on tax attributable to
+ * v1.10.1 - Finance Act 2022 caps surcharge on tax attributable to
  * sections 111A (STCG on equity), 112A (LTCG on equity) and 115AD
  * (FII gains) at 15%. Callers who have the special-rate portion of tax
  * can pass `opts.specialRateTax` and get the correct blended result.
  *
- * @param {number} tax — total tax before surcharge
+ * @param {number} tax - total tax before surcharge
  * @param {number} totalIncome
  * @param {'new'|'old'} regime
- * @param {{specialRateTax?: number}} opts — tax attributable to 111A/112A/115AD
+ * @param {{specialRateTax?: number}} opts - tax attributable to 111A/112A/115AD
  */
 export function computeSurcharge(tax, totalIncome, regime = 'new', opts = {}) {
   if (!Number.isFinite(totalIncome)) return 0;
@@ -299,9 +299,9 @@ export function computeSurcharge(tax, totalIncome, regime = 'new', opts = {}) {
   const regularTax = Math.max(0, tax - specialTax);
   const rawSurcharge = regularTax * tierRate + specialTax * cappedSpecialRate;
 
-  // v1.10.31 — Marginal relief. Statute mandates the extra tax + surcharge
+  // v1.10.31 - Marginal relief. Statute mandates the extra tax + surcharge
   // from crossing a threshold cannot exceed the extra income beyond it.
-  // For an income of ₹50,00,010 with tax ~₹13L, 10% surcharge = ₹1.3L —
+  // For an income of ₹50,00,010 with tax ~₹13L, 10% surcharge = ₹1.3L -
   // but only ₹10 of extra income triggered it. Relief caps surcharge so
   // (tax + surcharge)_now ≤ tax_at_threshold + (income - threshold).
   //
@@ -343,7 +343,7 @@ export function computeSurcharge(tax, totalIncome, regime = 'new', opts = {}) {
   return round2(rawSurcharge);
 }
 
-// Internal helper — same math as computeSurcharge but without the marginal
+// Internal helper - same math as computeSurcharge but without the marginal
 // relief guard (would infinitely recurse). Used by computeSurcharge above
 // to compute the "surcharge at the previous threshold" reference.
 function computeSurchargeInner(tax, totalIncome, regime, opts) {
@@ -362,17 +362,17 @@ function computeSurchargeInner(tax, totalIncome, regime, opts) {
 }
 
 /**
- * Section 87A rebate — makes small taxpayers effectively pay zero.
+ * Section 87A rebate - makes small taxpayers effectively pay zero.
  * Old regime: ≤ ₹5L income → up to ₹12,500 rebate.
  * New regime FY 24-25: ≤ ₹7L income → up to ₹25,000 rebate.
  * New regime FY 25-26: ≤ ₹12L income → up to ₹60,000 rebate (Budget 2025).
  *
- * v1.10.31 — Two audit findings baked in:
+ * v1.10.31 - Two audit findings baked in:
  *   ITR-C2: rebate config resolves via get87AConfig(regime, fy) so FY 25-26
  *           filers get the correct ₹60k cap / ₹12L threshold.
  *   ITR-H2: eligibility now uses TOTAL income (including 111A / 112A capital
  *           gains) not just slab-taxable income. A user with ₹4.8L slab
- *           income + ₹50k LTCG used to get ₹12,500 rebate — statute denies
+ *           income + ₹50k LTCG used to get ₹12,500 rebate - statute denies
  *           it because total income (₹5.3L) exceeds ₹5L threshold.
  */
 //
@@ -392,7 +392,7 @@ export function computeRebate87A(totalIncome, tax, regime = 'new', fy = CURRENT_
 }
 
 /**
- * Health & Education Cess — 4% flat on (tax + surcharge - rebate).
+ * Health & Education Cess - 4% flat on (tax + surcharge - rebate).
  * Same in both regimes.
  */
 export function computeCess(taxAfterRebateAndSurcharge) {
@@ -400,7 +400,7 @@ export function computeCess(taxAfterRebateAndSurcharge) {
 }
 
 /**
- * Standard deduction — automatically applied to salary income if declared.
+ * Standard deduction - automatically applied to salary income if declared.
  * Old regime: ₹50,000 · New regime: ₹75,000 (Union Budget 2024).
  */
 export function standardDeduction(regime = 'new') {
@@ -411,21 +411,21 @@ export function standardDeduction(regime = 'new') {
  * Cap each declared deduction to its statutory limit.
  * Returns the sum of allowed deductions.
  *
- * v1.10.31 — Two audit findings baked in:
+ * v1.10.31 - Two audit findings baked in:
  *   ITR-H1: 80D + 80DDB caps now context-sensitive via effectiveDeductionCap.
  *           Previously 80D was hardcoded to ₹1L (the max), letting a 30-year-old
  *           with 40-year-old parents claim ₹1L when statutory max is ₹50k.
  *   ITR-H5: 80CCD(2) now capped at 10% of salary (14% for central govt
- *           employees). Previously uncapped — a user could enter ₹50L
+ *           employees). Previously uncapped - a user could enter ₹50L
  *           employer NPS and get full deduction (₹15.6L tax dodge at 30%).
  *
- * @param {object} userDeductions — { '80C': 150000, ... }
+ * @param {object} userDeductions - { '80C': 150000, ... }
  * @param {'old'|'new'} regime
- * @param {object} ctx — { selfSenior?, parentsSenior?, salary?, isGovtEmployee? }
+ * @param {object} ctx - { selfSenior?, parentsSenior?, salary?, isGovtEmployee? }
  */
 export function computeAllowedDeductions(userDeductions = {}, regime = 'old', ctx = {}) {
   const salary = Math.max(0, Number(ctx.salary) || 0);
-  // 80CCD(2) — employer NPS. Cap at 10% of salary (14% for central govt).
+  // 80CCD(2) - employer NPS. Cap at 10% of salary (14% for central govt).
   // Available in BOTH regimes (unlike other Chapter VI-A deductions).
   const nps2Rate = ctx.isGovtEmployee ? 0.14 : 0.10;
   const nps2Cap = salary * nps2Rate;
@@ -452,14 +452,14 @@ export function computeAllowedDeductions(userDeductions = {}, regime = 'old', ct
  * End-to-end tax computation for one regime.
  *
  * @param {object} inputs
- * @param {number} inputs.salary       — gross salary (Form 16 box 1)
- * @param {number} inputs.businessIncome — business / professional income (P&L bottom line)
- * @param {number} inputs.housePropertyIncome — rent minus 30% standard deduction minus §24(b) home-loan interest
- * @param {number} inputs.capitalGains — realised gains (STCG/LTCG treated at their own rates below)
- * @param {number} inputs.otherSources — bank interest, dividends, etc.
- * @param {number} inputs.stcgAtSpecialRate — STCG on listed equity (20% flat)
- * @param {number} inputs.ltcgAtSpecialRate — LTCG on listed equity (12.5% over ₹1.25L, exempt below)
- * @param {object} inputs.deductions   — { '80C': 150000, '80D': 25000, ... }
+ * @param {number} inputs.salary       - gross salary (Form 16 box 1)
+ * @param {number} inputs.businessIncome - business / professional income (P&L bottom line)
+ * @param {number} inputs.housePropertyIncome - rent minus 30% standard deduction minus §24(b) home-loan interest
+ * @param {number} inputs.capitalGains - realised gains (STCG/LTCG treated at their own rates below)
+ * @param {number} inputs.otherSources - bank interest, dividends, etc.
+ * @param {number} inputs.stcgAtSpecialRate - STCG on listed equity (20% flat)
+ * @param {number} inputs.ltcgAtSpecialRate - LTCG on listed equity (12.5% over ₹1.25L, exempt below)
+ * @param {object} inputs.deductions   - { '80C': 150000, '80D': 25000, ... }
  * @param {'old'|'new'} inputs.regime
  * @returns {object} breakdown
  */
@@ -474,7 +474,7 @@ export function computeTax(inputs) {
     ltcgAtSpecialRate = 0,
     deductions = {},
     regime = 'new',
-    // v1.10.31 — new inputs from audit findings
+    // v1.10.31 - new inputs from audit findings
     fy = CURRENT_FY,
     age = 0,                    // for senior/super-senior old-regime slabs
     selfSenior = false,         // for 80D / 80DDB context
@@ -489,20 +489,20 @@ export function computeTax(inputs) {
   // Gross Total Income = sum of heads (excludes special-rate gains)
   const gti = salaryAfterStd + businessIncome + housePropertyIncome + otherSources;
 
-  // Chapter VI-A deductions — pass context for 80D/80DDB/80CCD(2) caps.
+  // Chapter VI-A deductions - pass context for 80D/80DDB/80CCD(2) caps.
   const deductionCtx = { selfSenior, parentsSenior, salary, isGovtEmployee };
   const allowedDeductions = computeAllowedDeductions(deductions, regime, deductionCtx);
 
   // Total taxable income under normal slabs
   const taxableIncome = Math.max(0, gti - allowedDeductions);
 
-  // Slab tax on normal income — FY-aware new regime, age-aware old regime.
+  // Slab tax on normal income - FY-aware new regime, age-aware old regime.
   const slabs = regime === 'new'
     ? getNewRegimeSlabs(fy)
     : getOldRegimeSlabs(age);
   const slabTax = computeSlabTax(taxableIncome, slabs);
 
-  // v1.10.31 — Capital gains rates from FY config (post-23-Jul-2024 rates).
+  // v1.10.31 - Capital gains rates from FY config (post-23-Jul-2024 rates).
   const cgConfig = getCapitalGainsConfig(fy);
   const stcgTax = round2(stcgAtSpecialRate * cgConfig.stcgRate);
   const ltcgTaxable = Math.max(0, ltcgAtSpecialRate - cgConfig.ltcgExemption);
@@ -511,7 +511,7 @@ export function computeTax(inputs) {
 
   const taxBeforeRebate = slabTax + specialRateTax;
 
-  // v1.10.31 — 87A eligibility uses TOTAL INCOME under Section 2(45), which
+  // v1.10.31 - 87A eligibility uses TOTAL INCOME under Section 2(45), which
   // includes the FULL 111A/112A gains (before the ₹1.25L LTCG exemption).
   // The exemption is a deduction for tax computation, not for total income.
   // A user with ₹4.8L slab + ₹50k LTCG has total income ₹5.3L → rebate denied
@@ -521,7 +521,7 @@ export function computeTax(inputs) {
   const rebate = computeRebate87A(totalIncomeForRebate, slabTax, regime, fy);
   const taxAfterRebate = Math.max(0, taxBeforeRebate - rebate);
 
-  // v1.10.31 — Wire specialRateTax through to surcharge helper so the 15%
+  // v1.10.31 - Wire specialRateTax through to surcharge helper so the 15%
   // cap on 111A/112A gains actually fires (was dead code before). Total
   // income for surcharge tier also uses gross LTCG (Section 2(45)).
   const totalIncomeForSurcharge = taxableIncome + stcgAtSpecialRate + ltcgAtSpecialRate;
@@ -591,7 +591,7 @@ export function compareRegimes(inputs) {
  *   'deduction_80D'  → 80D claim (health insurance)
  *   'gst_paid'       → GST payment (business expense; not ITR-deductible directly)
  *   'transfer'       → Between own accounts / unclassified
- *   'personal'       → Personal spending — not ITR-relevant
+ *   'personal'       → Personal spending - not ITR-relevant
  */
 export const AUTO_CATEGORY_RULES = [
   { pattern: /\bsalary|sal\b|payroll/i,                         category: 'salary' },
@@ -763,7 +763,7 @@ const BANK_FORMATS = [
       balance: findCol(headers, /Balance/i),
     }),
   },
-  // Fallback — best-effort column detection.
+  // Fallback - best-effort column detection.
   {
     name: 'Generic',
     match: () => true,
@@ -794,7 +794,7 @@ const BANK_FORMATS = [
 export function parseBankStatement(csvText) {
   const rows = parseCSV(csvText);
   if (rows.length < 2) throw new Error('CSV must have a header row + at least one transaction');
-  // Find the actual header row — some banks prepend account-info lines
+  // Find the actual header row - some banks prepend account-info lines
   let headerRowIdx = 0;
   for (let i = 0; i < Math.min(10, rows.length); i++) {
     const r = rows[i];
@@ -864,17 +864,17 @@ function parseAmt(v) {
 function round2(n) { return Math.round(n * 100) / 100; }
 
 // ============================================================================
-// Presumptive taxation — Sections 44AD, 44ADA, 44AE
+// Presumptive taxation - Sections 44AD, 44ADA, 44AE
 // ----------------------------------------------------------------------------
 // Small businesses can skip maintaining full books by declaring a fixed
 // percentage of turnover / gross receipts as income. Available to individuals,
 // HUFs, partnership firms (not LLPs); ITR-4 (Sugam) is the return form.
-// Once opted in, must continue for 5 assessment years — opting out early
+// Once opted in, must continue for 5 assessment years - opting out early
 // disqualifies §44AD for the next 5 years.
 // ============================================================================
 
 /**
- * Section 44AD — presumptive business income for eligible businesses
+ * Section 44AD - presumptive business income for eligible businesses
  * (traders, retailers, manufacturers) with turnover up to ₹2 crore
  * (₹3 crore if aggregate cash receipts ≤ 5% of turnover, from FY 2023-24).
  *
@@ -885,9 +885,9 @@ function round2(n) { return Math.round(n * 100) / 100; }
  * profit is higher (tax authorities never object to over-declaration).
  *
  * @param {object} input
- * @param {number} input.digitalReceipts — turnover via NEFT/UPI/RTGS/cheque
- * @param {number} input.cashReceipts    — turnover received in cash
- * @param {number} [input.declaredIncome] — optional user override (must ≥ deemed)
+ * @param {number} input.digitalReceipts - turnover via NEFT/UPI/RTGS/cheque
+ * @param {number} input.cashReceipts    - turnover received in cash
+ * @param {number} [input.declaredIncome] - optional user override (must ≥ deemed)
  * @returns { turnover, presumptiveIncome, isEligible, notes[] }
  */
 export function compute44AD({ digitalReceipts = 0, cashReceipts = 0, declaredIncome }) {
@@ -905,7 +905,7 @@ export function compute44AD({ digitalReceipts = 0, cashReceipts = 0, declaredInc
   }
   // v1.10.74 - the cash share only matters once turnover is above ₹2Cr.
   if (cashPct > 0.05 && turnover > 20_000_000 && turnover <= 30_000_000) {
-    notes.push(`${(cashPct * 100).toFixed(1)}% of your turnover is in cash — above the 5% threshold. Reduce cash receipts to qualify for the ₹3Cr limit.`);
+    notes.push(`${(cashPct * 100).toFixed(1)}% of your turnover is in cash - above the 5% threshold. Reduce cash receipts to qualify for the ₹3Cr limit.`);
   }
 
   const deemed = round2(digital * 0.06 + cash * 0.08);
@@ -929,12 +929,12 @@ export function compute44AD({ digitalReceipts = 0, cashReceipts = 0, declaredInc
 }
 
 /**
- * Section 44ADA — presumptive taxation for professionals
+ * Section 44ADA - presumptive taxation for professionals
  * (doctors, lawyers, CAs, engineers, architects, technical consultants,
  * interior designers, film-industry professionals, and any notified profession).
  *
  * Turnover cap: ₹50L (was), ₹75L from FY 2023-24 (if cash receipts ≤ 5%).
- * Deemed income: **50% of gross receipts** — professionals get to write off
+ * Deemed income: **50% of gross receipts** - professionals get to write off
  * half their fees as expenses without proving anything.
  */
 export function compute44ADA({ digitalReceipts = 0, cashReceipts = 0, declaredIncome }) {
@@ -971,13 +971,13 @@ export function compute44ADA({ digitalReceipts = 0, cashReceipts = 0, declaredIn
 }
 
 /**
- * Section 44AE — presumptive taxation for transporters (goods-carriage owners).
+ * Section 44AE - presumptive taxation for transporters (goods-carriage owners).
  * Applies when the assessee owns ≤ 10 goods vehicles at any time in the year.
  * Deemed income per vehicle per month:
  *   - Heavy (> 12,000 kg gross weight): ₹1,000 per tonne of gross weight
  *   - Light (≤ 12,000 kg gross weight):  ₹7,500 flat
  *
- * v1.10.31 — Parity with 44AD / 44ADA: added `isEligible`, negative-input
+ * v1.10.31 - Parity with 44AD / 44ADA: added `isEligible`, negative-input
  * clamping (was silently multiplying negatives into a negative deemed),
  * a note when total vehicle-months / 12 exceeds 10 (proxy for the
  * "> 10 vehicles at any time" statutory disqualifier), and a warning when
@@ -998,8 +998,8 @@ export function compute44AE({ heavyVehicleMonths = 0, heavyVehicleTonnage = 0, l
   // A single vehicle owned for a full FY contributes 12 vehicle-months.
   // So (hMonths + lMonths) / 12 approximates the peak vehicle count. If
   // that's > 10, the assessee is outside §44AE eligibility. This is a
-  // proxy — the statute checks vehicle count "at any time in the year",
-  // not the annual average — so we surface it as a warning rather than
+  // proxy - the statute checks vehicle count "at any time in the year",
+  // not the annual average - so we surface it as a warning rather than
   // hard-disqualification.
   const impliedFleet = (hMonths + lMonths) / 12;
   const isEligible = impliedFleet <= 10.0001;
@@ -1022,7 +1022,7 @@ export function compute44AE({ heavyVehicleMonths = 0, heavyVehicleTonnage = 0, l
 }
 
 // ============================================================================
-// Advance Tax — Sections 208, 234B, 234C
+// Advance Tax - Sections 208, 234B, 234C
 // ----------------------------------------------------------------------------
 // Every assessee with tax liability ≥ ₹10,000 (after TDS) must pay advance
 // tax in four installments. Missing them triggers interest under 234B/234C.
@@ -1030,8 +1030,8 @@ export function compute44AE({ heavyVehicleMonths = 0, heavyVehicleTonnage = 0, l
 // ============================================================================
 
 /**
- * v1.10.31 — Advance-tax due dates are now derived from the FY, not
- * hardcoded strings. Prior code had `'2024-06-15'` etc. baked in — an FY
+ * v1.10.31 - Advance-tax due dates are now derived from the FY, not
+ * hardcoded strings. Prior code had `'2024-06-15'` etc. baked in - an FY
  * 25-26 filer paying on `'2025-06-14'` sorted AFTER the hardcoded string
  * and was flagged as late → phantom 234C interest up to 1% × 3 months ×
  * (₹5L × 15%) = ₹2,250 per quarter.
@@ -1063,10 +1063,10 @@ export const ADVANCE_TAX_SCHEDULE = getAdvanceTaxSchedule(CURRENT_FY);
 
 /**
  * Compute the advance-tax schedule.
- * @param {number} totalTax — total tax liability for the FY (after §87A rebate)
- * @param {number} tdsAlreadyDeducted — TDS credit already claimed
- * @param {Array<{date:string, amount:number}>} paid — installments already paid
- * @param {'regular'|'presumptive'} mode — presumptive allows single 15-Mar payment
+ * @param {number} totalTax - total tax liability for the FY (after §87A rebate)
+ * @param {number} tdsAlreadyDeducted - TDS credit already claimed
+ * @param {Array<{date:string, amount:number}>} paid - installments already paid
+ * @param {'regular'|'presumptive'} mode - presumptive allows single 15-Mar payment
  * @returns {object}
  */
 export function computeAdvanceTaxSchedule(totalTax, tdsAlreadyDeducted = 0, paid = [], mode = 'regular', fy = CURRENT_FY) {
@@ -1074,12 +1074,12 @@ export function computeAdvanceTaxSchedule(totalTax, tdsAlreadyDeducted = 0, paid
   if (netLiability < 10_000) {
     return {
       netLiability, applies: false,
-      note: 'Net liability (after TDS) is below ₹10,000 — no advance tax required.',
+      note: 'Net liability (after TDS) is below ₹10,000 - no advance tax required.',
       schedule: [],
       fy,
     };
   }
-  // v1.10.31 — Use FY-relative schedule instead of the stale-year default.
+  // v1.10.31 - Use FY-relative schedule instead of the stale-year default.
   const schedule = getAdvanceTaxSchedule(fy);
   // Presumptive-mode assessees: single 100% installment on 15 March
   const rows = (mode === 'presumptive' ? [schedule[3]] : schedule)
@@ -1116,7 +1116,7 @@ export function computeAdvanceTaxSchedule(totalTax, tdsAlreadyDeducted = 0, paid
 }
 
 /**
- * v1.10.31 — Rule 119A rounding helper.
+ * v1.10.31 - Rule 119A rounding helper.
  *
  * Rule 119A(a) of the Income Tax Rules: "the amount on which interest is
  * calculated shall be rounded off to the nearest one hundred rupees and,
@@ -1126,7 +1126,7 @@ export function computeAdvanceTaxSchedule(totalTax, tdsAlreadyDeducted = 0, paid
  * before multiplying by the 1%-per-month rate in 234B / 234C.
  *
  * On a ₹1,49,999 shortfall: legally the interest is computed on ₹1,49,900,
- * not ₹1,49,999 — a difference of ₹0.99 per month. Small per case but
+ * not ₹1,49,999 - a difference of ₹0.99 per month. Small per case but
  * compounded across 234B (up to 12 months) and 234C (up to 3 months) it
  * matters for CA-audited returns.
  */
@@ -1135,20 +1135,20 @@ function rule119A(amount) {
 }
 
 /**
- * Section 234C interest — for shortfall in any installment.
+ * Section 234C interest - for shortfall in any installment.
  * 1% per month for 3 months for installments 1-3; 1% for 1 month for installment 4.
  * Waived if you paid ≥ 12% by 15 Jun / 36% by 15 Sept (i.e. slight under-payment ok).
  *
- * v1.10.1 — Presumptive-mode fix. A 44AD/44ADA/44AE assessee has ONE
+ * v1.10.1 - Presumptive-mode fix. A 44AD/44ADA/44AE assessee has ONE
  * installment (15-Mar, 100%). Prior code destructured
- * `[i1, i2, i3, i4]` from a 1-element array — i1 was the Q4 entry but
+ * `[i1, i2, i3, i4]` from a 1-element array - i1 was the Q4 entry but
  * was treated as Q1 (3-month rate + 12% waiver test). Wrong section,
  * wrong month count. Now: presumptive mode gets a single-Q4 calc.
  */
 export function compute234CInterest(schedule) {
   if (!schedule.applies || !schedule.schedule.length) return 0;
   const netLiab = schedule.netLiability;
-  // v1.10.31 — Every shortfall wrapped in rule119A() before interest math.
+  // v1.10.31 - Every shortfall wrapped in rule119A() before interest math.
   // Presumptive: single installment at 15-Mar, 1 month × 1% on shortfall.
   if (schedule.mode === 'presumptive' || schedule.schedule.length === 1) {
     const only = schedule.schedule[0];
@@ -1177,9 +1177,9 @@ export function compute234CInterest(schedule) {
 }
 
 /**
- * Section 234A interest — for late filing of the return past the due date.
+ * Section 234A interest - for late filing of the return past the due date.
  *
- * v1.10.31 — Section was entirely absent from the app; only 234B and 234C
+ * v1.10.31 - Section was entirely absent from the app; only 234B and 234C
  * were wired. 234A is a distinct charge (late FILING, not late PAYMENT)
  * that catches a common real-world situation: a taxpayer who paid enough
  * advance tax to escape 234B and 234C, but files their ITR after the due
@@ -1188,18 +1188,18 @@ export function compute234CInterest(schedule) {
  *
  * Rate:   1% per month or part of a month (Rule 119A month counting)
  * Base:   net tax payable after TDS + advance tax + self-assessment paid
- *         so far — the "self-assessment tax outstanding on due date"
+ *         so far - the "self-assessment tax outstanding on due date"
  * Period: (due date + 1 day) → filing date
  *
  * Due date defaults (individual, non-audit): 31-Jul of AY.
- * For audit cases (44AB, transfer pricing) it's 31-Oct — caller supplies
+ * For audit cases (44AB, transfer pricing) it's 31-Oct - caller supplies
  * `dueDate` explicitly for those.
  *
- * @param {number} netTaxPayable — total tax after 87A rebate + surcharge + cess
- * @param {number} taxPaid — advance tax + TDS + self-assessment tax already paid
- * @param {string} filingDate — ISO date the ITR was actually filed
- * @param {string} [dueDate] — statutory due date; defaults to 31-Jul of the AY
- * @param {string} [fy] — FY string; used only to derive default dueDate
+ * @param {number} netTaxPayable - total tax after 87A rebate + surcharge + cess
+ * @param {number} taxPaid - advance tax + TDS + self-assessment tax already paid
+ * @param {string} filingDate - ISO date the ITR was actually filed
+ * @param {string} [dueDate] - statutory due date; defaults to 31-Jul of the AY
+ * @param {string} [fy] - FY string; used only to derive default dueDate
  * @returns {number}
  */
 export function compute234AInterest(netTaxPayable, taxPaid, filingDate, dueDate, fy = CURRENT_FY) {
@@ -1216,7 +1216,7 @@ export function compute234AInterest(netTaxPayable, taxPaid, filingDate, dueDate,
   }
   const filed = filingDate ? new Date(filingDate) : new Date();
   if (!(filed > due)) return 0;
-  // Rule 119A month counting: same logic as 234B — count calendar months
+  // Rule 119A month counting: same logic as 234B - count calendar months
   // between due and filing date, count any partial month as one full month.
   const yearDiff = filed.getFullYear() - due.getFullYear();
   const monthDiff = filed.getMonth() - due.getMonth();
@@ -1228,10 +1228,10 @@ export function compute234AInterest(netTaxPayable, taxPaid, filingDate, dueDate,
 }
 
 /**
- * Section 234B interest — for shortfall of ≥ 10% of total tax by 31 Mar.
+ * Section 234B interest - for shortfall of ≥ 10% of total tax by 31 Mar.
  * 1% per month from 1 Apr of the AY until date of payment.
- * @param {object} schedule — output of computeAdvanceTaxSchedule
- * @param {string} assessmentPaymentDate — ISO date; defaults to today
+ * @param {object} schedule - output of computeAdvanceTaxSchedule
+ * @param {string} assessmentPaymentDate - ISO date; defaults to today
  */
 export function compute234BInterest(schedule, assessmentPaymentDate, fy) {
   if (!schedule.applies) return 0;
@@ -1242,17 +1242,17 @@ export function compute234BInterest(schedule, assessmentPaymentDate, fy) {
   const paidByYearEnd = schedule.paidByYearEnd ?? schedule.totalPaid;
   const netLiab = schedule.netLiability;
   if (paidByYearEnd >= 0.9 * netLiab) return 0;
-  // v1.10.31 — Rule 119A: round shortfall down to nearest ₹100 before
+  // v1.10.31 - Rule 119A: round shortfall down to nearest ₹100 before
   // multiplying by 1% per month.
   const shortfall = rule119A(netLiab - paidByYearEnd);
-  // v1.10.31 — FY-relative April 1 (was hardcoded '2025-04-01'). Prefer
+  // v1.10.31 - FY-relative April 1 (was hardcoded '2025-04-01'). Prefer
   // schedule.fy, then explicit fy param, then CURRENT_FY.
   const useFy = schedule?.fy || fy || CURRENT_FY;
   const startYear = Number(String(useFy).split('-')[0]);
   if (!Number.isFinite(startYear)) return 0;
   const fyEnd = new Date(`${startYear + 1}-04-01`);
   const payDate = assessmentPaymentDate ? new Date(assessmentPaymentDate) : new Date();
-  // v1.10.1 — Rule 119A: count calendar-month parts, not 30-day chunks.
+  // v1.10.1 - Rule 119A: count calendar-month parts, not 30-day chunks.
   if (payDate <= fyEnd) return 0;
   const yearDiff = payDate.getFullYear() - fyEnd.getFullYear();
   const monthDiff = payDate.getMonth() - fyEnd.getMonth();
@@ -1282,63 +1282,63 @@ export function buildITR4FieldMap(inputs, tax, presumptive, deductions, pan = ''
   // v1.10.74 - PAN comes from the business profile when it has one.
   const panText = String(pan || '').trim().toUpperCase();
   rows.push(panText
-    ? { section: 'Part A — General', field: 'PAN', value: panText }
-    : { section: 'Part A — General', field: 'PAN', value: '', note: 'Fill from your profile' });
-  rows.push({ section: 'Part A — General', field: 'Filing Status', value: 'Filed under §139(1) — before due date' });
-  rows.push({ section: 'Part A — General', field: 'Aadhaar', value: '', note: 'Must be linked' });
+    ? { section: 'Part A - General', field: 'PAN', value: panText }
+    : { section: 'Part A - General', field: 'PAN', value: '', note: 'Fill from your profile' });
+  rows.push({ section: 'Part A - General', field: 'Filing Status', value: 'Filed under §139(1) - before due date' });
+  rows.push({ section: 'Part A - General', field: 'Aadhaar', value: '', note: 'Must be linked' });
 
   // Nature of business
   if (presumptive?.section === '44AD') {
-    rows.push({ section: 'Part A — Nature of Business', field: 'Section 44AD (Trading / Retail / Manufacturing)', value: 'Yes' });
-    rows.push({ section: 'Part A — Nature of Business', field: 'Gross Turnover (digital)', value: presumptive.digitalReceipts });
-    rows.push({ section: 'Part A — Nature of Business', field: 'Gross Turnover (cash)', value: presumptive.cashReceipts });
+    rows.push({ section: 'Part A - Nature of Business', field: 'Section 44AD (Trading / Retail / Manufacturing)', value: 'Yes' });
+    rows.push({ section: 'Part A - Nature of Business', field: 'Gross Turnover (digital)', value: presumptive.digitalReceipts });
+    rows.push({ section: 'Part A - Nature of Business', field: 'Gross Turnover (cash)', value: presumptive.cashReceipts });
   } else if (presumptive?.section === '44ADA') {
-    rows.push({ section: 'Part A — Nature of Business', field: 'Section 44ADA (Profession)', value: 'Yes' });
-    rows.push({ section: 'Part A — Nature of Business', field: 'Gross Receipts', value: presumptive.turnover });
+    rows.push({ section: 'Part A - Nature of Business', field: 'Section 44ADA (Profession)', value: 'Yes' });
+    rows.push({ section: 'Part A - Nature of Business', field: 'Gross Receipts', value: presumptive.turnover });
   } else if (presumptive?.section === '44AE') {
-    rows.push({ section: 'Part A — Nature of Business', field: 'Section 44AE (Transport)', value: 'Yes' });
+    rows.push({ section: 'Part A - Nature of Business', field: 'Section 44AE (Transport)', value: 'Yes' });
   }
 
-  // Part B — Gross Total Income
+  // Part B - Gross Total Income
   const salary = Number(inputs.salary) || 0;
   const std = tax.standardDeduction || 0;
-  rows.push({ section: 'B — Income', field: 'B1. Salary (gross)', value: salary, note: salary > 0 ? 'From Form 16' : undefined });
-  if (std) rows.push({ section: 'B — Income', field: '  Less: Standard Deduction', value: -std });
-  rows.push({ section: 'B — Income', field: '  Net Salary', value: Math.max(0, salary - std) });
-  rows.push({ section: 'B — Income', field: 'B2. House Property (net)', value: Number(inputs.housePropertyIncome) || 0 });
-  rows.push({ section: 'B — Income', field: 'B3. Business / Profession', value: presumptive?.presumptiveIncome ?? (Number(inputs.businessIncome) || 0), note: presumptive ? `Presumptive @ §${presumptive.section}` : 'From books' });
-  rows.push({ section: 'B — Income', field: 'B4. Other Sources', value: Number(inputs.otherSources) || 0 });
-  rows.push({ section: 'B — Income', field: 'B5. Gross Total Income', value: tax.grossTotalIncome, bold: true });
+  rows.push({ section: 'B - Income', field: 'B1. Salary (gross)', value: salary, note: salary > 0 ? 'From Form 16' : undefined });
+  if (std) rows.push({ section: 'B - Income', field: '  Less: Standard Deduction', value: -std });
+  rows.push({ section: 'B - Income', field: '  Net Salary', value: Math.max(0, salary - std) });
+  rows.push({ section: 'B - Income', field: 'B2. House Property (net)', value: Number(inputs.housePropertyIncome) || 0 });
+  rows.push({ section: 'B - Income', field: 'B3. Business / Profession', value: presumptive?.presumptiveIncome ?? (Number(inputs.businessIncome) || 0), note: presumptive ? `Presumptive @ §${presumptive.section}` : 'From books' });
+  rows.push({ section: 'B - Income', field: 'B4. Other Sources', value: Number(inputs.otherSources) || 0 });
+  rows.push({ section: 'B - Income', field: 'B5. Gross Total Income', value: tax.grossTotalIncome, bold: true });
 
-  // Part C — Deductions
+  // Part C - Deductions
   if (tax.regime === 'old') {
-    rows.push({ section: 'C — Deductions (Chapter VI-A)', field: '§80C', value: Math.min(150_000, Number(deductions?.['80C']) || 0) });
-    rows.push({ section: 'C — Deductions (Chapter VI-A)', field: '§80CCD(1B) — NPS', value: Math.min(50_000, Number(deductions?.['80CCD1B']) || 0) });
+    rows.push({ section: 'C - Deductions (Chapter VI-A)', field: '§80C', value: Math.min(150_000, Number(deductions?.['80C']) || 0) });
+    rows.push({ section: 'C - Deductions (Chapter VI-A)', field: '§80CCD(1B) - NPS', value: Math.min(50_000, Number(deductions?.['80CCD1B']) || 0) });
     // Same age-dependent limit the tax figure used (was a flat ₹1 lakh, so the
     // PDF line could disagree with the total below it).
     const ageCtx = { selfSenior: Number(inputs?.age) >= 60, parentsSenior: !!inputs?.parentsSenior };
     const cap80D = effectiveDeductionCap('80D', ageCtx);
-    rows.push({ section: 'C — Deductions (Chapter VI-A)', field: '§80D — Health Insurance', value: Math.min(cap80D, Number(deductions?.['80D']) || 0) });
+    rows.push({ section: 'C - Deductions (Chapter VI-A)', field: '§80D - Health Insurance', value: Math.min(cap80D, Number(deductions?.['80D']) || 0) });
     // v1.10.74 - 60+ claim 80TTB instead of 80TTA (same rule as the tax figure).
     rows.push(ageCtx.selfSenior
-      ? { section: 'C — Deductions (Chapter VI-A)', field: '§80TTB — Deposit Interest (60+)', value: Math.min(effectiveDeductionCap('80TTB', ageCtx), Number(deductions?.['80TTB']) || 0) }
-      : { section: 'C — Deductions (Chapter VI-A)', field: '§80TTA — Savings Interest', value: Math.min(effectiveDeductionCap('80TTA', ageCtx), Number(deductions?.['80TTA']) || 0) });
-    rows.push({ section: 'C — Deductions (Chapter VI-A)', field: '§80E — Education Loan Interest', value: Number(deductions?.['80E']) || 0 });
-    rows.push({ section: 'C — Deductions (Chapter VI-A)', field: '§80G — Donations', value: Number(deductions?.['80G']) || 0 });
-    rows.push({ section: 'C — Deductions (Chapter VI-A)', field: '  Total Chapter VI-A', value: tax.allowedDeductions, bold: true });
+      ? { section: 'C - Deductions (Chapter VI-A)', field: '§80TTB - Deposit Interest (60+)', value: Math.min(effectiveDeductionCap('80TTB', ageCtx), Number(deductions?.['80TTB']) || 0) }
+      : { section: 'C - Deductions (Chapter VI-A)', field: '§80TTA - Savings Interest', value: Math.min(effectiveDeductionCap('80TTA', ageCtx), Number(deductions?.['80TTA']) || 0) });
+    rows.push({ section: 'C - Deductions (Chapter VI-A)', field: '§80E - Education Loan Interest', value: Number(deductions?.['80E']) || 0 });
+    rows.push({ section: 'C - Deductions (Chapter VI-A)', field: '§80G - Donations', value: Number(deductions?.['80G']) || 0 });
+    rows.push({ section: 'C - Deductions (Chapter VI-A)', field: '  Total Chapter VI-A', value: tax.allowedDeductions, bold: true });
   } else {
-    rows.push({ section: 'C — Deductions (Chapter VI-A)', field: '§80CCD(2) — Employer NPS', value: tax.allowedDeductions, note: 'Only deduction allowed under new regime' });
+    rows.push({ section: 'C - Deductions (Chapter VI-A)', field: '§80CCD(2) - Employer NPS', value: tax.allowedDeductions, note: 'Only deduction allowed under new regime' });
   }
 
-  // Part D — Tax computation
-  rows.push({ section: 'D — Tax Computation', field: 'D1. Taxable Income', value: tax.taxableIncome, bold: true });
-  rows.push({ section: 'D — Tax Computation', field: 'D2. Tax on Total Income (slab)', value: tax.slabTax });
-  if (tax.stcgTax) rows.push({ section: 'D — Tax Computation', field: '   + STCG (20%)', value: tax.stcgTax });
-  if (tax.ltcgTax) rows.push({ section: 'D — Tax Computation', field: '   + LTCG (12.5%)', value: tax.ltcgTax });
-  if (tax.rebate87A) rows.push({ section: 'D — Tax Computation', field: '   − §87A Rebate', value: -tax.rebate87A });
-  if (tax.surcharge) rows.push({ section: 'D — Tax Computation', field: '   + Surcharge', value: tax.surcharge });
-  rows.push({ section: 'D — Tax Computation', field: '   + Health & Ed Cess (4%)', value: tax.cess });
-  rows.push({ section: 'D — Tax Computation', field: 'D3. TOTAL TAX PAYABLE', value: tax.totalTax, bold: true, big: true });
+  // Part D - Tax computation
+  rows.push({ section: 'D - Tax Computation', field: 'D1. Taxable Income', value: tax.taxableIncome, bold: true });
+  rows.push({ section: 'D - Tax Computation', field: 'D2. Tax on Total Income (slab)', value: tax.slabTax });
+  if (tax.stcgTax) rows.push({ section: 'D - Tax Computation', field: '   + STCG (20%)', value: tax.stcgTax });
+  if (tax.ltcgTax) rows.push({ section: 'D - Tax Computation', field: '   + LTCG (12.5%)', value: tax.ltcgTax });
+  if (tax.rebate87A) rows.push({ section: 'D - Tax Computation', field: '   − §87A Rebate', value: -tax.rebate87A });
+  if (tax.surcharge) rows.push({ section: 'D - Tax Computation', field: '   + Surcharge', value: tax.surcharge });
+  rows.push({ section: 'D - Tax Computation', field: '   + Health & Ed Cess (4%)', value: tax.cess });
+  rows.push({ section: 'D - Tax Computation', field: 'D3. TOTAL TAX PAYABLE', value: tax.totalTax, bold: true, big: true });
 
   return rows;
 }

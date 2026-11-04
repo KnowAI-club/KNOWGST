@@ -1,4 +1,4 @@
-// v1.10.25 — Sanity check for the 4-mode discount matrix.
+// v1.10.25 - Sanity check for the 4-mode discount matrix.
 // Run: node scripts/discount-modes-test.mjs
 import { computeInvoiceTotals, resolveLineDiscount } from '../src/utils.js';
 
@@ -43,7 +43,7 @@ const scenarios = [
     exp: { lineDisc: 200, total: 0 } },
 
   // ── Backward-compat ────────────────────────────────────────────────
-  { name: 'Legacy item (no discountBase / no discountType) — treats as fixed net',
+  { name: 'Legacy item (no discountBase / no discountType) - treats as fixed net',
     item: { quantity: 1, rate: 100, discount: 10, taxPercent: 18 },
     exp: { lineDisc: 10, total: 106.2 } },
 ];

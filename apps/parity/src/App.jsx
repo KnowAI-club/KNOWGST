@@ -4,15 +4,15 @@ import { useState, useEffect, useRef, useMemo, lazy, Suspense } from 'react';
 import { Home, FileText, Settings, Plus, Users, Package, BarChart3, Wallet, RefreshCw, Receipt, BookOpen, Moon, Sun, Download, X, ShoppingCart, ChevronDown, Building2, Pencil, HelpCircle, Search, Command, Bell, Calculator, HardDrive, Menu, Heart } from 'lucide-react';
 import { getAllProfiles, saveProfile, getEnabledModules, getAllBills, getAllProducts, getStockAlertSettings, getAllClients, runUpdateNow, getLockStatus } from './store';
 import { isModuleEnabled, getUpcomingFilings, countsAsSales, localToday, toLocalIsoDate } from './utils';
-// v1.10.4 — Route-level lazy loading. Prior App.jsx synchronously
+// v1.10.4 - Route-level lazy loading. Prior App.jsx synchronously
 // imported all 12 views (~15k LOC combined), so a first-paint on
 // Dashboard downloaded and parsed GSTReturns (1952), InvoiceGenerator
 // (2409), IncomeTax (1038), SettingsView (1479), PrintSettings (1294)
 // etc. before the user even asked for them.
 //
 // Now:
-//  - Dashboard stays eager — it's the default landing route.
-//  - InvoiceGenerator stays eager — new-invoice is the primary action
+//  - Dashboard stays eager - it's the default landing route.
+//  - InvoiceGenerator stays eager - new-invoice is the primary action
 //    reachable from Ctrl+K / manifest shortcut / big blue button.
 //  - Every other view is React.lazy → own Vite chunk → fetched on
 //    first navigation only. Suspense fallback is a lightweight spinner.
@@ -46,8 +46,8 @@ import { getPrintSettings } from './utils/printSettings';
 
 const openDocs = () => window.open(DOCS_URL, '_blank', 'noopener,noreferrer');
 
-// v1.10.4 — Lightweight Suspense fallback shown while a lazy view
-// downloads. Purely visual — no data fetching, no state.
+// v1.10.4 - Lightweight Suspense fallback shown while a lazy view
+// downloads. Purely visual - no data fetching, no state.
 function ViewLoading() {
   return (
     <div style={{ padding: '3rem', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
@@ -64,7 +64,7 @@ function ViewLoading() {
 }
 
 function App() {
-  // v1.9.3 — Setup Wizard shown on first-run (before onboardingComplete = true)
+  // v1.9.3 - Setup Wizard shown on first-run (before onboardingComplete = true)
   const [showWizard, setShowWizard] = useState(() => {
     try { return !getPrintSettings().onboardingComplete; } catch { return false; }
   });
@@ -79,11 +79,11 @@ function App() {
       const valid = ['ai', 'dashboard', 'invoices', 'new', 'clients', 'inventory', 'expenses', 'purchases', 'recurring', 'receipts', 'reports', 'filing', 'incometax', 'settings', 'controlpanel', 'support'];
       if (v && valid.includes(v)) {
         // Strip the query string so a refresh doesn't keep snapping back to
-        // the shortcut target — only the *first* navigation honours it.
+        // the shortcut target - only the *first* navigation honours it.
         window.history.replaceState({}, '', window.location.pathname);
         return v;
       }
-    } catch { /* sandboxed history API — fall through */ }
+    } catch { /* sandboxed history API - fall through */ }
     // 'guide' was the built-in User Guide (removed in v1.10.75).
     const last = sessionStorage.getItem('gst_currentView');
     return last && last !== 'guide' ? last : 'dashboard';
@@ -126,7 +126,7 @@ function App() {
         const res = await fetch('/api/check-update');
         const data = await res.json();
         if (!cancelled) setUpdateInfo(data);
-      } catch { /* offline — quietly skip */ }
+      } catch { /* offline - quietly skip */ }
     };
     // First check ~5 seconds after mount so it doesn't fight the initial load.
     const initial = setTimeout(check, 5000);
@@ -142,10 +142,10 @@ function App() {
   const [notifications, setNotifications] = useState({ overdue: [], dueSoon: [], lowStock: [], filings: [], autoFire: null });
   const [showNotifs, setShowNotifs] = useState(false);
 
-  // v1.10.62 — reported (#53, @sangwanmail-eng): "Notifications should clear
+  // v1.10.62 - reported (#53, @sangwanmail-eng): "Notifications should clear
   // after check."
   //
-  // They never did, and the reason is that these are not messages — they are
+  // They never did, and the reason is that these are not messages - they are
   // computed live from your data every time the app loads ("3 invoices are
   // overdue", "2 products are low on stock"). There was no notion of having
   // read one, so the badge simply reported what was true and stayed lit
@@ -154,10 +154,10 @@ function App() {
   // Marking them read cannot just hide them, though: if an invoice goes
   // overdue tomorrow you must be told, even if you dismissed yesterday's
   // overdue notice. So dismissal is recorded per section as a SIGNATURE of
-  // what was actually shown — the specific invoice numbers, the specific
+  // what was actually shown - the specific invoice numbers, the specific
   // products. Dismissing stores that signature; the section stays quiet only
   // while the signature is unchanged. The moment the underlying facts differ
-  // — a new overdue invoice, a different product running low — the signature
+  // - a new overdue invoice, a different product running low - the signature
   // changes and the alert comes back on its own.
   //
   // Kept in localStorage: it is a per-machine reading preference, not
@@ -210,7 +210,7 @@ function App() {
         const today = localToday();
         const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 3);
         const tomorrowStr = toLocalIsoDate(tomorrow);
-        // v1.10.67 (#66 item 12) — never chase payment for a cancelled invoice;
+        // v1.10.67 (#66 item 12) - never chase payment for a cancelled invoice;
         // nor for a quotation, proforma, challan or credit note (countsAsSales).
         const overdue = bills.filter(b => {
           const d = b.data?.details?.dueDate;
@@ -221,14 +221,14 @@ function App() {
           return d && d >= today && d <= tomorrowStr && b.status !== 'paid' && countsAsSales(b);
         });
         // Honour the user's stock-alert preferences. When disabled, the filter
-        // returns nothing — bell badge drops to 0 for the stock category.
+        // returns nothing - bell badge drops to 0 for the stock category.
         // When enabled, use the configured threshold (default 5).
         const stockThreshold = Number(stockAlertCfg?.threshold ?? 5);
         const lowStock = stockAlertCfg?.enabled === false
           ? []
           : products.filter(p => isLowStock(p, stockThreshold));
         const filings = getUpcomingFilings().filter(f => f.daysAway <= 10);
-        // Recurring auto-fire breadcrumb — set by server.js processDueRecurring().
+        // Recurring auto-fire breadcrumb - set by server.js processDueRecurring().
         // Only "fresh" (today's) auto-fires count as a notification; older ones
         // would otherwise stay sticky forever.
         let autoFire = null;
@@ -240,7 +240,7 @@ function App() {
           }
         } catch { /* fine */ }
         setNotifications({ overdue, dueSoon, lowStock, filings, autoFire });
-      } catch { /* offline / server down — leave previous counts */ }
+      } catch { /* offline / server down - leave previous counts */ }
     };
     compute();
     const interval = setInterval(compute, 10 * 60 * 1000);
@@ -255,7 +255,7 @@ function App() {
   const [showPalette, setShowPalette] = useState(false);
   const [paletteQuery, setPaletteQuery] = useState('');
   const [paletteIdx, setPaletteIdx] = useState(0);
-  // v1.9.4 — pre-load searchable content so Ctrl+K acts as a true global
+  // v1.9.4 - pre-load searchable content so Ctrl+K acts as a true global
   // search across invoices, clients, products, and settings sections.
   // Small cost (fires once on mount + when palette opens); big UX win.
   const [searchCorpus, setSearchCorpus] = useState({ bills: [], clients: [], products: [] });
@@ -290,22 +290,22 @@ function App() {
       setShowUpdateModal(false);
       toast('Update finished. Reload the page to use the new version.', 'success', 10000);
     } else {
-      toast(`Update failed — ${result.error}`, 'error', 10000);
+      toast(`Update failed - ${result.error}`, 'error', 10000);
     }
   };
 
   const dismissUpdate = () => {
     if (updateInfo?.latest) {
       localStorage.setItem('freegstbill_dismissedUpdate', updateInfo.latest);
-      // v1.10.6 — audit L10: was `setUpdateInfo(prev => prev ? { ...prev }
-      // : prev)` "to trigger re-render". No-op — `setShowUpdateModal(false)`
+      // v1.10.6 - audit L10: was `setUpdateInfo(prev => prev ? { ...prev }
+      // : prev)` "to trigger re-render". No-op - `setShowUpdateModal(false)`
       // below already re-renders, and `updateBannerVisible` reads
       // localStorage every render so the new dismissal is picked up.
     }
     setShowUpdateModal(false);
   };
 
-  // Check if server is running — continuously monitors
+  // Check if server is running - continuously monitors
   useEffect(() => {
     let cancelled = false;
     // v1.10.73 - a busy or older PC can take a few seconds to answer. One
@@ -355,7 +355,7 @@ function App() {
   }, []);
 
   // Capture PWA install prompt. Banner re-appears 14 days after dismissal
-  // (was: dismissed forever — too aggressive, users who closed it during
+  // (was: dismissed forever - too aggressive, users who closed it during
   // a busy moment never saw it again).
   useEffect(() => {
     const dismissedAt = localStorage.getItem('freegstbill_pwa_dismissed_at');
@@ -423,13 +423,13 @@ function App() {
     setProfile(loaded);
   };
 
-  // v1.10.66 (#64 item 1) — identifies the active business for the screens
+  // v1.10.66 (#64 item 1) - identifies the active business for the screens
   // keyed on it below. GSTIN first, the same rule belongsToProfile() uses to
   // decide which records a business owns; the name covers a business that has
   // no GSTIN yet.
   const businessKey = String(profile?.gstin || profile?.businessName || '').trim().toUpperCase();
 
-  // v1.10.66 (#59) — on a phone the sidebar is a slide-in menu. It closes as
+  // v1.10.66 (#59) - on a phone the sidebar is a slide-in menu. It closes as
   // soon as something in it is chosen, so picking a page never leaves the menu
   // covering the page that was just asked for. Opening the business list is
   // the one exception: that choice is not finished yet.
@@ -496,9 +496,9 @@ function App() {
 
   const dismissInstallBanner = () => {
     setShowInstallBanner(false);
-    // Timestamp-based dismissal — the 14-day cool-down in the install-prompt
+    // Timestamp-based dismissal - the 14-day cool-down in the install-prompt
     // effect uses this to decide whether to re-show. Old boolean key kept for
-    // back-compat with v1.6.0 — readers that find only the legacy key treat
+    // back-compat with v1.6.0 - readers that find only the legacy key treat
     // it as "permanently dismissed" (same as today's behaviour for them).
     localStorage.setItem('freegstbill_pwa_dismissed_at', String(Date.now()));
   };
@@ -551,7 +551,7 @@ function App() {
     { id: 'guide', icon: HelpCircle, label: 'User Guide', module: 'dashboard', onClick: openDocs }, // gated by dashboard so it's always available
   ].filter(item => showIfModule(item.module));
 
-  // Command palette actions — declared here (not earlier) because the deps
+  // Command palette actions - declared here (not earlier) because the deps
   // array references `navItems` and `handleNewInvoice`, which are consts.
   // Reading a const before its declaration triggers a Temporal Dead Zone
   // ReferenceError ("Cannot access 'X' before initialization") at runtime.
@@ -570,18 +570,18 @@ function App() {
     acts.push({ label: 'Toggle dark mode', hint: '', category: 'action', run: () => setDarkMode(d => !d) });
     acts.push({ label: 'Show keyboard shortcuts', hint: 'Ctrl+/', category: 'help', run: () => setShowShortcutsHelp(true) });
     if (updateInfo?.updateAvailable) {
-      acts.push({ label: `View update — v${updateInfo.latest}`, hint: '', category: 'update', run: () => setShowUpdateModal(true) });
+      acts.push({ label: `View update - v${updateInfo.latest}`, hint: '', category: 'update', run: () => setShowUpdateModal(true) });
     }
-    // v1.9.4 — cross-app search: invoices, clients, products
-    // v1.10.5 — audit H24 fix. Prior code dispatched
+    // v1.9.4 - cross-app search: invoices, clients, products
+    // v1.10.5 - audit H24 fix. Prior code dispatched
     // `CustomEvent('fgsb-open-bill', { detail: b.id })` but no one
-    // listened for it — selecting an invoice in the palette silently
+    // listened for it - selecting an invoice in the palette silently
     // dropped the ID and just landed on Dashboard. Now: reuse
     // handleEditInvoice() directly, which is already the canonical way
     // to open a bill for editing (works from Dashboard row-click too).
     searchCorpus.bills.forEach(b => {
       acts.push({
-        label: `📄 ${b.invoiceNumber || 'INV-?'} — ${b.clientName || 'No client'}`,
+        label: `📄 ${b.invoiceNumber || 'INV-?'} - ${b.clientName || 'No client'}`,
         hint: b.invoiceDate ? new Date(b.invoiceDate).toLocaleDateString('en-IN') : '',
         category: 'invoice',
         run: () => handleEditInvoice(b),
@@ -589,7 +589,7 @@ function App() {
     });
     searchCorpus.clients.forEach(c => {
       acts.push({
-        label: `👤 ${c.name} — client${c.gstin ? ' · GSTIN: ' + c.gstin : ''}`,
+        label: `👤 ${c.name} - client${c.gstin ? ' · GSTIN: ' + c.gstin : ''}`,
         hint: c.phone || c.email || '',
         category: 'client',
         run: () => setCurrentView('clients'),
@@ -597,7 +597,7 @@ function App() {
     });
     searchCorpus.products.forEach(p => {
       acts.push({
-        label: `📦 ${p.name} — product${p.hsn ? ' · HSN: ' + p.hsn : ''}`,
+        label: `📦 ${p.name} - product${p.hsn ? ' · HSN: ' + p.hsn : ''}`,
         hint: (p.stock ?? 0) + ' in stock',
         category: 'product',
         run: () => setCurrentView('inventory'),
@@ -637,7 +637,7 @@ function App() {
     !paletteQuery.trim() || a.label.toLowerCase().includes(paletteQuery.toLowerCase())
   );
 
-  // Global keyboard shortcuts. Lives down here for the same TDZ reason —
+  // Global keyboard shortcuts. Lives down here for the same TDZ reason -
   // the handler closes over `handleNewInvoice` which is declared above only.
   useEffect(() => {
     const onKey = (e) => {
@@ -667,16 +667,16 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // v1.9.4 — Accessibility hooks (v1.10.4/1.10.6 updated):
+  // v1.9.4 - Accessibility hooks (v1.10.4/1.10.6 updated):
   //   1. Mirror `title` → `aria-label` on every icon button that lacks one.
   //      Runs on mount + via a MutationObserver when the DOM adds new
   //      icon buttons (bulk toolbars, modals, etc.). See M15.
-  //   2. Global ESC handler for any open `.modal-overlay` — clicks the
+  //   2. Global ESC handler for any open `.modal-overlay` - clicks the
   //      backdrop (which triggers the overlay's own close). No CSS
   //      class is added; the earlier `.esc-closable` idea was never
   //      implemented, comment cleaned up (audit L7).
   useEffect(() => {
-    // v1.10.4 — audit M15. Prior code polled the DOM every 3 seconds
+    // v1.10.4 - audit M15. Prior code polled the DOM every 3 seconds
     // to mirror title→aria-label on new .icon-btn elements. Constant
     // idle-time work for a paper-thin accessibility win. Replaced with
     // a MutationObserver that fires ONLY when new buttons enter the
@@ -741,7 +741,7 @@ function App() {
           <span className="knowai-symbol" aria-hidden="true" style={{ width: 48, height: 48, margin: '0 auto 16px', color: 'var(--text-primary)' }} />
           <h2>KnowGST needs its local service</h2>
           <p>
-            Your data is <strong>100% safe</strong> on your computer — nothing is lost.
+            Your data is <strong>100% safe</strong> on your computer - nothing is lost.
             The app just needs to be started once.
           </p>
           {/* v1.10.69 - there was an "Open GST Billing" button here, linking to
@@ -782,11 +782,11 @@ function App() {
     );
   }
 
-  // v1.10.33 — "Finish setup" bottom-right pill. Shown when the user
+  // v1.10.33 - "Finish setup" bottom-right pill. Shown when the user
   // hit Skip on the wizard (onboardingSkipped=true) so they can come
   // back later without hunting through Settings. Hidden after they
   // finish setup (finish() clears the flag) or if they explicitly said
-  // "None of these — I'll configure manually".
+  // "None of these - I'll configure manually".
   const showResumeSetupPill = (() => {
     try {
       const ps = getPrintSettings();
@@ -800,7 +800,7 @@ function App() {
       {showResumeSetupPill && (
         <button type="button"
           onClick={() => setShowWizard(true)}
-          title="Come back to the setup wizard — pick a business type, paper size, and language."
+          title="Come back to the setup wizard - pick a business type, paper size, and language."
           style={{
             // Above the docked Save bar on Settings, so it never covers Save.
             position: 'fixed', bottom: currentView === 'settings' ? '5.5rem' : '1.25rem', right: '1.25rem', zIndex: 9998,
@@ -813,7 +813,7 @@ function App() {
           ✨ Finish setup
         </button>
       )}
-      {/* v1.10.66 (#59) — phone-only top bar with the menu button. CSS hides it
+      {/* v1.10.66 (#59) - phone-only top bar with the menu button. CSS hides it
           on wider screens, where the sidebar is always shown. */}
       <div className="mobile-topbar">
         <button type="button" className="mobile-topbar-btn" onClick={() => setNavOpen(true)}
@@ -911,7 +911,7 @@ function App() {
                 onClick={item.onClick || (() => {setDashboardTarget({});setCurrentView(item.id);})}
               ><item.icon size={18} /><span>{item.label}</span></button>)}
               {label === 'Workspace' && (<div className="sidebar-utilities" role="group" aria-label="Workspace controls">
-            {/* Update-available banner — only shows when GitHub has a newer version
+            {/* Update-available banner - only shows when GitHub has a newer version
                 AND the user hasn't already dismissed THIS specific version. New
                 releases re-show the banner. Click to view notes + update. */}
             {updateBannerVisible && (
@@ -938,7 +938,7 @@ function App() {
                 }} />
               </button>
             )}
-            {/* Notification bell — opens a popover listing overdue / due-soon
+            {/* Notification bell - opens a popover listing overdue / due-soon
                 invoices, GST filing deadlines, and low-stock items. Each row
                 is a single click away from the page that fixes it. */}
             <button
@@ -1013,7 +1013,7 @@ function App() {
         <div className="pwa-install-banner">
           <Download size={18} />
           <span>
-            <strong>Install as Desktop App</strong> — own icon, no browser, opens instantly. Right-click the icon for quick-jump to New Invoice / GST Returns.
+            <strong>Install as Desktop App</strong> - own icon, no browser, opens instantly. Right-click the icon for quick-jump to New Invoice / GST Returns.
           </span>
           <button className="pwa-install-btn" onClick={handleInstallPWA}>Install App</button>
           <button className="pwa-dismiss-btn" onClick={dismissInstallBanner} title="Remind me later (re-shows in 14 days)"><X size={16} /></button>
@@ -1032,7 +1032,7 @@ function App() {
             profile={profile} editingBill={editingBill}
           />
         )}
-        {/* v1.10.4 — All lazy views under one Suspense boundary. Only the
+        {/* v1.10.4 - All lazy views under one Suspense boundary. Only the
              matched view's chunk actually loads; others stay unfetched. */}
         <Suspense fallback={<ViewLoading />}>
         {currentView === 'clients' && (
@@ -1041,7 +1041,7 @@ function App() {
         {currentView === 'inventory' && (
           <InventoryView key={businessKey} initialAiDraft={dashboardTarget.aiCatalogDraft} onDraftConsumed={() => setDashboardTarget({})} onOpenSettings={() => setCurrentView('settings')} />
         )}
-        {/* v1.10.66 (#64 item 1) — `key={businessKey}` remounts these screens
+        {/* v1.10.66 (#64 item 1) - `key={businessKey}` remounts these screens
             when the business changes. Each reads the business once when it
             opens, so a switch left the previous company's records on screen,
             and a record added straight after switching was saved under the OLD
@@ -1081,8 +1081,8 @@ function App() {
         {currentView === 'dashboard' && <AppFooter onOpenSupport={() => setCurrentView('support')} />}
       </div>
 
-      {/* Update modal — release notes + Export-backup-first nudge + Update Now */}
-      {/* Notification popover — rendered as a click-out modal so it works on
+      {/* Update modal - release notes + Export-backup-first nudge + Update Now */}
+      {/* Notification popover - rendered as a click-out modal so it works on
           tablets too. Grouped by category with a navigate-to button per group. */}
       {showNotifs && (
         <div className="modal-overlay" onClick={() => setShowNotifs(false)}>
@@ -1090,7 +1090,7 @@ function App() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
               <h3 className="section-title" style={{ margin: 0 }}>Notifications</h3>
               <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                {/* v1.10.62 (#53) — clears everything currently shown. Each
+                {/* v1.10.62 (#53) - clears everything currently shown. Each
                     section remembers exactly WHAT was cleared, so a genuinely
                     new overdue invoice or a different product running low
                     brings the alert back by itself. */}
@@ -1109,7 +1109,7 @@ function App() {
             </div>
             {notifTotal === 0 ? (
               <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '1.5rem 0', margin: 0 }}>
-                All clear ✨ — nothing needs your attention right now.
+                All clear ✨ - nothing needs your attention right now.
               </p>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
@@ -1174,7 +1174,7 @@ function App() {
         </div>
       )}
 
-      {/* Command palette — Ctrl/Cmd+K. Spotlight-style: type to filter actions,
+      {/* Command palette - Ctrl/Cmd+K. Spotlight-style: type to filter actions,
           ↑/↓ to navigate, Enter to run, Esc to close. */}
       {showPalette && (
         <div className="modal-overlay" onClick={() => setShowPalette(false)}>
@@ -1218,7 +1218,7 @@ function App() {
         </div>
       )}
 
-      {/* Keyboard-shortcuts help — Ctrl/Cmd+/. Single-pane reference. */}
+      {/* Keyboard-shortcuts help - Ctrl/Cmd+/. Single-pane reference. */}
       {showShortcutsHelp && (
         <div className="modal-overlay" onClick={() => setShowShortcutsHelp(false)}>
           <div className="modal-content" style={{ maxWidth: '480px' }} onClick={e => e.stopPropagation()}>
@@ -1250,7 +1250,7 @@ function App() {
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem', marginBottom: '0.5rem' }}>
               <div>
                 <h3 className="section-title" style={{ marginTop: 0, marginBottom: '0.25rem' }}>
-                  Update available — v{updateInfo.latest}
+                  Update available - v{updateInfo.latest}
                 </h3>
                 <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: 0 }}>
                   You're on v{updateInfo.current}
@@ -1260,12 +1260,12 @@ function App() {
               <button className="icon-btn" onClick={() => setShowUpdateModal(false)} title="Close"><X size={18} /></button>
             </div>
 
-            {/* Data-safety reassurance — explicit, prominent. Same .notice-info style
+            {/* Data-safety reassurance - explicit, prominent. Same .notice-info style
                 as the Data Management privacy card so users learn one visual pattern. */}
             <div className="notice notice-info" style={{ marginBottom: '0.85rem' }}>
               <span className="notice-icon">🔒</span>
               <div>
-                <strong>Your data is safe.</strong> Updates only refresh the app code and dependencies — your <code>data/</code> folder (invoices, clients, products, settings) and <code>Saved Invoices/</code> PDF archive are <strong>never touched</strong>. The updater pulls the latest source from GitHub and rebuilds, then restarts.
+                <strong>Your data is safe.</strong> Updates only refresh the app code and dependencies - your <code>data/</code> folder (invoices, clients, products, settings) and <code>Saved Invoices/</code> PDF archive are <strong>never touched</strong>. The updater pulls the latest source from GitHub and rebuilds, then restarts.
               </div>
             </div>
 
@@ -1273,7 +1273,7 @@ function App() {
             <div className="surface-card" style={{ maxHeight: '320px', overflowY: 'auto', whiteSpace: 'pre-wrap', fontSize: '0.82rem', lineHeight: 1.55, marginBottom: '0.85rem' }}>
               {updateInfo.releaseNotes || (
                 <span style={{ color: 'var(--text-muted)' }}>
-                  No release notes available — see the full changelog at{' '}
+                  No release notes available - see the full changelog at{' '}
                   <a href={updateInfo.releaseUrl || 'https://github.com/KnowAI-club/KNOWGST/releases'} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)' }}>GitHub Releases</a>.
                 </span>
               )}
@@ -1304,7 +1304,7 @@ function App() {
               </button>
             </div>
             <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.6rem', marginBottom: 0 }}>
-              <em>Update Now</em> backs up your data, then fetches the newest release. It takes about a minute — leave this window open, then reload the page when it finishes.
+              <em>Update Now</em> backs up your data, then fetches the newest release. It takes about a minute - leave this window open, then reload the page when it finishes.
             </p>
           </div>
         </div>

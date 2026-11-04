@@ -28,7 +28,7 @@ export default function ToastContainer() {
   const [toasts, setToasts] = useState([]);
 
   const addToast = useCallback((t) => {
-    // v1.9.15 — collapse duplicate consecutive toasts. Clicking the same
+    // v1.9.15 - collapse duplicate consecutive toasts. Clicking the same
     // preset three times used to stack three identical "Applied X" cards.
     // Now: if an identical-message toast is already visible, refresh its
     // timer instead of pushing a duplicate. Cap total on-screen at 4.

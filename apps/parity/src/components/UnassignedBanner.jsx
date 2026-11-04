@@ -6,7 +6,7 @@ import { toast } from './Toast';
  * Offers to attach records that predate multi-business separation to the
  * business currently selected.
  *
- * v1.10.65 (#58 item 3) — expenses, purchase bills and recurring templates
+ * v1.10.65 (#58 item 3) - expenses, purchase bills and recurring templates
  * saved before businesses were kept apart carry no owner, so they appear
  * under every business. Hiding them would be far worse than showing them
  * twice, so they stay visible and the user is offered this instead.
@@ -19,7 +19,7 @@ import { toast } from './Toast';
  *   * It does not appear unless there is something to assign, so it is not
  *     a permanent banner nagging at the top of the page.
  *
- * Assigning is one-way — it names the business in the confirmation so the
+ * Assigning is one-way - it names the business in the confirmation so the
  * user cannot do it while looking at the wrong company by accident.
  */
 export default function UnassignedBanner({ count, businessName, noun, onAssign }) {
@@ -43,7 +43,7 @@ export default function UnassignedBanner({ count, businessName, noun, onAssign }
       await onAssign();
       toast(`${label} assigned to ${businessName}`, 'success');
     } catch {
-      toast('Could not assign — please try again', 'error');
+      toast('Could not assign - please try again', 'error');
     }
   };
 

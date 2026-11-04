@@ -5,6 +5,7 @@ import { getAllRecurring, saveRecurring, deleteRecurring, getAllClients, getProf
 import { formatCurrency, INVOICE_TYPES, belongsToProfile, isUnassignedToBusiness, templateTotals, localToday, toLocalIsoDate, parseLocalDate } from '../utils';
 import UnassignedBanner from './UnassignedBanner';
 import { toast } from './Toast';
+import { validateGstin, validatePin, validateCity } from '../utils/addressValidation';
 import { confirmAction } from './ConfirmModal';
 import HelpButton from './HelpButton';
 
@@ -32,7 +33,7 @@ const frequencyLabel = (tpl) => {
 
 export default function RecurringInvoices() {
   const [templates, setTemplates] = useState([]);
-  // v1.10.65 (#58 item 3) — the business these templates belong to.
+  // v1.10.65 (#58 item 3) - the business these templates belong to.
   const [ownerProfile, setOwnerProfile] = useState(null);
   const [clients, setClients] = useState([]);
   const [showForm, setShowForm] = useState(false);
@@ -45,7 +46,7 @@ export default function RecurringInvoices() {
   const [form, setForm] = useState({ ...emptyForm });
 
 
-  // v1.10.65 (#58 item 3) — assign records saved before businesses were kept
+  // v1.10.65 (#58 item 3) - assign records saved before businesses were kept
   // separate. Never automatic: only the user knows which business an old
   // record belonged to, so guessing would file it into the wrong books.
   const unassignedTemplates = templates.filter(isUnassignedToBusiness);
@@ -64,7 +65,7 @@ export default function RecurringInvoices() {
         getAllRecurring(), getAllClients(), getProfile().catch(() => null),
       ]);
       setOwnerProfile(prof);
-      // v1.10.65 (#58 item 3) — show only this business's records. Anything
+      // v1.10.65 (#58 item 3) - show only this business's records. Anything
       // saved before businesses were separated has no owner recorded and is
       // always shown, so nothing disappears from an existing ledger.
       setTemplates((recs || []).filter(r => belongsToProfile(r, prof)));
@@ -94,7 +95,7 @@ export default function RecurringInvoices() {
       clientAddress: tpl.clientAddress || '',
       frequency: tpl.frequency || 'monthly',
       invoiceType: tpl.invoiceType || 'tax-invoice',
-      // Migrate v1.6.7-and-earlier templates that used `description` — the
+      // Migrate v1.6.7-and-earlier templates that used `description` - the
        // server-side auto-fire reads `name`, so a template with description
        // fired blank rows. Normalize on load.
       items: (tpl.items && tpl.items.length > 0)
@@ -157,6 +158,8 @@ export default function RecurringInvoices() {
   };
 
   const handleSave = async () => {
+    if ((form.clientCountry || 'India') === 'India' && !validateGstin(form.clientGstin).ok) { toast(validateGstin(form.clientGstin).message, 'warning'); return; }
+    if (!validatePin(form.clientCountry, form.clientPin).ok) { toast(validatePin(form.clientCountry, form.clientPin).message, 'warning'); return; }
     if (!form.clientName.trim()) { toast('Client name required', 'warning'); return; }
     if (!form.items.some(i => i.name && i.rate)) { toast('Add at least one item with description and rate', 'warning'); return; }
     try {
@@ -172,7 +175,7 @@ export default function RecurringInvoices() {
         endDate: form.endMode === 'onDate' ? form.endDate : '',
         maxOccurrences: form.endMode === 'afterN' ? (parseInt(form.maxOccurrences, 10) || null) : null,
         items: form.items.filter(i => i.name),
-        // v1.10.65 (#58 item 3) — which business this template bills for.
+        // v1.10.65 (#58 item 3) - which business this template bills for.
         ownerGstin: ownerProfile?.gstin || '',
         ownerName: ownerProfile?.businessName || '',
       });
@@ -223,7 +226,7 @@ export default function RecurringInvoices() {
   return (
     <div className="dashboard-container">
       <PageHeader title="Recurring Invoices" subtitle={<>Auto-generate invoices for retainer clients</>}>
-          <HelpButton title="Recurring invoices — how to use" doc="recurring">
+          <HelpButton title="Recurring invoices - how to use" doc="recurring">
             <ul style={{ paddingLeft: '1.1rem', margin: 0 }}>
               <li><strong>Easiest</strong>: make the first invoice as usual and tick <em>Make this a recurring invoice</em> under Customize. Taxes, terms and options carry over.</li>
               <li>Or use <strong>New Template</strong> here. <em>Every</em> and <em>Stop</em> set how often it repeats and when it ends.</li>
@@ -248,7 +251,7 @@ export default function RecurringInvoices() {
             {dueTemplates.map(tpl => (
               <button key={tpl.id} className="btn btn-primary" style={{ fontSize: '0.8rem', padding: '0.4rem 0.75rem' }}
                 onClick={() => generateNow(tpl)}>
-                <Play size={14} /> {tpl.clientName} — {FREQUENCIES.find(f => f.value === tpl.frequency)?.label}
+                <Play size={14} /> {tpl.clientName} - {FREQUENCIES.find(f => f.value === tpl.frequency)?.label}
               </button>
             ))}
           </div>
@@ -283,7 +286,9 @@ export default function RecurringInvoices() {
               </div>
               <div className="form-group">
                 <label className="form-label">Client GSTIN</label>
-                <input type="text" className="form-input" value={form.clientGstin} onChange={e => updateField('clientGstin', e.target.value)} maxLength={15} />
+                <input type="text" className="form-input" value={form.clientGstin} onChange={e => updateField('clientGstin', e.target.value.toUpperCase())} maxLength={15}
+                  style={(form.clientCountry || 'India') === 'India' && !validateGstin(form.clientGstin).ok ? { borderColor: '#dc2626' } : undefined} />
+                {(form.clientCountry || 'India') === 'India' && !validateGstin(form.clientGstin).ok && <small style={{ color: '#dc2626', fontSize: '0.7rem', display: 'block', marginTop: '0.2rem' }}>{validateGstin(form.clientGstin).message}</small>}
               </div>
               <div className="form-group">
                 <label className="form-label">Frequency</label>

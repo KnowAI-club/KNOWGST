@@ -1,6 +1,6 @@
 // Each category is tagged with its ITR (Income Tax Return) head so the
 // v1.7.0+ ITR Filing Summary can auto-aggregate expenses under the correct
-// P&L line. Users don't have to think about heads — they pick the category
+// P&L line. Users don't have to think about heads - they pick the category
 // they already understand.
 //   - 'business'      → deductible business expense under section 37
 //   - 'depreciation'  → section 32 (asset purchases, capitalised then

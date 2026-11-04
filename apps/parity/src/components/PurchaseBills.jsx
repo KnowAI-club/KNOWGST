@@ -11,9 +11,10 @@ import BulkCsvImport from './BulkCsvImport';
 import UnassignedBanner from './UnassignedBanner';
 import { getPrintSettings } from '../utils/printSettings';
 import { toast } from './Toast';
+import { validateGstin, validatePin, validateCity } from '../utils/addressValidation';
 import { confirmAction, promptAction } from './ConfirmModal';
 
-// v1.10.31 — UI-C3: Same accent-color helper as ClientsView so the
+// v1.10.31 - UI-C3: Same accent-color helper as ClientsView so the
 // Purchase Bill PDF header rule + totals line pick up the user's brand.
 function getAccentRGB() {
   try {
@@ -41,7 +42,7 @@ const PAYMENT_STATUS_COLORS = {
   Partial: { bg: 'rgba(139, 92, 246, 0.14)', color: '#8b5cf6' },
 };
 
-// cessPercent added in v1.6.8 (P1 #16) — suppliers of tobacco / aerated
+// cessPercent added in v1.6.8 (P1 #16) - suppliers of tobacco / aerated
 // drinks / motor vehicles / coal charge GST + Cess. Without a slot for it,
 // we couldn't reclaim ITC on the cess in GSTR-3B Table 4(A).
 const emptyItem = { name: '', hsn: '', quantity: 1, rate: 0, taxPercent: 18, cessPercent: 0 };
@@ -50,7 +51,7 @@ const emptyItem = { name: '', hsn: '', quantity: 1, rate: 0, taxPercent: 18, ces
 const emptyForm = {
   date: '', // v1.10.74 - set to localToday() when the form opens
   supplierName: '',
-  // v1.10.29 — supplier address for the PDF header. Optional; blank
+  // v1.10.29 - supplier address for the PDF header. Optional; blank
   // pre-v1.10.29 records fall through gracefully.
   supplierAddress: '',
   supplierGstin: '',
@@ -58,7 +59,7 @@ const emptyForm = {
   items: [{ ...emptyItem }],
   paymentStatus: 'Unpaid',
   interstate: false, // true ⇒ supplier charged IGST; false ⇒ CGST + SGST. Routes ITC correctly in GSTR-3B.
-  applyRoundOff: false, // off by default — purchase bill totals are usually pre-rounded by the supplier. Users with suppliers that don't pre-round can opt in here.
+  applyRoundOff: false, // off by default - purchase bill totals are usually pre-rounded by the supplier. Users with suppliers that don't pre-round can opt in here.
   note: '',
 };
 
@@ -86,14 +87,14 @@ function calcPurchaseTotal(items, applyRoundOff = false) {
   return { ...raw, roundOff, finalTotal: raw.total + roundOff };
 }
 
-// v1.10.6 — audit L4: local copy removed, imported from utils above.
+// v1.10.6 - audit L4: local copy removed, imported from utils above.
 
 export default function PurchaseBills({ initialAiDraft, onDraftConsumed }) {
   const [paymentPurchase,setPaymentPurchase]=useState(null);
   const [purchases, setPurchases] = useState([]);
-  // v1.10.65 (#58 item 3) — the business these records belong to.
+  // v1.10.65 (#58 item 3) - the business these records belong to.
   const [ownerProfile, setOwnerProfile] = useState(null);
-  // v1.10.54 (#42) — the Products & Services master, used to seed item
+  // v1.10.54 (#42) - the Products & Services master, used to seed item
   // suggestions. Loaded on mount alongside purchases.
   const [products, setProducts] = useState([]);
   const [search, setSearch] = useState('');
@@ -101,14 +102,14 @@ export default function PurchaseBills({ initialAiDraft, onDraftConsumed }) {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState({ ...emptyForm, items: [{ ...emptyItem }] });
-  // v1.10.22 — OCR modal state.
+  // v1.10.22 - OCR modal state.
   const [showOCR, setShowOCR] = useState(false);
-  // v1.10.30 — reported: "add a view only option modal type so can user
+  // v1.10.30 - reported: "add a view only option modal type so can user
   // check the price without downloading the file every time". Holds the
   // purchase being previewed; modal has a Download PDF button inside.
   const [viewPurchase, setViewPurchase] = useState(null);
   const applyOCR = (extracted) => {
-    // v1.10.35 — Now consumes the richer payload from BillOCR:
+    // v1.10.35 - Now consumes the richer payload from BillOCR:
     // extracted.items[] with name/hsn/qty/rate/taxPercent/amount, and
     // extracted.taxBreakdown with cgst/sgst/igst/cess. Falls back to
     // the old single-line-from-grand-total behaviour only if no line
@@ -119,10 +120,10 @@ export default function PurchaseBills({ initialAiDraft, onDraftConsumed }) {
       // Preserve reviewed product links and cess in the purchase draft.
       items = purchaseOCRItems(extracted);
     } else if (extracted.grandTotal > 0) {
-      // Legacy fallback — no line items detected, seed a single-row
+      // Legacy fallback - no line items detected, seed a single-row
       // placeholder from the grand total so the user has something to
       // split.
-      items = [{ name: 'From OCR — split into real items', hsn: '', quantity: 1, rate: extracted.grandTotal, taxPercent: 0, cessPercent: 0 }];
+      items = [{ name: 'From OCR - split into real items', hsn: '', quantity: 1, rate: extracted.grandTotal, taxPercent: 0, cessPercent: 0 }];
     } else {
       items = [{ ...emptyItem }];
     }
@@ -142,8 +143,8 @@ export default function PurchaseBills({ initialAiDraft, onDraftConsumed }) {
     });
     setShowForm(true);
     const msg = Array.isArray(extracted.items) && extracted.items.length > 0
-      ? `OCR loaded ${extracted.items.length} line item${extracted.items.length === 1 ? '' : 's'} — review HSN + tax rates before saving.`
-      : 'OCR values loaded — please review, then break the total into line items with correct GST.';
+      ? `OCR loaded ${extracted.items.length} line item${extracted.items.length === 1 ? '' : 's'} - review HSN + tax rates before saving.`
+      : 'OCR values loaded - please review, then break the total into line items with correct GST.';
     toast(msg, 'info');
   };
 
@@ -159,7 +160,7 @@ export default function PurchaseBills({ initialAiDraft, onDraftConsumed }) {
   const fyOptions = getFYOptions();
 
 
-  // v1.10.65 (#58 item 3) — assign records saved before businesses were kept
+  // v1.10.65 (#58 item 3) - assign records saved before businesses were kept
   // separate. Never automatic: only the user knows which business an old
   // record belonged to, so guessing would file it into the wrong books.
   const unassignedPurchases = purchases.filter(isUnassignedToBusiness);
@@ -176,7 +177,7 @@ export default function PurchaseBills({ initialAiDraft, onDraftConsumed }) {
     try {
       const [rows, prof] = await Promise.all([getAllPurchases(), getProfile().catch(() => null)]);
       setOwnerProfile(prof);
-      // v1.10.65 (#58 item 3) — show only this business's records. Anything
+      // v1.10.65 (#58 item 3) - show only this business's records. Anything
       // saved before businesses were separated has no owner recorded and is
       // always shown, so nothing disappears from an existing ledger.
       setPurchases((rows || []).filter(r => belongsToProfile(r, prof)));
@@ -185,16 +186,16 @@ export default function PurchaseBills({ initialAiDraft, onDraftConsumed }) {
     }
   };
 
-  // v1.10.54 — reported (#42, @sangwanmail-eng): "Product not show properly
+  // v1.10.54 - reported (#42, @sangwanmail-eng): "Product not show properly
   // in purchase tab". The Products & Services master held Keyboard,
-  // motherboard, Mouse, Pen drive — but the purchase item dropdown offered
+  // motherboard, Mouse, Pen drive - but the purchase item dropdown offered
   // "mouse", "key", "Pen drive": lowercase variants and a half-typed entry
   // from old bills, with two real products missing entirely.
   //
   // Cause: v1.10.50 built the suggestion list purely from what had been
   // TYPED on past purchase bills, and never read the product master. The
   // save path already calls getAllProducts() to update stock, so the data
-  // was right there — it just was not being used for suggestions.
+  // was right there - it just was not being used for suggestions.
   const loadProducts = async () => {
     try {
       setProducts(await getAllProducts());
@@ -249,7 +250,7 @@ export default function PurchaseBills({ initialAiDraft, onDraftConsumed }) {
       interstate: !!purchase.interstate,
       // Detect round-off from older entries: if roundOff field exists and is
       // non-zero, treat applyRoundOff as on. Older entries without the field
-      // just default to off — they won't suddenly change totals on re-save.
+      // just default to off - they won't suddenly change totals on re-save.
       applyRoundOff: !!purchase.applyRoundOff || (typeof purchase.roundOff === 'number' && purchase.roundOff !== 0),
       note: purchase.note || '',
     });
@@ -263,7 +264,7 @@ export default function PurchaseBills({ initialAiDraft, onDraftConsumed }) {
     setForm({ ...emptyForm, items: [{ ...emptyItem }] });
   };
 
-  // v1.10.29 — reported: "option to view as pdf give it that will be
+  // v1.10.29 - reported: "option to view as pdf give it that will be
   // better". Generates a simple one-page purchase-bill PDF with header,
   // supplier block, line items table, tax breakdown, and total. Uses
   // jsPDF's built-in text/rect helpers (same as the ledger PDF) so we
@@ -290,7 +291,7 @@ export default function PurchaseBills({ initialAiDraft, onDraftConsumed }) {
       doc.text('Supplier', marginL, y); y += 6;
       doc.setFontSize(10); doc.setFont('helvetica', 'normal');
       doc.text(purchase.supplierName || '-', marginL, y); y += 5;
-      // v1.10.29 — supplier address (wraps at ~110mm so it doesn't collide
+      // v1.10.29 - supplier address (wraps at ~110mm so it doesn't collide
       // with anything on the right side of the header).
       if (purchase.supplierAddress) {
         const wrapped = doc.splitTextToSize(purchase.supplierAddress, 110);
@@ -315,13 +316,13 @@ export default function PurchaseBills({ initialAiDraft, onDraftConsumed }) {
         if (y > 265) { doc.addPage(); y = 20; }
         const lineTotal = (Number(item.quantity) || 0) * (Number(item.rate) || 0);
         const withTax = lineTotal * (1 + (Number(item.taxPercent) || 0) / 100);
-        // v1.10.30 — reported: "in purchase bill pdf long names got cut in
+        // v1.10.30 - reported: "in purchase bill pdf long names got cut in
         // pdf fix". Prior code used `.slice(0, 40)` which mid-word truncated
         // "4 Copier Paper (Pack of..." → "4 Copier Paper (Pack o". Now we
         // wrap the description into as many lines as needed (70mm column
         // width). The row height grows to fit the wrapped text so nothing
         // clips into the next line.
-        const nameCol = 70; // mm — width of description column
+        const nameCol = 70; // mm - width of description column
         const nameLines = doc.splitTextToSize(String(item.name || '-'), nameCol);
         const rowH = Math.max(6, nameLines.length * 4.5);
         // Page break if this row won't fit.
@@ -370,14 +371,15 @@ export default function PurchaseBills({ initialAiDraft, onDraftConsumed }) {
       doc.save(filename);
     } catch (err) {
       console.error('Purchase PDF failed:', err);
-      toast('Could not generate PDF — see console', 'error');
+      toast('Could not generate PDF - see console', 'error');
     }
   };
 
   const handleSave = async () => {
+    if (!validateGstin(form.supplierGstin).ok) { toast(validateGstin(form.supplierGstin).message, 'warning'); return; }
     if (!form.supplierName.trim()) { toast('Supplier name is required', 'warning'); return; }
     if (!form.invoiceNumber.trim()) { toast('Invoice number is required', 'warning'); return; }
-    // v1.10.58 — reported (#47 item 2, @sangwanmail-eng): "Purchase also
+    // v1.10.58 - reported (#47 item 2, @sangwanmail-eng): "Purchase also
     // save without adding any product." Supplier and invoice number were
     // checked, but nothing verified the bill had any line items, so an
     // empty bill saved with a zero total.
@@ -425,11 +427,11 @@ export default function PurchaseBills({ initialAiDraft, onDraftConsumed }) {
       };
       await savePurchase(purchase);
 
-      toast(editingId ? 'Purchase updated' : 'Purchase added — items synced to Products', 'success');
+      toast(editingId ? 'Purchase updated' : 'Purchase added - items synced to Products', 'success');
 
       closeForm();
       loadPurchases();
-      // v1.10.54 — saving a bill upserts its items into the product master
+      // v1.10.54 - saving a bill upserts its items into the product master
       // (that is what the toast above means by "synced to Products"), so
       // refresh it too. Otherwise a brand-new item would not appear in the
       // suggestions until the page was reloaded.
@@ -471,14 +473,14 @@ export default function PurchaseBills({ initialAiDraft, onDraftConsumed }) {
     }
   };
 
-  // v1.10.50 — reported (#39, @sangwanmail-eng): "In add purchase option
+  // v1.10.50 - reported (#39, @sangwanmail-eng): "In add purchase option
   // previous added supplier and item not shown. So all details need to be
   // fill again, like supplier name, gst number, address, item name etc".
   //
   // Purchase bills store supplier details INLINE (supplierName /
   // supplierGstin / supplierAddress) rather than against a supplier master
-  // record, so unlike the invoice side — which has saved clients and
-  // product suggestions — there was nothing to recall and every bill meant
+  // record, so unlike the invoice side - which has saved clients and
+  // product suggestions - there was nothing to recall and every bill meant
   // retyping the GSTIN by hand. For someone entering a stack of bills from
   // the same three or four vendors that is the bulk of the typing, and a
   // mistyped GSTIN quietly breaks ITC reconciliation in GSTR-3B.
@@ -507,17 +509,17 @@ export default function PurchaseBills({ initialAiDraft, onDraftConsumed }) {
     return [...seen.values()];
   }, [purchases]);
 
-  // v1.10.54 (#42) — suggestions come from the product master FIRST, then
+  // v1.10.54 (#42) - suggestions come from the product master FIRST, then
   // anything else that has been typed on a past bill.
   //
   // Order matters: the master is inserted first and the map is first-wins,
   // so "Mouse" from Products beats a stray "mouse" typed on an old bill.
-  // Deduping is case-insensitive for the same reason — the user should see
+  // Deduping is case-insensitive for the same reason - the user should see
   // one entry with the spelling they curated, not two differing in case.
   //
   // Purchase-only names are still kept. A one-off item bought once and
   // never added to the catalogue is legitimate history, and there is no
-  // reliable way to tell that apart from an old typo — so both stay, and
+  // reliable way to tell that apart from an old typo - so both stay, and
   // the user decides.
   const itemHistory = useMemo(() => {
     const seen = new Map();
@@ -564,7 +566,8 @@ export default function PurchaseBills({ initialAiDraft, onDraftConsumed }) {
   // v1.10.76 (#82) - a full supplier GSTIN sets "Inter-state" from the two
   // states, the way sales invoices already work it out. The box stays
   // editable for the rare exception.
-  const updateSupplierGstin = (value) => setForm(prev => {
+  const updateSupplierGstin = (rawValue) => setForm(prev => {
+    const value = String(rawValue || '').toUpperCase();
     const interstate = isInterstateSupply(value, ownerProfile);
     return interstate === null ? { ...prev, supplierGstin: value } : { ...prev, supplierGstin: value, interstate };
   });
@@ -572,7 +575,7 @@ export default function PurchaseBills({ initialAiDraft, onDraftConsumed }) {
   // Typing or picking a known supplier fills in the rest of their details.
   //
   // Deliberately only fills fields the user has left BLANK. Overwriting
-  // whatever they already typed would be worse than not helping — someone
+  // whatever they already typed would be worse than not helping - someone
   // correcting a supplier's new GSTIN would watch the old one reappear as
   // they finished typing the name.
   const updateSupplierName = (value) => {
@@ -580,14 +583,14 @@ export default function PurchaseBills({ initialAiDraft, onDraftConsumed }) {
     setForm(prev => {
       const next = { ...prev, supplierName: value };
       if (match) {
-        // v1.10.55 (#43) — same re-selection bug as the item rows, and worse
+        // v1.10.55 (#43) - same re-selection bug as the item rows, and worse
         // here: switching supplier used to leave the PREVIOUS supplier's
         // GSTIN in place, so the bill was filed against the wrong taxpayer
         // and ITC reconciliation broke. See isOursToReplace above.
         const last = prev._autoSupplier || {};
         if (isOursToReplace(prev.supplierGstin, last.gstin)) next.supplierGstin = match.gstin;
         if (isOursToReplace(prev.supplierAddress, last.address)) next.supplierAddress = match.address;
-        // Interstate drives CGST+SGST vs IGST, so recall it too — it is a
+        // Interstate drives CGST+SGST vs IGST, so recall it too - it is a
         // property of where the supplier is, and getting it wrong routes
         // ITC to the wrong GSTR-3B column.
         next.interstate = match.interstate;
@@ -600,24 +603,24 @@ export default function PurchaseBills({ initialAiDraft, onDraftConsumed }) {
   // Same idea for line items: recall HSN, rate and tax rates from the last
   // time this item was purchased. Rate is filled only when still 0 so a
   // price change the user has already typed is never clobbered.
-  // v1.10.55 — reported (#43, @sangwanmail-eng): "when we select item all
+  // v1.10.55 - reported (#43, @sangwanmail-eng): "when we select item all
   // details fetch ok. But when we change item in same field details not
   // change."
   //
   // v1.10.50 filled a field only when it was BLANK, to avoid overwriting
   // something the user had typed. That protected typed input but broke
   // re-selection: pick "Pen drive" (HSN fills to `s`), then change the same
-  // row to "Mouse" — HSN is no longer blank, so it stayed on Pen drive's
+  // row to "Mouse" - HSN is no longer blank, so it stayed on Pen drive's
   // value. The bill then carried the wrong HSN and the wrong rate, silently.
   //
   // The flaw was treating "field is non-empty" as "user typed this". We now
-  // record what WE auto-filled on the row (`_auto`, transient — the save
+  // record what WE auto-filled on the row (`_auto`, transient - the save
   // path whitelists fields, so it never persists). A field is ours to
   // replace when it is empty or still holds exactly what we last put there;
   // once the user edits it, it stops matching and we leave it alone.
   //
   // So: re-selecting updates the details, and a hand-typed correction still
-  // survives — both, rather than one at the cost of the other.
+  // survives - both, rather than one at the cost of the other.
   const isOursToReplace = (current, lastAuto) => {
     const cur = current === undefined || current === null ? '' : String(current).trim();
     if (cur === '' || cur === '0') return true;              // never filled, or still zero
@@ -698,12 +701,12 @@ export default function PurchaseBills({ initialAiDraft, onDraftConsumed }) {
     <div className="dashboard-container">
       {paymentPurchase&&<SupplierPaymentPanel purchase={paymentPurchase} onClose={()=>setPaymentPurchase(null)} onSaved={loadPurchases}/>}
       <PageHeader title="Purchase Bills" subtitle={<>Track supplier invoices for ITC claims in GSTR-3B</>}>
-          <HelpButton title="Purchase Bills — how to use" doc="purchases">
+          <HelpButton title="Purchase Bills - how to use" doc="purchases">
             <ul style={{ paddingLeft: '1.1rem', margin: 0 }}>
-              <li><strong>Add Purchase</strong> — record every supplier tax invoice you receive. The GST paid becomes your ITC (input tax credit) in GSTR-3B.</li>
-              <li><strong>Import from image (OCR)</strong> — snap the supplier's invoice with your phone. The app reads the supplier, GSTIN, invoice number, date, total and the item lines it can find, using your connected ChatGPT account after you approve sharing the image. Check every field before saving.</li>
-              <li><strong>Interstate toggle</strong> — flip ON when the supplier is in a different state (they charged IGST) so ITC routes correctly.</li>
-              <li><strong>Payment status</strong> — Unpaid / Partial / Paid drives the "amount payable to suppliers" report.</li>
+              <li><strong>Add Purchase</strong> - record every supplier tax invoice you receive. The GST paid becomes your ITC (input tax credit) in GSTR-3B.</li>
+              <li><strong>Import from image (OCR)</strong> - snap the supplier's invoice with your phone. The app reads the supplier, GSTIN, invoice number, date, total and the item lines it can find, using your connected ChatGPT account after you approve sharing the image. Check every field before saving.</li>
+              <li><strong>Interstate toggle</strong> - flip ON when the supplier is in a different state (they charged IGST) so ITC routes correctly.</li>
+              <li><strong>Payment status</strong> - Unpaid / Partial / Paid drives the "amount payable to suppliers" report.</li>
               <li><strong>Print / PDF</strong>, <strong>Excel</strong> and <strong>CSV</strong> above the list: the purchase register with totals, for your CA at return time.</li>
             </ul>
           </HelpButton>
@@ -723,7 +726,7 @@ export default function PurchaseBills({ initialAiDraft, onDraftConsumed }) {
         </Suspense>
       )}
 
-      {/* v1.10.30 — Purchase view modal (quick check, no download). */}
+      {/* v1.10.30 - Purchase view modal (quick check, no download). */}
       {viewPurchase && (() => {
         const p = viewPurchase;
         const t = calcPurchaseTotal(p.items, !!p.applyRoundOff);
@@ -731,7 +734,7 @@ export default function PurchaseBills({ initialAiDraft, onDraftConsumed }) {
           <div className="modal-overlay" onClick={() => setViewPurchase(null)}>
             <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: 720 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                <h3 className="section-title" style={{ margin: 0 }}>Purchase Bill · {p.invoiceNumber || '—'}</h3>
+                <h3 className="section-title" style={{ margin: 0 }}>Purchase Bill · {p.invoiceNumber || '-'}</h3>
                 <button className="icon-btn" onClick={() => setViewPurchase(null)} title="Close"><X size={18} /></button>
               </div>
               <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
@@ -740,7 +743,7 @@ export default function PurchaseBills({ initialAiDraft, onDraftConsumed }) {
               {/* Supplier block */}
               <div style={{ background: 'var(--bg-secondary)', padding: '0.75rem 1rem', borderRadius: 6, marginBottom: '1rem' }}>
                 <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 4 }}>Supplier</div>
-                <div style={{ fontWeight: 600 }}>{p.supplierName || '—'}</div>
+                <div style={{ fontWeight: 600 }}>{p.supplierName || '-'}</div>
                 {p.supplierAddress && <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{p.supplierAddress}</div>}
                 {p.supplierGstin && <div style={{ fontSize: '0.82rem' }}>GSTIN: <strong>{p.supplierGstin}</strong></div>}
               </div>
@@ -765,8 +768,8 @@ export default function PurchaseBills({ initialAiDraft, onDraftConsumed }) {
                       return (
                         <tr key={idx}>
                           <td style={{ color: 'var(--text-muted)' }}>{idx + 1}</td>
-                          <td style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>{it.name || '—'}</td>
-                          <td style={{ color: 'var(--text-muted)' }}>{it.hsn || '—'}</td>
+                          <td style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>{it.name || '-'}</td>
+                          <td style={{ color: 'var(--text-muted)' }}>{it.hsn || '-'}</td>
                           <td style={{ textAlign: 'right' }}>{it.quantity || 0}</td>
                           <td style={{ textAlign: 'right' }}>{formatCurrency(it.rate || 0)}</td>
                           <td style={{ textAlign: 'right' }}>{it.taxPercent || 0}%</td>
@@ -793,7 +796,7 @@ export default function PurchaseBills({ initialAiDraft, onDraftConsumed }) {
                 {t.cess > 0.005 && <><span style={{ color: 'var(--text-muted)' }}>Cess</span><span style={{ textAlign: 'right' }}>{formatCurrency(t.cess)}</span></>}
                 {Math.abs(t.roundOff) > 0.005 && <><span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Round-off</span><span style={{ textAlign: 'right', fontStyle: 'italic' }}>{(t.roundOff > 0 ? '+' : '') + formatCurrency(t.roundOff)}</span></>}
                 <span style={{ borderTop: '2px solid var(--text)', paddingTop: 6, fontWeight: 700 }}>TOTAL</span>
-                {/* v1.10.34 — was hardcoded color:'#0f172a' (slate-900) which
+                {/* v1.10.34 - was hardcoded color:'#0f172a' (slate-900) which
                     disappeared against the dark card background. Reported
                     with screenshot showing invisible total on Purchase Bill
                     view modal. Now uses --text so it flips with theme. */}
@@ -871,7 +874,7 @@ export default function PurchaseBills({ initialAiDraft, onDraftConsumed }) {
               </div>
               <div className="form-group">
                 <label className="form-label">Supplier Name *</label>
-                {/* v1.10.50 (#39) — recall previously used suppliers. A native
+                {/* v1.10.50 (#39) - recall previously used suppliers. A native
                     <datalist> rather than a custom dropdown: it is keyboard
                     accessible for free, does not trap focus, and degrades to a
                     plain text field, which matters because a supplier not yet
@@ -880,7 +883,7 @@ export default function PurchaseBills({ initialAiDraft, onDraftConsumed }) {
                   list="fgsb-supplier-history" autoComplete="off"
                   onChange={e => updateSupplierName(e.target.value)}
                   placeholder={supplierHistory.length ? 'Type or pick a previous supplier' : 'Vendor / Supplier name'} />
-                {/* v1.10.52 (#40) — value ONLY, never child text or a label
+                {/* v1.10.52 (#40) - value ONLY, never child text or a label
                     attribute. Browsers disagree about which one they show:
                     Chrome lists the value with the label as secondary text,
                     Firefox shows the label INSTEAD of the value. v1.10.50 put
@@ -895,14 +898,16 @@ export default function PurchaseBills({ initialAiDraft, onDraftConsumed }) {
               <div className="form-group">
                 <label className="form-label">Supplier GSTIN</label>
                 <input type="text" className="form-input" value={form.supplierGstin}
+                  style={validateGstin(form.supplierGstin).ok ? undefined : { borderColor: '#dc2626' }}
                   onChange={e => updateSupplierGstin(e.target.value)} placeholder="15-digit GSTIN" maxLength={15} />
+                {!validateGstin(form.supplierGstin).ok && <small style={{ color: '#dc2626', fontSize: '0.7rem', display: 'block', marginTop: '0.2rem' }}>{validateGstin(form.supplierGstin).message}</small>}
               </div>
-              {/* v1.10.29 — Supplier address for the PDF. Optional; full width row. */}
+              {/* v1.10.29 - Supplier address for the PDF. Optional; full width row. */}
               <div className="form-group" style={{ gridColumn: 'span 2' }}>
                 <label className="form-label">Supplier Address (optional)</label>
                 <input type="text" className="form-input" value={form.supplierAddress || ''}
                   onChange={e => updateField('supplierAddress', e.target.value)}
-                  placeholder="Street, City, State — printed on the Purchase Bill PDF" />
+                  placeholder="Street, City, State - printed on the Purchase Bill PDF" />
               </div>
               <div className="form-group">
                 <label className="form-label">Invoice Number *</label>
@@ -920,7 +925,7 @@ export default function PurchaseBills({ initialAiDraft, onDraftConsumed }) {
                     onChange={e => updateField('interstate', e.target.checked)}
                     style={{ width: 16, height: 16, accentColor: 'var(--primary)' }} />
                   <span>
-                    <strong>Inter-state purchase</strong> — supplier charged IGST (different state)
+                    <strong>Inter-state purchase</strong> - supplier charged IGST (different state)
                     <span style={{ color: '#94a3b8', fontSize: '0.72rem', display: 'block' }}>
                       Routes ITC to IGST in GSTR-3B instead of CGST + SGST. Tip: first 2 digits of supplier GSTIN = their state code.
                     </span>
@@ -931,9 +936,9 @@ export default function PurchaseBills({ initialAiDraft, onDraftConsumed }) {
 
             {/* Items */}
             <h4 style={{ marginTop: '1rem', marginBottom: '0.5rem', fontWeight: 600, fontSize: '0.9rem' }}>Items</h4>
-            {/* Rendered once for all rows — a <datalist> is referenced by id,
+            {/* Rendered once for all rows - a <datalist> is referenced by id,
                 so duplicating it per row would only bloat the DOM. */}
-            {/* Same rule as the supplier list above — value only. */}
+            {/* Same rule as the supplier list above - value only. */}
             <datalist id="fgsb-item-history">
               {itemHistory.map(i => <option key={i.name} value={i.name} />)}
             </datalist>
@@ -941,7 +946,7 @@ export default function PurchaseBills({ initialAiDraft, onDraftConsumed }) {
               <div key={idx} data-focus-key={item._focusKey} style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
                 <div className="form-group" style={{ flex: 2, margin: 0 }}>
                   {idx === 0 && <label className="form-label">Name</label>}
-                  {/* v1.10.50 (#39) — recall previously purchased items along
+                  {/* v1.10.50 (#39) - recall previously purchased items along
                       with their HSN, rate and tax rates. One shared datalist
                       serves every row; the browser scopes suggestions to the
                       focused input. */}
@@ -1007,7 +1012,7 @@ export default function PurchaseBills({ initialAiDraft, onDraftConsumed }) {
                   </select>
                 </div>
                 <div className="form-group" style={{ flex: 0.7, margin: 0 }}>
-                  {idx === 0 && <label className="form-label" title="Compensation Cess — for tobacco, aerated, motor vehicles, coal, etc.">Cess %</label>}
+                  {idx === 0 && <label className="form-label" title="Compensation Cess - for tobacco, aerated, motor vehicles, coal, etc.">Cess %</label>}
                   <input type="number" className="form-input" value={item.cessPercent ?? 0} min="0" step="any"
                     onFocus={e => e.target.select()}
                     onChange={e => updateItem(idx, 'cessPercent', e.target.value)} />
@@ -1050,8 +1055,8 @@ export default function PurchaseBills({ initialAiDraft, onDraftConsumed }) {
                   onChange={e => updateField('applyRoundOff', e.target.checked)}
                   style={{ width: 14, height: 14, accentColor: 'var(--primary)' }} />
                 <span>
-                  <strong>Apply round-off</strong> — round the grand total to the nearest rupee.
-                  Use when the supplier's bill is rounded (e.g. ₹1,234.56 → ₹1,235). Off by default —
+                  <strong>Apply round-off</strong> - round the grand total to the nearest rupee.
+                  Use when the supplier's bill is rounded (e.g. ₹1,234.56 → ₹1,235). Off by default -
                   most suppliers' totals already match what's calculated from line items.
                 </span>
               </label>
@@ -1123,7 +1128,7 @@ export default function PurchaseBills({ initialAiDraft, onDraftConsumed }) {
                       </td>
                       <td>
                         <div className="table-actions"><button className="btn btn-secondary" onClick={()=>setPaymentPurchase(p)}>Payments</button>
-                          {/* v1.10.30 — quick View modal (no download).
+                          {/* v1.10.30 - quick View modal (no download).
                               Modal has a Download PDF button inside for
                               users who do want the file. */}
                           <button className="icon-btn" onClick={() => setViewPurchase(p)} title="View details (no download)"><Eye size={15} /></button>

@@ -3,7 +3,7 @@ import { HelpCircle, X, BookOpen } from 'lucide-react';
 import { docsLink } from '../utils/documentation';
 
 /*
- * v1.10.22 — Per-view help button.
+ * v1.10.22 - Per-view help button.
  *
  * Reported: "in all tools or sidebar option there should be help button
  * in header whch will have how to use current tool."

@@ -11,11 +11,11 @@ import HelpButton from './HelpButton';
 import ProductBulkEdit from './ProductBulkEdit';
 import TableExport from './TableExport';
 
-// v1.10.29 — reported: "here purchase price and selling price need".
+// v1.10.29 - reported: "here purchase price and selling price need".
 // Product now carries BOTH: `purchasePrice` (what we paid the supplier) and
 // `sellingPrice` (what we charge the customer). Legacy `rate` field is
 // still written on save (mirrors sellingPrice) so any pre-v1.10.29 reader
-// still gets a valid number, but the form no longer edits it directly —
+// still gets a valid number, but the form no longer edits it directly -
 // dead state removed for clarity.
 const emptyForm = {
   name: '', hsn: '', purchasePrice: '', sellingPrice: '', taxPercent: '', unit: 'Pcs', stock: '', description: '',
@@ -53,9 +53,9 @@ export default function InventoryView({ onOpenSettings, initialAiDraft, onDraftC
   }, [initialAiDraft, onDraftConsumed]);
   const profileCurrency = getCountryConfig(profileCountry).currency;
   // The colour-coded stock badge in the table respects the user's threshold
-  // — defaults to 5 if no setting saved yet. When alerts are disabled
+  // - defaults to 5 if no setting saved yet. When alerts are disabled
   // entirely, items at or below threshold render in the same plain colour
-  // as everything else (still "Out of Stock" red for 0 — that's a hard fact,
+  // as everything else (still "Out of Stock" red for 0 - that's a hard fact,
   // not an alert preference).
   const [stockAlerts, setStockAlerts] = useState({ enabled: true, threshold: 5 });
 
@@ -100,9 +100,9 @@ export default function InventoryView({ onOpenSettings, initialAiDraft, onDraftC
   };
 
   const openEdit = (product) => {
-    // v1.10.29 — Backward-compat: pre-v1.10.29 products only had `rate`.
+    // v1.10.29 - Backward-compat: pre-v1.10.29 products only had `rate`.
     // Read `sellingPrice` if set, else fall back to `rate`. `purchasePrice`
-    // is new — starts empty for legacy products until the user fills it.
+    // is new - starts empty for legacy products until the user fills it.
     setForm({
       name: product.name || '',
       hsn: product.hsn || '',
@@ -135,7 +135,7 @@ export default function InventoryView({ onOpenSettings, initialAiDraft, onDraftC
       return;
     }
     try {
-      // v1.10.29 — Persist both prices. `rate` mirrors sellingPrice so any
+      // v1.10.29 - Persist both prices. `rate` mirrors sellingPrice so any
       // old caller reading .rate still gets the right number.
       const sellingPrice = form.sellingPrice ? parseFloat(form.sellingPrice) : 0;
       const purchasePrice = form.purchasePrice ? parseFloat(form.purchasePrice) : 0;
@@ -248,7 +248,7 @@ export default function InventoryView({ onOpenSettings, initialAiDraft, onDraftC
   return (
     <div className="dashboard-container">
       <PageHeader title="Products" subtitle={<>Manage your products and services catalog</>}>
-          <HelpButton title="Products — how to use" doc="products">
+          <HelpButton title="Products - how to use" doc="products">
             <ul style={{ paddingLeft: '1.1rem', margin: 0 }}>
               <li><strong>Add Product</strong>: name, HSN/SAC, purchase and selling price, GST %, unit and stock. Typing the name on an invoice fills the rest in.</li>
               <li><strong>Stock</strong> goes down when you save an invoice and up when you save a purchase bill.</li>
@@ -299,10 +299,10 @@ export default function InventoryView({ onOpenSettings, initialAiDraft, onDraftC
                 <input type="text" className="form-input" value={form.hsn}
                   onChange={e => updateField('hsn', e.target.value)} placeholder="e.g. 998314" />
               </div>
-              {/* v1.10.29 — Purchase price + selling price side by side.
+              {/* v1.10.29 - Purchase price + selling price side by side.
                   Selling price seeds the invoice rate; purchase price seeds
                   the purchase-bill rate. Legacy `rate` field kept invisible
-                  for backward compat — writes through to sellingPrice. */}
+                  for backward compat - writes through to sellingPrice. */}
               <div className="form-group">
                 <label className="form-label">Purchase Price</label>
                 <input type="number" className="form-input" value={form.purchasePrice}

@@ -20,6 +20,7 @@ import HelpButton from './HelpButton';
 import { getClientCredit, planCreditApplication } from '../utils/clientCredit';
 import ClientModal from './ClientModal';
 import { toast } from './Toast';
+import { validatePin, validateCity, validateInvoiceNumber, validateInvoiceDate, validateDueDate, getAddressErrors, hasAddressErrors, getCitiesForCountry } from '../utils/addressValidation';
 
 // Rich text editor component that works with contentEditable properly
 function RichEditor({ value, onChange, placeholder, toolbar = false }) {
@@ -54,7 +55,7 @@ function RichEditor({ value, onChange, placeholder, toolbar = false }) {
     document.execCommand(cmd, false, val);
     if (ref.current) onChange(ref.current.innerHTML);
   };
-  const btnStyle = { padding: '0.2rem 0.5rem', fontSize: '0.78rem', borderRadius: '4px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', cursor: 'pointer', minWidth: '28px' };
+  const btnStyle = { padding: '0.2rem 0.5rem', fontSize: '0.78rem', borderRadius: '4px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text)', cursor: 'pointer', minWidth: '28px' };
 
   return (
     <>
@@ -116,12 +117,12 @@ const DEFAULT_OPTIONS = {
   showDueDate: true,
   showItemQty: true,
   showRoundOff: true, // v1.10.75 - on for new installs; a saved choice still wins
-  invoiceMode: 'goods',    // 'goods' | 'services' | 'mixed' — drives default unit + dropdown filter
+  invoiceMode: 'goods',    // 'goods' | 'services' | 'mixed' - drives default unit + dropdown filter
   // Paper / print size (v1.8.1+). See PAPER_SIZES in utils.js.
   //   Sheet: 'a4' | 'a4Landscape' | 'a5' | 'a5Landscape'
   //   Thermal: 'thermal80' | 'thermal58'
   paperSize: 'a4',
-  // Thermal-only settings (v1.8.3) — only apply when paperSize starts with
+  // Thermal-only settings (v1.8.3) - only apply when paperSize starts with
   // 'thermal'. Left at defaults for sheet formats (they're ignored).
   //   thermalFontSize: 'small' | 'medium' (default) | 'large'
   //   thermalCompact: false → include address/HSN/rate line per item
@@ -137,7 +138,7 @@ const DEFAULT_OPTIONS = {
   showTDS: false,
   tdsSection: '194Q',
   tdsRate: 0.1,
-  // v1.10.31 — Data-F2.3: `tdsCumulativeThisYear` / `tcsCumulativeThisYear`
+  // v1.10.31 - Data-F2.3: `tdsCumulativeThisYear` / `tcsCumulativeThisYear`
   // were read by the totals memo and by `computeInvoiceTotals`'s ₹50L
   // threshold logic, but never declared in DEFAULT_OPTIONS. That meant a
   // fresh invoice had `undefined` for both, so the marginal-only threshold
@@ -156,18 +157,18 @@ const DEFAULT_OPTIONS = {
   showAccountLabel: false,   // when true, prints "Pay via: <account label>" above the bank block
   accentColor: '',
   pdfStyle: 'classic',
-  // v1.10.22 — invoice-level (whole-bill) discount. Treated as a cash
+  // v1.10.22 - invoice-level (whole-bill) discount. Treated as a cash
   // discount / trade allowance applied AFTER tax. Doesn't affect the
   // GSTR-1 taxable value (which per Section 15(3) requires pre-supply
-  // agreement — user should use per-line discount for that). Renders as
+  // agreement - user should use per-line discount for that). Renders as
   // its own line above the grand total when > 0.
   invoiceDiscountValue: 0,
   invoiceDiscountType: 'fixed', // 'fixed' | 'percent'
-  // v1.10.24 — Client-credit auto-apply. When true, opening a new invoice
+  // v1.10.24 - Client-credit auto-apply. When true, opening a new invoice
   // for a client with an existing overpayment auto-applies the credit up
   // to the invoice total. When false (default), the user sees a banner
   // and clicks Apply manually. Reported: "this extra payment can be
-  // added to the next bill of customer if u enabled — auto or manual".
+  // added to the next bill of customer if u enabled - auto or manual".
   autoApplyClientCredit: false,
 };
 
@@ -190,22 +191,22 @@ const PDF_STYLES = [
   { id: 'tally', label: 'Tally style', desc: 'The Tally layout: order and dispatch boxes, HSN tax summary, declaration' },
 ];
 
-// v1.10.7 — audit H14. Extracted from the inline `items.map(...)` block
+// v1.10.7 - audit H14. Extracted from the inline `items.map(...)` block
 // in InvoiceGenerator. Wrapped in React.memo so only the row whose
 // `item` reference changed re-renders on any keystroke.
 //
 // Contract:
-//  • `item` — the specific line-item object. Only THIS row's ref
+//  • `item` - the specific line-item object. Only THIS row's ref
 //    changes when the user types in it (handleItemChange uses
 //    functional setState with `prev.map`, preserving unchanged item
 //    references).
 //  • All shared config props (invoiceOptions, units, countryTaxRates,
 //    taxLabel, taxLabelIntlLabel, currency, showGST, profileCountry)
-//    only change identity when they legitimately change — those DO
+//    only change identity when they legitimately change - those DO
 //    warrant a re-render across all rows.
 //  • All handlers are useCallback in the parent so their identity
 //    stays stable across renders.
-//  • `suggestions` — the ROW's list of product suggestions. Passed in
+//  • `suggestions` - the ROW's list of product suggestions. Passed in
 //    as a plain array so React.memo can compare it shallowly.
 //
 // Perf win: typing "Widget" (6 chars) in row 1 of an invoice with 20
@@ -215,7 +216,7 @@ const PDF_STYLES = [
 const currencySymbolFor = (code) =>
   COUNTRIES.find(c => c.currency === (code || 'INR'))?.currencySymbol || code || '₹';
 
-// v1.10.37 — Sub-component: the Description input + product-suggestion
+// v1.10.37 - Sub-component: the Description input + product-suggestion
 // dropdown, with keyboard navigation. Extracted so LineItem stays lean
 // and the local `activeIdx` state doesn't cause other row fields to
 // re-render on every arrow-key press.
@@ -286,8 +287,8 @@ const LineItem = memo(function LineItem({
   onAddCustomUnit, onRemoveCustomUnit, onRemove, clampNonNeg,
   isLastRow, onAddRow, isOnlyRow,
 }) {
-  // v1.10.37 — Keyboard shortcut: Enter on any input inside the LAST
-  // row adds a new row. Muscle-memory for POS users — reported: "if
+  // v1.10.37 - Keyboard shortcut: Enter on any input inside the LAST
+  // row adds a new row. Muscle-memory for POS users - reported: "if
   // user hits Enter on last item field the natural expectation is a
   // new blank row". Excludes Shift+Enter (soft newline in text
   // fields) and only fires on isLastRow to avoid Enter-mashing on
@@ -307,7 +308,7 @@ const LineItem = memo(function LineItem({
       <div className="line-item-field" style={{ flex: 2.5, position: 'relative' }}>
         {/* v1.10.74 - was "Description", which clashed with "+ Add description" below. */}
         <label className="form-label">Item</label>
-        {/* v1.10.37 — Keyboard nav on product suggestions. Reported:
+        {/* v1.10.37 - Keyboard nav on product suggestions. Reported:
             "20 invoices/day is slow because product picker forces the
             mouse." Now: ArrowDown / ArrowUp cycles suggestions, Enter
             commits the highlighted one (or the first if none is
@@ -339,7 +340,7 @@ const LineItem = memo(function LineItem({
             if (!s || !item.hsn || String(item.hsn).length < 4) return null;
             return (
               <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 2, padding: '3px 6px', fontSize: '0.68rem', color: '#059669', background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', zIndex: 1 }}
-                title={`${s.label} — verify the applicable rate and time of supply`}>
+                title={`${s.label} - verify the applicable rate and time of supply`}>
                 Check rate · {s.label}
               </div>
             );
@@ -391,13 +392,13 @@ const LineItem = memo(function LineItem({
       {invoiceOptions.showDiscount && (
         <div className="line-item-field" style={{ flex: 1.8, minWidth: 200 }}>
           <label className="form-label">Discount</label>
-          {/* v1.10.22 — two-mode discount: fixed rupees OR percent-of-line.
-              v1.10.23 — wider min-width so value + mode selector stay
+          {/* v1.10.22 - two-mode discount: fixed rupees OR percent-of-line.
+              v1.10.23 - wider min-width so value + mode selector stay
               readable on narrow rows.
-              v1.10.25 — added third selector for the discount BASE when in
+              v1.10.25 - added third selector for the discount BASE when in
               fixed mode. Options: Net Amount (default), Unit Price (₹ off
               each unit × qty), Price With Tax (₹ off the tax-inclusive
-              total — tax gets backed out so consumer sees clean round). */}
+              total - tax gets backed out so consumer sees clean round). */}
           <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
             <input type="number" min="0" step="any" className="form-input" value={item.discount}
               onFocus={(e) => e.target.select()}
@@ -471,7 +472,7 @@ const LineItem = memo(function LineItem({
         <button className="icon-btn icon-btn-red" onClick={() => onRemove(item.id)}
           disabled={isOnlyRow} title={isOnlyRow ? 'An invoice needs at least one line' : 'Remove'}><Trash2 size={16} /></button>
       </div>
-      {/* v1.10.22 — inline expandable description per row. Reported: "add
+      {/* v1.10.22 - inline expandable description per row. Reported: "add
           option so user can directly enter product description into
           invoice directly". Hidden by default; expands on click. Persists
           with the item and renders under the item name in the PDF/preview. */}
@@ -539,13 +540,13 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
   const [activeProfile, setActiveProfile] = useState(profileProp);
   const profile = activeProfile || profileProp;
   const [invoiceType, setInvoiceType] = useState(draft?.invoiceType || 'tax-invoice');
-  // email/phone/isSEZ must be part of initial state — otherwise the SEZ flag
+  // email/phone/isSEZ must be part of initial state - otherwise the SEZ flag
   // set inside ClientModal is silently discarded on save, and reopening the
   // bill can never restore contact fields even if the saved client has them.
   const [client, setClient] = useState(draft?.client || { name: '', address: '', city: '', pin: '', state: '', gstin: '', country: '', email: '', phone: '', isSEZ: false });
-  // v1.9.1 — preview zoom (session-only). Reads from printSettings for the
+  // v1.9.1 - preview zoom (session-only). Reads from printSettings for the
   // initial value so the user's preference carries across bill switches.
-  // v1.10.33 — Was READ-ONLY: the initial-load line pulled from
+  // v1.10.33 - Was READ-ONLY: the initial-load line pulled from
   // printSettings.previewZoom but nothing ever wrote it back. Every fresh
   // session started at 100% regardless of "sticky" comment. Now persists
   // on every change through the useEffect below. Also added a ref +
@@ -560,19 +561,19 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
       if (Number(s.previewZoom) !== previewZoom) {
         savePrintSettings({ ...s, previewZoom });
       }
-    } catch { /* sandboxed localStorage — session-only degradation ok */ }
+    } catch { /* sandboxed localStorage - session-only degradation ok */ }
   }, [previewZoom]);
-  // v1.10.33 — Actual fit-to-width. A4 preview renders at 794px @ 96dpi;
+  // v1.10.33 - Actual fit-to-width. A4 preview renders at 794px @ 96dpi;
   // narrower paper sizes (A5, thermal, custom) can be smaller so we honor
   // the preview element's natural offsetWidth when possible. Fallback to
   // 794 covers the moment before InvoicePreview has mounted. Scale is
   // clamped 50-200% (matches the +/- limits so users don't get a "Fit"
   // that falls outside the range they can then tweak from).
   //
-  // v1.10.33 (v2) — offsetWidth is LAYOUT width, unaffected by
+  // v1.10.33 (v2) - offsetWidth is LAYOUT width, unaffected by
   // `transform: scale(...)`. First cut divided by currentScale which
   // over-corrected on every click ("Fit → 44% → Fit → 24% → …").
-  // Just read offsetWidth as-is — it's already the natural (unscaled)
+  // Just read offsetWidth as-is - it's already the natural (unscaled)
   // width of the preview at the current paper size.
   const handleFitToWidth = useCallback(() => {
     if (!previewPaneRef.current) { setPreviewZoom(100); return; }
@@ -586,7 +587,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
     const nextZoom = Math.max(50, Math.min(200, Math.round(ratio * 100)));
     setPreviewZoom(nextZoom);
   }, []);
-  // v1.10.22 — reported: "sidebar menu toggle option so customer will get
+  // v1.10.22 - reported: "sidebar menu toggle option so customer will get
   // a close view for entries because quantity entry u see space is like
   // that we have to see in invoice preview what we are entering". Focus
   // mode: hide the preview so the editor gets the full width during
@@ -605,7 +606,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
     dueDate: '',
     placeOfSupply: '',
     originalInvoiceRef: '',
-    // v1.10.11 — Ship To fields. Default: same as billing (no extra
+    // v1.10.11 - Ship To fields. Default: same as billing (no extra
     // fields shown). Untick to type a separate delivery address.
     shipToSameAsBilling: true,
     shippingAddress: '',
@@ -617,7 +618,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
   const [items, setItems] = useState(draft?.items || [
     { id: Date.now().toString(), name: '', hsn: '', quantity: 1, unit: 'Nos', rate: 0, discount: 0, taxPercent: 18, cessPercent: 0 }
   ]);
-  // v1.10.24 — Client credit balance state. Loaded once on mount + refreshed
+  // v1.10.24 - Client credit balance state. Loaded once on mount + refreshed
   // when the client name changes. `creditToApply` is what the user chose to
   // apply on THIS bill; it becomes a `credit-applied` payment at save time,
   // paired with a `credit-transferred-out` entry on each source bill.
@@ -626,7 +627,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
   const [units, setUnits] = useState(getAllUnits());
   const [taxInclusive, setTaxInclusive] = useState(draft?.taxInclusive || false);
 
-  // v1.10.4 — totals is now a `useMemo` (was a `useState` fed by
+  // v1.10.4 - totals is now a `useMemo` (was a `useState` fed by
   // `useEffect + setTotals` which forced a second full render on every
   // keystroke). Same value on every render for the same inputs; the
   // extra render pass per character was the biggest perf hit in this
@@ -640,7 +641,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
   const [extraSections, setExtraSections] = useState(draft?.extraSections || []);
   const [savedClients, setSavedClients] = useState([]);
   const [showClientSuggestions, setShowClientSuggestions] = useState(false);
-  // v1.10.37 — Keyboard nav on client picker. Arrow keys cycle,
+  // v1.10.37 - Keyboard nav on client picker. Arrow keys cycle,
   // Enter commits, Escape closes. -1 = no highlight yet.
   const [clientPickerIdx, setClientPickerIdx] = useState(-1);
   const [selectedClientId, setSelectedClientId] = useState(null);
@@ -655,7 +656,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
     try {
       const saved = localStorage.getItem('freegstbill_invoiceOptions');
       const persisted = saved ? JSON.parse(saved) : {};
-      // v1.10.20 — paymentAccountSnapshot is per-bill data (frozen bank
+      // v1.10.20 - paymentAccountSnapshot is per-bill data (frozen bank
       // details at time of save). It must NEVER be inherited via the
       // user-preference stores (localStorage / server). Strip on read so
       // opening Invoice B doesn't pick up Invoice A's snapshot.
@@ -669,18 +670,18 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
     if (required.length) setInvoiceOptions(prev => ({ ...prev, ...Object.fromEntries(required.map(key => [key, true])) }));
   }, [profile?.country, invoiceType, invoiceOptions]);
   const [showOptions, setShowOptions] = useState(false);
-  // v1.10.36 — Portal-based print preview modal state. Only opens for
+  // v1.10.36 - Portal-based print preview modal state. Only opens for
   // thermal receipts; A4 users hit Print → OS dialog directly since the
   // OS dialog already shows a preview. See directPrint + executePrint.
   const [showPrintPreview, setShowPrintPreview] = useState(false);
   const printRef = useRef(null);
-  // v1.10.48 — reported: "live preview show full when browser zoom on 50%".
+  // v1.10.48 - reported: "live preview show full when browser zoom on 50%".
   // `transform: scale()` shrinks what is PAINTED but never the element's
   // layout box, so the preview kept reserving its full natural width
   // (.invoice-preview-container is a hard `width: 210mm` ≈ 794px) at every
   // zoom level. On a pane narrower than that the sheet overflowed
   // horizontally, and because .preview-pane centres its children the LEFT
-  // overflow scrolled out of reach entirely — the user saw a permanently
+  // overflow scrolled out of reach entirely - the user saw a permanently
   // clipped invoice. Dropping the browser to 50% zoom "fixed" it only
   // because it doubles the viewport in CSS px, clearing 794px. That makes
   // this bug purely a function of pane width, so it is invisible on wide
@@ -689,7 +690,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
   // Fix: measure the preview's natural size and reserve exactly
   // natural × zoom on a wrapper element, so the layout box tracks what is
   // actually painted. The container's width is intrinsic (mm, not %), so
-  // sizing an ancestor cannot feed back into it — no observer loop.
+  // sizing an ancestor cannot feed back into it - no observer loop.
   const [previewNatural, setPreviewNatural] = useState({ w: 0, h: 0 });
   useEffect(() => {
     const el = printRef.current;
@@ -720,7 +721,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
     && (editingBill.status === 'cancelled' || !!editingBill.convertedTo));
   const [autoSaveStatus, setAutoSaveStatus] = useState('idle'); // 'idle' | 'saving' | 'saved'
   const autoSaveTimer = useRef(null);
-  // v1.10.22 — reported: "if user click back without even changing anything
+  // v1.10.22 - reported: "if user click back without even changing anything
   // it always ask to save and close". Cause: handleBack checked
   // `autoSaveStatus !== 'saved'`, and autoSaveStatus started at 'idle' on
   // mount (never flipping to 'saved' until an auto-save fired). So opening
@@ -728,10 +729,10 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
   // with zero edits. Now: `isDirty` is set only on real post-init changes,
   // and Back reads it instead. Cleared on successful save.
   const isDirty = useRef(false);
-  // Skip stock deduction when EDITING an existing bill — but NOT when
+  // Skip stock deduction when EDITING an existing bill - but NOT when
    // duplicating one (P1 #21: `_isDuplicate` marks a new sale that must
    // decrement stock). Same logic applies to convert-to-tax-invoice which
-   // sets _convertToType — that's also a new bill in a new type.
+   // sets _convertToType - that's also a new bill in a new type.
   // v1.10.76 (#80) - what this bill has done to stock before it is first saved
   // from this editor: an issued bill, its own record; a conversion takes over
   // the original's record (so a challan's or an old quotation's stock is
@@ -750,7 +751,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
   // Whether the bill has been successfully persisted to the server AT LEAST
   // ONCE this session. Editing = true from the start (bill already exists).
   // For new bills, flips to true after the first successful save. Used to
-  // decide whether subsequent saves need overwrite: true (they do — same
+  // decide whether subsequent saves need overwrite: true (they do - same
   // invoice number, otherwise the server 409s).
   // v1.10.79 - a duplicate or conversion has not been saved yet.
   const hasBeenSaved = useRef(!!editingBill && !editingBill._isDuplicate);
@@ -775,7 +776,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
   // Tax label and rate presets follow the seller's country, not the client's, since
   // the seller charges and remits the tax. Sellers without a country fall back to India.
   const sellerCountryConfig = getCountryConfig(profile?.country);
-  // v1.10.5 — audit M25 fix. Merge user's custom tax rates from Print
+  // v1.10.5 - audit M25 fix. Merge user's custom tax rates from Print
   // Settings into the country's default preset list. Prior code
   // persisted `customTaxRates` in localStorage but never read them
   // back, so the "Custom tax rate presets" UI in Print Settings was
@@ -800,7 +801,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
   const taxLabel = sellerCountryConfig.taxLabel || 'GST';
 
   // Clamp a numeric input to non-negative (and finite). Used for qty/rate/discount.
-  // v1.10.7 — hoisted stable identity so memoized LineItem's props stay
+  // v1.10.7 - hoisted stable identity so memoized LineItem's props stay
   // shallow-equal across parent re-renders.
   const clampNonNeg = useCallback((raw) => {
     const n = parseFloat(raw);
@@ -808,7 +809,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
     return n;
   }, []);
 
-  // Persist options — v1.10.4 audit M16.
+  // Persist options - v1.10.4 audit M16.
   // Prior: every checkbox flip fired an immediate `/api/display-options`
   // POST. Wiggling a toggle 10× → 10 network requests. localStorage
   // stays synchronous (needed for reload persistence); the server POST
@@ -823,11 +824,11 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
   const editingSaved = !!editingBill?.data && !editingBill?._isDuplicate;
   useEffect(() => {
     if (editingSaved) return undefined;
-    // v1.10.20 — Strip paymentAccountSnapshot before persisting. It's per-
+    // v1.10.20 - Strip paymentAccountSnapshot before persisting. It's per-
     // bill data (bank details frozen at save time), not a user preference.
     // Prior code auto-persisted the entire invoiceOptions to localStorage
     // AND to the server, so opening Invoice A (Bank X snapshot) polluted
-    // both stores, and opening Invoice B inherited Bank X — defeating the
+    // both stores, and opening Invoice B inherited Bank X - defeating the
     // v1.10.19 backfill entirely.
     const { paymentAccountSnapshot: _snap, ...persistable } = invoiceOptions;
     localStorage.setItem('freegstbill_invoiceOptions', JSON.stringify(persistable));
@@ -845,7 +846,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
     if (editingSaved) return; // the bill's own options win (see above)
     getInvoiceDisplayOptions().then(serverOpts => {
       if (serverOpts) {
-        // v1.10.20 — Strip cross-invoice bleed-through of paymentAccountSnapshot
+        // v1.10.20 - Strip cross-invoice bleed-through of paymentAccountSnapshot
         // from any stale server-persisted options (pre-v1.10.20 clients would
         // have posted it). Preserves the current bill's snapshot in `prev`.
         delete serverOpts.paymentAccountSnapshot;
@@ -869,7 +870,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
     }).catch(() => {});
   }, [editingSaved]);
 
-  // v1.10.37 — Debounced sessionStorage draft save. Previously the
+  // v1.10.37 - Debounced sessionStorage draft save. Previously the
   // effect ran on EVERY keystroke, stringifying the entire form (20+
   // fields including rich-text terms and 30-item lines) on each key.
   // On a low-end Android POS this was measurable jank. 400ms trailing
@@ -879,7 +880,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
   useEffect(() => {
     const t = setTimeout(() => {
       const draftData = { invoiceType, client, details, items, customTerms, customNotes, internalNote, extraSections, selectedTermsId, invoiceOptions, taxInclusive };
-      try { sessionStorage.setItem('gst_invoiceDraft', JSON.stringify(draftData)); } catch { /* private mode / quota exceeded — skip */ }
+      try { sessionStorage.setItem('gst_invoiceDraft', JSON.stringify(draftData)); } catch { /* private mode / quota exceeded - skip */ }
     }, 400);
     return () => clearTimeout(t);
   }, [invoiceType, client, details, items, customTerms, customNotes, internalNote, extraSections, selectedTermsId, invoiceOptions, taxInclusive]);
@@ -892,15 +893,15 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
 
   // An invoice is "meaningful" once it has a client name AND at least one line item
   // with a description and a non-zero amount. Until then we only auto-save to
-  // sessionStorage (draft) — never to the persistent bills list. This prevents the
+  // sessionStorage (draft) - never to the persistent bills list. This prevents the
   // bug where opening "New Invoice" and clicking away saves an empty bill to the list.
   const isMeaningfulInvoice = useCallback(() => {
-    if (editingBill) return true; // editing an existing bill — always persist changes
+    if (editingBill) return true; // editing an existing bill - always persist changes
     if (!client?.name?.trim()) return false;
     return items.some(item => (item.name || '').trim() && (item.quantity || 0) * (item.rate || 0) > 0);
   }, [client?.name, items, editingBill]);
 
-  // v1.10.58 — reported (#47 item 1, @sangwanmail-eng): "New invoice save
+  // v1.10.58 - reported (#47 item 1, @sangwanmail-eng): "New invoice save
   // and print without client name and without any product add."
   //
   // isMeaningfulInvoice() above already encoded exactly the right rule, but
@@ -910,7 +911,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
   //
   // That is worse than an empty record: saving reserves an invoice number
   // from the atomic counter. A blank invoice permanently consumes a number
-  // in the sequence, and GST expects that sequence to be gapless — so a few
+  // in the sequence, and GST expects that sequence to be gapless - so a few
   // stray saves leave holes a CA has to explain.
   //
   // Returns null when the invoice is fit to save, otherwise the specific
@@ -939,14 +940,14 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
   //
   // Reason: users reported that opening "New Invoice" and typing burned
   // a counter value even if they never clicked Save. Auto-save was the
-  // culprit — it fired 2s after any meaningful edit and atomically
+  // culprit - it fired 2s after any meaningful edit and atomically
   // reserved. The counter should only increment when the user commits.
   //
   // For EDITING existing bills (or after the first manual save), auto-save
   // still writes through to the server so mid-session edits are safe.
   useEffect(() => {
     if (!hasInitialized.current || readOnlyDoc) return;
-    // v1.10.22 — any real post-init change flips the dirty flag so Back
+    // v1.10.22 - any real post-init change flips the dirty flag so Back
     // can distinguish "loaded and untouched" from "actually edited".
     isDirty.current = true;
     if (!details.invoiceNumber) return;
@@ -968,7 +969,8 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
     autoSaveTimer.current = setTimeout(async () => {
       try {
         setAutoSaveStatus('saving');
-        await saveInvoiceToDB(true);
+        const autoSaved = await saveInvoiceToDB(true);
+        if (autoSaved === null) { setAutoSaveStatus('idle'); return; }
         setAutoSaveStatus('saved');
         isDirty.current = false; // successful save clears dirty
         setTimeout(() => setAutoSaveStatus(s => s === 'saved' ? 'idle' : s), 2000);
@@ -982,12 +984,12 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
   }, [invoiceType, client, details, items, customTerms, customNotes, internalNote, extraSections, invoiceOptions, isMeaningfulInvoice]);
 
   // Save-before-leave guard. P2 #32 rewrites this from the dangerous
-  // browser `confirm()` (OK = save, Cancel = stay — users conditioned to
+  // browser `confirm()` (OK = save, Cancel = stay - users conditioned to
   // "Cancel = discard" hit Cancel expecting to leave) to a proper 3-option
   // modal. Modal state below; handleBack just opens it.
   const [leaveModal, setLeaveModal] = useState(false);
   const handleBack = () => {
-    // v1.10.22 — use isDirty (real change tracking) instead of
+    // v1.10.22 - use isDirty (real change tracking) instead of
     // autoSaveStatus. autoSaveStatus starts at 'idle' on mount and only
     // flips to 'saved' after an auto-save fires, so the old check reported
     // dirty-not-saved for every freshly-loaded bill.
@@ -1010,7 +1012,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
         setLeaveModal(false);
         onBack();
       } catch {
-        toast('Save failed — staying on the page so you can retry', 'error');
+        toast('Save failed - staying on the page so you can retry', 'error');
       }
     },
     discardAndExit: () => {
@@ -1023,7 +1025,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
 
   useEffect(() => {
     const handler = (e) => {
-      // v1.10.22 — mirror the handleBack fix: only warn on real dirty state.
+      // v1.10.22 - mirror the handleBack fix: only warn on real dirty state.
       if (isMeaningfulInvoice() && isDirty.current) {
         e.preventDefault();
         e.returnValue = ''; // browsers show their own confirmation dialog
@@ -1038,7 +1040,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
     sessionStorage.removeItem('gst_invoiceDraft');
   };
 
-  // v1.10.16 — reported: user adds a 2nd business profile in Settings, comes
+  // v1.10.16 - reported: user adds a 2nd business profile in Settings, comes
   // back to the invoice generator, but the "Billing From (Business Profile)"
   // chip row (which only renders when allProfiles.length > 1) doesn't
   // appear until they switch profiles once. Root cause: getAllProfiles()
@@ -1077,7 +1079,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
       }
     });
     getAllProducts().then(setProducts);
-    // v1.10.24 — Load bills once for client-credit lookup. Refreshed after
+    // v1.10.24 - Load bills once for client-credit lookup. Refreshed after
     // save (inside saveInvoiceToDB's success path) so the balance stays
     // current when the same session creates multiple invoices for one client.
     getAllBills().then(setAllBillsForCredit).catch(() => {});
@@ -1101,15 +1103,15 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
       if (d.taxInclusive !== undefined) setTaxInclusive(d.taxInclusive);
       if (d.invoiceOptions) {
         // User's persisted defaults as base, bill options overlay
-        // v1.10.19 — Backfill paymentAccountSnapshot for pre-v1.10.18 bills.
+        // v1.10.19 - Backfill paymentAccountSnapshot for pre-v1.10.18 bills.
         // Reported after v1.10.18: "swaping bank account issue solve work on
-        // old bills or not... i cant see it is working". Right — v1.10.18
+        // old bills or not... i cant see it is working". Right - v1.10.18
         // only froze the snapshot at save time, so bills saved before that
         // release still resolved the bank via the live profile. But those
         // bills DID persist a full profile snapshot in d.profile since
         // v1.4.x, so we can recover the original account by looking it up
         // in d.profile.paymentAccounts (or the flat legacy fields).
-        // v1.10.20 — Strip paymentAccountSnapshot from `persisted` before
+        // v1.10.20 - Strip paymentAccountSnapshot from `persisted` before
         // merging. Otherwise Invoice A's snapshot (auto-saved to
         // localStorage) contaminates Invoice B's merge, and the
         // `!mergedOpts.paymentAccountSnapshot` check below sees a snapshot
@@ -1127,11 +1129,11 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
         // Backfilling only happens if the bill genuinely has no snapshot.
         // Check d.invoiceOptions directly (not mergedOpts) to sidestep any
         // remaining cross-store bleed-through.
-        // v1.10.21 — Also heal contaminated snapshots from the v1.10.18–19
+        // v1.10.21 - Also heal contaminated snapshots from the v1.10.18–19
         // window. Reported: "after i full reloaded again all vanished and
         // asigned to same account which is default." Cause: bills saved
         // between v1.10.18 and v1.10.19 had snapshots polluted by
-        // cross-invoice localStorage bleed — the snapshot's own `id` didn't
+        // cross-invoice localStorage bleed - the snapshot's own `id` didn't
         // match the bill's selectedAccountId. v1.10.20 stopped the leak but
         // didn't touch the already-saved bad snapshots. Now: if the stored
         // snapshot's id doesn't match the stored selection, treat it as
@@ -1158,7 +1160,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
           const config = INVOICE_TYPES[convertType];
           if (config) setInvoiceOptions(prev => ({ ...prev, showGST: config.showGST, showPlaceOfSupply: config.showGST }));
         }
-        // v1.10.10 — read per-type prefix override from print settings.
+        // v1.10.10 - read per-type prefix override from print settings.
         const _psForPrefix = getPrintSettings();
         const rawOverride = _psForPrefix.customPrefixes?.[type];
         const overridePrefix = rawOverride && rawOverride.trim();
@@ -1174,7 +1176,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
         setDetails(d.details);
       }
     } else if (!details.invoiceNumber) {
-      // v1.10.10 — honour the per-type prefix override for fresh invoices.
+      // v1.10.10 - honour the per-type prefix override for fresh invoices.
       const _psForPrefix = getPrintSettings();
       const rawOverride = _psForPrefix.customPrefixes?.[invoiceType];
       const overridePrefix = rawOverride && rawOverride.trim();
@@ -1221,7 +1223,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
   // then the last-used account from localStorage, then the first active
   // account. Resolving here once means the dropdown shows the right value
   // immediately rather than flickering through nulls.
-  // v1.10.22 — reported: "if user added two account and star the one account
+  // v1.10.22 - reported: "if user added two account and star the one account
   // while creating new invoice it shows old star account not new". Root
   // cause: prior priority was last-used → default → first-active. Changing
   // the ⭐ in Settings didn't invalidate the last-used pointer, so new
@@ -1229,7 +1231,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
   // when set. Last-used stays as a fallback when no account is starred
   // (e.g. an in-progress migration).
   useEffect(() => {
-    if (editingBill) return; // editing — keep whatever the bill stored
+    if (editingBill) return; // editing - keep whatever the bill stored
     if (invoiceOptions.selectedAccountId) return; // already set
     if (!profile) return;
     const lastUsedKey = `gst_lastUsedAccountId_${profile.id || profile.businessName || 'default'}`;
@@ -1272,22 +1274,34 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
 
   const isIssuedInvoice = !!editingBill && !editingBill._isDuplicate && !editingBill._convertToType;
 
-  // v1.10.68 (#68, idea from @deppen12) — the GSTIN already names the state and
+  // v1.10.68 (#68, idea from @deppen12) - the GSTIN already names the state and
   // carries a checksum, so fill the state and catch a typo without any API key
   // or internet. The state decides place of supply: get it wrong and the
   // invoice charges CGST + SGST where it owes IGST, or the other way round.
   const [gstinHint, setGstinHint] = useState(null);
+  // Unchanged values on an already-saved document are not re-judged: an old
+  // invoice keeps its number and date even if today's rules would refuse them.
+  const savedDoc = editingBill && !editingBill._isDuplicate && !editingBill._convertToType ? editingBill : null;
+  const detailErrors = {
+    invoiceNumber: (!savedDoc && !String(details.invoiceNumber || '').trim()) || (savedDoc && savedDoc.invoiceNumber === details.invoiceNumber) ? '' : validateInvoiceNumber(details.invoiceNumber, profile?.country).message,
+    invoiceDate: savedDoc && savedDoc.invoiceDate === details.invoiceDate ? '' : validateInvoiceDate(details.invoiceDate, profile?.country, localToday()).message,
+    dueDate: validateDueDate(details.dueDate, details.invoiceDate).message,
+    shippingCity: details.shipToSameAsBilling === false ? validateCity(client.country || profile?.country || 'India', details.shippingCity).message : '',
+    shippingPin: details.shipToSameAsBilling === false ? validatePin(client.country || profile?.country || 'India', details.shippingPin).message : '',
+  };
+  const clientAddrErrors = getAddressErrors(client.country || profile?.country, client);
+  const addrErrStyle = { color: '#dc2626', fontSize: '0.7rem', display: 'block', marginTop: '0.2rem' };
   const handleClientGstinBlur = () => {
     const decoded = decodeGstin(client.gstin);
     if (!decoded) { setGstinHint(null); return; }
     if (!decoded.checksumOk) {
-      setGstinHint({ tone: 'warn', message: 'This GSTIN fails its own checksum — check for a typo.' });
+      setGstinHint({ tone: 'warn', message: 'This GSTIN fails its own checksum - check for a typo.' });
       return;
     }
     if (!decoded.state) { setGstinHint(null); return; }
     if (!client.state?.trim()) {
       setClient(prev => ({ ...prev, state: decoded.state }));
-      setGstinHint({ tone: 'ok', message: `Registered in ${decoded.state} — state filled in.` });
+      setGstinHint({ tone: 'ok', message: `Registered in ${decoded.state} - state filled in.` });
     } else if (client.state.trim().toLowerCase() !== decoded.state.toLowerCase()) {
       setGstinHint({ tone: 'warn', message: `This GSTIN is registered in ${decoded.state}, but the state says ${client.state}.` });
     } else {
@@ -1299,12 +1313,12 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
     if (isIssuedInvoice) return;
     setInvoiceType(type);
     const config = INVOICE_TYPES[type];
-    // v1.10.14 — honour the per-type prefix override when switching invoice type.
+    // v1.10.14 - honour the per-type prefix override when switching invoice type.
     const _psForPrefix = getPrintSettings();
     const rawOverride = _psForPrefix.customPrefixes?.[type];
     const overridePrefix = rawOverride && rawOverride.trim();
     const prefix = overridePrefix || config?.prefix || 'INV';
-    // Peek — actual reservation happens on save.
+    // Peek - actual reservation happens on save.
     const seq = ++peekSeq.current;
     const num = await getNextInvoiceNumber(prefix, { peek: true, explicitPrefix: !!overridePrefix, invoiceType: type, businessKey: businessKeyOf(profile) });
     if (seq !== peekSeq.current) return;
@@ -1324,11 +1338,11 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
     setInvoiceOptions(prev => ({ ...prev, [key]: !invoiceOptionOn(prev, key) }));
   };
 
-  // v1.10.4 — useMemo replaces the prior useEffect+setTotals pair. Same
+  // v1.10.4 - useMemo replaces the prior useEffect+setTotals pair. Same
   // math (extracted to pure `computeInvoiceTotals` in v1.10.1), but
   // computed inline during render so React doesn't double-render on
   // every keystroke.
-  // v1.10.66 (#61) — client.country now decides exports, and client.gstin /
+  // v1.10.66 (#61) - client.country now decides exports, and client.gstin /
   // profile.gstin stand in for a missing state. All three must be listed:
   // switching only the country left the old CGST + SGST split on screen, and
   // that stale split is what Save stored.
@@ -1344,7 +1358,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
     invoiceOptions: { ...invoiceOptions, tcsCumulativeThisYear: clientYtd, tdsCumulativeThisYear: clientYtd },
   }), [clientYtd, invoiceOptions.tcsSection, invoiceOptions.tdsSection, items, client.state, client?.country, client?.gstin, client?.isSEZ, profile?.state, profile?.country, profile?.gstin, showGST, taxInclusive, invoiceOptions.showRoundOff, invoiceOptions.showTDS, invoiceOptions.tdsRate, invoiceOptions.tdsCumulativeThisYear, invoiceOptions.showTCS, invoiceOptions.tcsRate, invoiceOptions.tcsCumulativeThisYear, invoiceOptions.reverseCharge, invoiceOptions.invoiceDiscountValue, invoiceOptions.invoiceDiscountType, details?.placeOfSupply]);
 
-  // v1.10.24 — Compute available client credit from prior overpayments.
+  // v1.10.24 - Compute available client credit from prior overpayments.
   // Excludes the bill we're editing (that would double-count our own
   // in-progress creditToApply state). `available` is the FIFO-orderable
   // total; `sources` powers the auditable "from Bill A/2026-27/00X" trail.
@@ -1373,7 +1387,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
     setCreditToApply(cap > 0.005 ? cap : 0);
   }, [client?.name, clientCredit.available, invoiceOptions.autoApplyClientCredit, editingBill]);
 
-  // Warn when the seller's state is missing for Indian GST invoices — without it, the
+  // Warn when the seller's state is missing for Indian GST invoices - without it, the
   // interstate detection silently defaults to intrastate (CGST+SGST) which is a real money bug.
   useEffect(() => {
     const isIndia = (profile?.country || 'India') === 'India';
@@ -1381,13 +1395,13 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
     if (!profile?.state && client?.state) {
       const key = `gst_stateWarning_${profile?.businessName || 'profile'}`;
       if (!sessionStorage.getItem(key)) {
-        toast('Set your business State in Settings — required for correct CGST/SGST vs IGST split.', 'warning');
+        toast('Set your business State in Settings - required for correct CGST/SGST vs IGST split.', 'warning');
         sessionStorage.setItem(key, '1');
       }
     }
   }, [profile?.state, profile?.country, profile?.businessName, client?.state, showGST]);
 
-  // v1.10.7 — audit H14: handlers wrapped in useCallback so the memoized
+  // v1.10.7 - audit H14: handlers wrapped in useCallback so the memoized
   // LineItem below sees stable references and only re-renders the ROW
   // that actually changed. Prior code created new function identities
   // every render → every keystroke re-rendered EVERY line item.
@@ -1399,7 +1413,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
   }, []);
 
   const selectProduct = useCallback((itemId, product) => {
-    // v1.10.29 — Prefer sellingPrice for sales invoices (falls back to
+    // v1.10.29 - Prefer sellingPrice for sales invoices (falls back to
     // legacy `rate` for pre-v1.10.29 products).
     const salePrice = product.sellingPrice ?? product.rate ?? 0;
     setItems(prev => prev.map(item => item.id === itemId ? {
@@ -1431,7 +1445,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
   };
 
   const addItem = () => {
-    // Default unit depends on whether this invoice is for goods or services —
+    // Default unit depends on whether this invoice is for goods or services -
     // freelancers and consultants get 'Hrs' by default, retailers/manufacturers
     // get 'Nos'. The dropdown still shows the user's last-used unit if they've
     // overridden a previous row.
@@ -1454,8 +1468,8 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
     });
   };
 
-  // Custom unit handler — prompts for a label, persists to localStorage, applies to current item.
-  // v1.10.7 — useCallback for the LineItem memoization benefit.
+  // Custom unit handler - prompts for a label, persists to localStorage, applies to current item.
+  // v1.10.7 - useCallback for the LineItem memoization benefit.
   const handleAddCustomUnit = useCallback(async (itemId) => {
     const label = await promptAction({
       title: 'Add custom unit',
@@ -1490,7 +1504,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
   }, []);
 
   const removeItem = useCallback((id) => {
-    // Uses functional setState so the useCallback dep can stay empty —
+    // Uses functional setState so the useCallback dep can stay empty -
     // no stale-closure risk from items.length; the guard reads current.
     setItems(prev => prev.length > 1 ? prev.filter(item => item.id !== id) : prev);
   }, []);
@@ -1502,7 +1516,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
   };
 
   const selectSavedClient = (cli, { notify = true } = {}) => {
-    // Spread the FULL client — earlier versions cherry-picked six fields
+    // Spread the FULL client - earlier versions cherry-picked six fields
     // and silently dropped country/email/phone/isSEZ. Consequence: loading
     // an SEZ client via auto-complete cleared the SEZ flag, so the invoice
     // computed CGST+SGST instead of IGST → wrong tax on the filed return.
@@ -1520,13 +1534,13 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
     });
     setSelectedClientId(cli.id);
     setShowClientSuggestions(false);
-    // v1.9.1 — auto-apply per-client print preferences (if set on the client
+    // v1.9.1 - auto-apply per-client print preferences (if set on the client
     // record). Overrides invoice-level defaults for this session. Only fires
     // for NEW bills (not when editing) since editing bills keep saved options.
     //
-    // v1.10.12 — reported: "one client is set with thermal invoice print,
+    // v1.10.12 - reported: "one client is set with thermal invoice print,
     // others are also changing the preview". Root cause: prior code only
-    // set a patch WHEN the client had a preference — so switching from
+    // set a patch WHEN the client had a preference - so switching from
     // Client A (thermal) → Client B (no preference) left the thermal
     // setting sticky. Now we ALWAYS assign paperSize / currency /
     // clientAutoPrint to the new client's value OR the app default, so
@@ -1534,16 +1548,16 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
     if (!editingBill) {
       setInvoiceOptions(prev => ({
         ...prev,
-        // v1.10.33 — Was `cli.preferredPaperSize || 'a4'` which HARD-RESET
-        // to A4 for every client without an explicit preference — wiping
+        // v1.10.33 - Was `cli.preferredPaperSize || 'a4'` which HARD-RESET
+        // to A4 for every client without an explicit preference - wiping
         // out the user's globally saved default (e.g. someone who prints
         // every invoice on 80mm thermal would land back on A4 the moment
         // they picked a client). Now falls back to prev.paperSize so
         // globally-persisted choice sticks until the user changes it.
         paperSize: cli.preferredPaperSize || prev.paperSize || 'a4',
-        // v1.10.48 — Custom paper carries its dimensions in SEPARATE
+        // v1.10.48 - Custom paper carries its dimensions in SEPARATE
         // fields, and prior code restored only `preferredPaperSize`. So a
-        // client saved on 'custom' came back as 'custom' with no width —
+        // client saved on 'custom' came back as 'custom' with no width -
         // and getPaperSize() defaults a missing custom width to 80mm,
         // whose `kind` is 'thermal'. Net effect: selecting that client
         // silently turned the invoice into an 80mm receipt. Restore the
@@ -1552,7 +1566,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
         customPaperWidth: cli.preferredCustomPaperWidth || prev.customPaperWidth || 80,
         customPaperHeight: cli.preferredCustomPaperHeight || prev.customPaperHeight || 297,
         currency: cli.preferredCurrency || prev.currency || 'INR',
-        // v1.10.5 — client-level auto-print override (see original comment).
+        // v1.10.5 - client-level auto-print override (see original comment).
         clientAutoPrint: !!cli.autoPrint,
       }));
     }
@@ -1583,7 +1597,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
     await saveClient(data);
     const updated = await getAllClients();
     setSavedClients(updated);
-    // Sync the invoice form with the FULL saved record — dropping
+    // Sync the invoice form with the FULL saved record - dropping
     // country/email/phone/isSEZ here was the SEZ tax bug.
     setClient({
       name: data.name || '',
@@ -1608,7 +1622,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
     setShowClientModal(false);
   };
 
-  // v1.10.6 — audit L15. Small filter but cheap to memoize; keeps the
+  // v1.10.6 - audit L15. Small filter but cheap to memoize; keeps the
   // suggestion list identity stable across renders where neither
   // input matters (saves a downstream re-render of the suggestion
   // dropdown).
@@ -1631,6 +1645,14 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
   }, []);
 
   const saveInvoiceToDBNow = async (skipStockDeduction = false, extraPatch = {}) => {
+    {
+      const addrErr = { ...detailErrors, ...getAddressErrors(client.country || profile?.country, client) };
+      if (hasAddressErrors(addrErr)) {
+        // Auto-save (skipStockDeduction === true) stays quiet - the red field messages already show the problem.
+        if (skipStockDeduction !== true) toast(Object.values(addrErr).find(Boolean), 'warning');
+        return null;
+      }
+    }
     if (readOnlyDoc) {
       toast(editingBill.convertedTo
         ? `Already converted to ${editingBill.convertedTo}, so it is not changed. Use Duplicate to make a new one.`
@@ -1642,7 +1664,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
     // now. This means a mounted-but-cancelled form doesn't burn a counter
     // number → gapless sequences for CA-audited businesses.
     //
-    // v1.9.0 — extraPatch lets callers stamp print-history fields
+    // v1.9.0 - extraPatch lets callers stamp print-history fields
     // (printedCount + lastPrintedAt) at save time without needing to
     // pipe them through the entire bill state.
     let finalInvoiceNumber = details.invoiceNumber;
@@ -1653,7 +1675,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
     const isNewDoc = !editingBill || !!editingBill._isDuplicate;
     if (isNewDoc && !numberReserved.current) {
       try {
-        // v1.10.10 — honour user's per-type prefix override.
+        // v1.10.10 - honour user's per-type prefix override.
         const _psForPrefix = getPrintSettings();
         const rawOverride = _psForPrefix.customPrefixes?.[invoiceType];
         const overridePrefix = rawOverride && rawOverride.trim();
@@ -1674,8 +1696,8 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
       } catch { /* fall back to the peeked value; server will 409 if it collides */ }
     }
 
-    // v1.10.18 — reported: "if i change bank account for the customer to one
-    // bank then other also changed to that — it should show the bank was
+    // v1.10.18 - reported: "if i change bank account for the customer to one
+    // bank then other also changed to that - it should show the bank was
     // selected at the time of making but it wont." Root cause: InvoicePreview
     // resolves the account via getAccountById(profile, selectedAccountId) at
     // render time. Only the id is stored on the bill; account details
@@ -1683,7 +1705,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
     // render time. So editing "Bank A" in Settings retroactively rewrote
     // every historical invoice that had used Bank A. Fix: freeze the resolved
     // account into invoiceOptions.paymentAccountSnapshot at save time.
-    // v1.10.19 — When the invoiceOptions already carry a snapshot AND its id
+    // v1.10.19 - When the invoiceOptions already carry a snapshot AND its id
     // matches the current selection, KEEP it. This preserves the backfilled
     // snapshot for pre-v1.10.18 bills that get re-saved without a bank
     // change. Only re-snapshot from the live profile when the user
@@ -1696,7 +1718,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
       : getAccountById(profile, invoiceOptions.selectedAccountId);
     const invoiceOptionsWithSnapshot = { ...invoiceOptions, paymentAccountSnapshot: snapAccount || null };
 
-    // v1.10.24 — Plan client-credit application. If the user chose to
+    // v1.10.24 - Plan client-credit application. If the user chose to
     // apply any credit on this invoice (via the banner in the Billed To
     // section), compute the dual-entry patches now: a `credit-applied`
     // payment on this bill + `credit-transferred-out` entries on the
@@ -1706,7 +1728,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
       ? planCreditApplication(client.name, allBillsForCredit, creditToApply, finalInvoiceNumber)
       : null;
 
-    // v1.10.41 — Payment-preservation guard. Reported: user recorded
+    // v1.10.41 - Payment-preservation guard. Reported: user recorded
     // a payment on the Dashboard while an editor tab still had the
     // pre-payment `editingBill` cached; when the editor was later
     // saved (e.g. printed, marked, or manually saved), the stale
@@ -1716,7 +1738,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
     // bill first and union any payments (by receiptNo, or by
     // amount+date+mode fingerprint for older records) that
     // aren't already in editingBill's copy. Non-fatal on network
-    // error — worst case reverts to old behaviour, and the
+    // error - worst case reverts to old behaviour, and the
     // Dashboard reconciliation pass catches it on next load.
     // v1.10.77 (#86) - a duplicate or a conversion is a NEW invoice: it starts
     // unpaid. It used to copy the original's payments (and, through the fetch
@@ -1744,7 +1766,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
     const seedPayments = latestOwn ? [...(latestOwn.payments || [])] : ownBill ? [...(editingBill.payments || [])] : [];
     if (creditPlan?.targetEntry) seedPayments.push(creditPlan.targetEntry);
     const seedPaidAmount = seedPayments.reduce((s, p) => s + (Number(p.amount) || 0), 0);
-    // v1.10.41 — Recompute status from the merged paid amount rather
+    // v1.10.41 - Recompute status from the merged paid amount rather
     // than trusting editingBill.status. If a payment was recorded on
     // Dashboard while the editor was open (see comment above), that
     // stale status would still say 'unpaid' and this save would
@@ -1761,7 +1783,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
     const keepCancelled = isIssued && (serverCopy?.status || editingBill.status) === 'cancelled';
     // Paid once the payments cover the total less any TDS the client deducts.
     const computedStatus = paymentStatusFor({ totalAmount: totals.total, data: { totals } }, seedPaidAmount);
-    // Preserve 'overdue' when nothing is paid — otherwise trust the
+    // Preserve 'overdue' when nothing is paid - otherwise trust the
     // freshly computed status.
     const seedStatus = keepCancelled ? 'cancelled' : (computedStatus === 'unpaid' && ownBill && editingBill.status === 'overdue')
       ? 'overdue'
@@ -1775,7 +1797,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
       invoiceType,
       currency: invoiceOptions.currency || 'INR',
       totalAmount: totals.total,
-      // v1.10.1 — was `cgst + sgst + igst` which omitted UTGST and cess.
+      // v1.10.1 - was `cgst + sgst + igst` which omitted UTGST and cess.
       // Reports treated cess as revenue for tobacco/auto/coal sellers.
       totalTaxAmount: totals.totalTaxAmount ?? (totals.cgst + totals.sgst + (totals.utgst || 0) + totals.igst + (totals.cess || 0)),
       status: seedStatus,
@@ -1829,7 +1851,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
         getAllBills().then(setAllBillsForCredit).catch(() => {});
         setCreditToApply(0);
       }
-      // v1.10.35 — Reported: "if user has selected thermal or any paper
+      // v1.10.35 - Reported: "if user has selected thermal or any paper
       // size according to client it should always show that same auto or
       // else if user create new invoice and select thermal and if again
       // create new invoice with a4 pdf it should remember the choice and
@@ -1842,7 +1864,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
       //    defaults to the same choice.
       //  - No client selected: fall through to global default (already
       //    persisted via localStorage 'freegstbill_invoiceOptions' on
-      //    every options change — see the useEffect around line 594).
+      //    every options change - see the useEffect around line 594).
       //  - Prior client-select code (~line 1131) reads cli.preferred*
       //    already, so this write-side fix closes the loop.
       // Fire-and-forget: don't block the save UX on a preference update.
@@ -1851,7 +1873,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
         if (cli) {
           const nextPaperSize = invoiceOptions.paperSize || 'a4';
           const nextCurrency = invoiceOptions.currency || 'INR';
-          // v1.10.48 — Persist the custom dimensions too. Saving only the
+          // v1.10.48 - Persist the custom dimensions too. Saving only the
           // paper-size KEY meant 'custom' round-tripped without its width,
           // and getPaperSize() reads a missing custom width as 80mm, i.e.
           // thermal. See the restore side in handleSelectClient.
@@ -1877,10 +1899,10 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
           }
         }
       }
-      // Mark that the invoice has been persisted at least once — subsequent
+      // Mark that the invoice has been persisted at least once - subsequent
       // saves (auto-save, Save & Leave, Save & Download) can safely overwrite.
       hasBeenSaved.current = true;
-      isDirty.current = false; // v1.10.22 — successful save clears dirty flag
+      isDirty.current = false; // v1.10.22 - successful save clears dirty flag
     } catch (err) {
       if (err?.body?.code === 'stale-invoice' || err?.body?.code === 'missing-product') {
         toast(err.message, 'error', 8000);
@@ -1895,7 +1917,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
         return null;
       }
       if (err?.status === 409) {
-        // v1.10.23 — reported (GH #16): "A bill with this invoice number
+        // v1.10.23 - reported (GH #16): "A bill with this invoice number
         // already exists" on create/update/status-change/add-payment. Root
         // cause: the atomic counter can lag behind the actual bills on
         // disk (backup restore, cross-tab save, hand-crafted bill numbers)
@@ -1928,7 +1950,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
               hasBeenSaved.current = true;
               isDirty.current = false;
               if (nextNum !== bill.id) {
-                toast(`Invoice number ${bill.id} was already used — saved as ${nextNum} instead.`, 'info');
+                toast(`Invoice number ${bill.id} was already used - saved as ${nextNum} instead.`, 'info');
               }
               break;
             } catch (retryErr) {
@@ -2086,10 +2108,10 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
     }
   };
 
-  // Shared PDF generation helper. v1.10.3 — wraps the whole body in
+  // Shared PDF generation helper. v1.10.3 - wraps the whole body in
   // try/finally so `scalerEl.style.transform` is always restored, even
   // if html2canvas or jsPDF throws mid-render. Prior code only restored
-  // on the success path — an exception left the on-screen preview
+  // on the success path - an exception left the on-screen preview
   // stuck at scale 1.0 until the user navigated away.
   const buildPDF = async ({ archive = false, forPrint = false } = {}) => {
     const printSettings = getPrintSettings();
@@ -2107,7 +2129,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
   // archive: the copy kept in Saved Invoices, which carries no REPRINT stamp.
   const __buildPDFInner = async (printSettings, archive = false, spacerFit = {}, forPrint = false) => {
 
-    // v1.10.46 — Hoisted from line ~2133 to fix the v1.10.45 regression
+    // v1.10.46 - Hoisted from line ~2133 to fix the v1.10.45 regression
     // where `isHeaderOn` / `isFooterOn` (introduced in v1.10.45 for the
     // page-2+ header/footer reserves) referenced this constant BEFORE
     // its declaration → Temporal Dead Zone ReferenceError → every
@@ -2115,7 +2137,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
     // buttons silently failed with the generic "Print failed" /
     // "Failed to generate PDF" toasts (reported in issue #20). Every
     // subsequent guard in this function that already referenced
-    // isThermalPdf keeps working — this is a pure hoist.
+    // isThermalPdf keeps working - this is a pure hoist.
     const isThermalPdf = getPaperSize(invoiceOptions.paperSize, invoiceOptions).kind === 'thermal';
 
     // PDF quality / size trade-off:
@@ -2126,15 +2148,15 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
     //     clean line-art / glyphs efficiently. On Retina/4K screens we go higher.
     //   - JPEG quality 0.95 vs old 0.92: gain in legibility for small text outweighs
     //     the modest size bump.
-    // Paper size (v1.8.1) — read from invoiceOptions. A4 default; A5 uses
+    // Paper size (v1.8.1) - read from invoiceOptions. A4 default; A5 uses
     // jsPDF's built-in format; thermal 80mm/58mm use custom [width, height].
-    // Thermal formats use a tall single-column layout — the InvoicePreview
+    // Thermal formats use a tall single-column layout - the InvoicePreview
     // component branches on options.paperSize CSS class to render compact.
     const paperCfg = getPaperSize(invoiceOptions.paperSize, invoiceOptions);
     // jsPDF orientation defaults to 'portrait' if the paper config doesn't
     // specify it, so pre-v1.8.3 saved bills keep rendering portrait.
     // Note: `let pdf` (not const) so the thermal path can replace it with
-    // a content-height-sized instance after html2canvas returns — thermal
+    // a content-height-sized instance after html2canvas returns - thermal
     // receipts were previously always 297mm tall regardless of actual
     // content, wasting 15-20cm of blank paper per receipt when the PDF
     // was reprinted.
@@ -2147,14 +2169,14 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
     const pdfWidth = pdf.internal.pageSize.getWidth();
     const pdfPageHeight = pdf.internal.pageSize.getHeight();
     const extraPages = printRef.current.querySelectorAll('[data-pdf-page]');
-    // v1.9.1 — quality-driven render scale + JPEG quality:
+    // v1.9.1 - quality-driven render scale + JPEG quality:
     //   draft   → scale 2, JPEG 0.85 → ~50% smaller PDF, email-friendly
     //   standard→ scale 3, JPEG 0.95 → default (existing behaviour)
     //   hd      → scale max(4, dpr*3), JPEG 0.98 → archival quality, larger
-    // v1.10.3 — Scale is now capped at 6× on any device. Prior code
+    // v1.10.3 - Scale is now capped at 6× on any device. Prior code
     // `Math.max(4, dpr * 3)` on a 4× DPR Android phone hit 12× → an
     // A4 canvas at 100 megapixels → OOM crash before jsPDF ever ran.
-    // Also: PNG for HD (crisp text edges — invoices are line-art),
+    // Also: PNG for HD (crisp text edges - invoices are line-art),
     // JPEG for draft/standard (file size wins). Prior always-JPEG
     // smudged glyph edges on high-DPI screens.
     const capScale = (n) => Math.min(6, Math.max(2, Math.round(n)));
@@ -2170,7 +2192,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
     const renderScale = q.scale;
     const jpegQuality = q.quality;
     const imgFormat = q.imgFormat;   // 'JPEG' or 'PNG'
-    // v1.10.3 — Await webfonts before rasterising. On a cold load,
+    // v1.10.3 - Await webfonts before rasterising. On a cold load,
     // html2canvas fired before Inter finished downloading → the capture
     // used fallback fonts with wrong glyph metrics → table columns
     // overflowed. `document.fonts.ready` resolves once every declared
@@ -2179,11 +2201,11 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
       try { await document.fonts.ready; } catch { /* non-fatal */ }
     }
 
-    // v1.10.60 — reported (#51, @sguptagzb): "when I try to print the
+    // v1.10.60 - reported (#51, @sguptagzb): "when I try to print the
     // Invoice, the format is not coming as it comes in Preview", with a
     // sample PDF attached.
     //
-    // Decoding that PDF showed the page rendered with NO layout CSS —
+    // Decoding that PDF showed the page rendered with NO layout CSS -
     // no table borders, no cards, no flex rows, so labels ran straight into
     // values ("Subtotal(rupee)1,78,000.00"). Inline styles survived, class
     // rules did not. Generating the same invoice here produced a correctly
@@ -2192,15 +2214,15 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
     //
     // Root cause of the whole class: html2canvas clones the invoice into a
     // detached document, and that clone has to RE-FETCH the stylesheet by
-    // URL. Any reason that fetch fails — a CSP source expression that does
+    // URL. Any reason that fetch fails - a CSP source expression that does
     // not match the origin in use, a service worker (this is a PWA) serving
-    // a stale or failed response, a clone document with a null origin —
+    // a stale or failed response, a clone document with a null origin -
     // produces a silently unstyled PDF. v1.10.48 widened the CSP, which
     // fixed one cause; this removes the dependency altogether.
     //
     // Now the document's own CSS rules are read out and injected into the
     // clone as a plain <style> element, so the clone never fetches anything.
-    // The thermal print path has done exactly this since v1.10.42 — the PDF
+    // The thermal print path has done exactly this since v1.10.42 - the PDF
     // path simply never adopted it.
     const collectDocumentStyles = () => {
       const parts = [];
@@ -2209,14 +2231,14 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
           const rules = sheet.cssRules;
           if (!rules) continue;
           for (const rule of Array.from(rules)) parts.push(rule.cssText);
-        } catch { /* cross-origin (Google Fonts) — skip; system fonts suffice */ }
+        } catch { /* cross-origin (Google Fonts) - skip; system fonts suffice */ }
       }
       return parts.join(String.fromCharCode(10));
     };
 
     const captureOptions = (el) => ({
       scale: renderScale,
-      // v1.10.3 — useCORS was `true` but every image source is a base64
+      // v1.10.3 - useCORS was `true` but every image source is a base64
       // data URL (profile.logo, generated QR). `useCORS: true` triggers
       // a CORS preflight on any relative URL that slips in and silently
       // fails; today it's a dead flag but was flagged as fragile.
@@ -2224,7 +2246,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
       logging: false,
       letterRendering: true,
       backgroundColor: '#ffffff',
-      // v1.10.3 — was `0` (disable). A broken image (bad logo, stale
+      // v1.10.3 - was `0` (disable). A broken image (bad logo, stale
       // QR) hung the capture indefinitely, giving the user a stuck
       // "Generating…" spinner. 15s is enough for real images + a
       // fallback for corrupt ones.
@@ -2234,7 +2256,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
     });
 
     // Hide extra pages, capture main invoice.
-    // v1.10.8 — audit M21 real fix. Prior code stamped the same tall
+    // v1.10.8 - audit M21 real fix. Prior code stamped the same tall
     // canvas at successive negative-Y offsets. Any row straddling a
     // pdfPageHeight boundary was cut mid-content on the PDF seam.
     // Now: pre-measure the DOM row boundaries so we can crop each
@@ -2297,7 +2319,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
     const mainCanvas = await html2canvas(printRef.current, {
       ...captureOptions(printRef.current),
       onclone: (clonedDoc) => {
-        // v1.10.60 (#51) — embed the stylesheet rather than letting the
+        // v1.10.60 (#51) - embed the stylesheet rather than letting the
         // clone re-fetch it. Without this, any fetch failure yields a
         // completely unstyled PDF with no error shown to the user.
         try {
@@ -2318,7 +2340,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
           inv.style.width = `${paperCfg.widthMm}mm`;
           inv.style.overflow = 'visible'; inv.style.minHeight = 'unset';
           inv.style.border = 'none'; inv.style.boxShadow = 'none'; inv.style.borderRadius = '0';
-          // v1.9.2 — add printing-mode class so CSS rules force darker colours
+          // v1.9.2 - add printing-mode class so CSS rules force darker colours
           // in the PDF capture. Fixes user complaint that A4/A5 output had
           // very-light gray text that faded on paper printers. Users can
           // turn this off in Print Settings if their printer is fine with
@@ -2334,15 +2356,15 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
     spacerFit.restore?.();
     spacerFit.restore = null;
 
-    // v1.10.3 — Record each original page as a "recipe" so multi-copy
+    // v1.10.3 - Record each original page as a "recipe" so multi-copy
     // (GST Rule 48) can duplicate multi-page invoices correctly.
-    // v1.10.8 — Each recipe is now its own cropped image (was: one
+    // v1.10.8 - Each recipe is now its own cropped image (was: one
     // shared tall image with negative-Y offsets). See M21 note above.
     const mainImgHeight = (mainCanvas.height * pdfWidth) / mainCanvas.width;
     const pageRecipes = [];
 
-    // v1.10.9 — Wire print margins. Prior code ignored `marginTop/Bottom/
-    // Left/Right` from printSettings entirely — the UI existed, defaults
+    // v1.10.9 - Wire print margins. Prior code ignored `marginTop/Bottom/
+    // Left/Right` from printSettings entirely - the UI existed, defaults
     // were in printSettings.js, but no consumer read them. Now: margins
     // shift the invoice image inside each PDF page. Useful for
     // pre-printed letterheads where content must clear the top logo,
@@ -2352,11 +2374,11 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
     const mLeft = Math.max(0, Number(printSettings.marginLeft) || 0);
     const mRight = Math.max(0, Number(printSettings.marginRight) || 0);
 
-    // v1.10.10 — PDF Font Scale now applies at the PDF-placement layer,
+    // v1.10.10 - PDF Font Scale now applies at the PDF-placement layer,
     // not just via CSS on the preview. Prior fix (v1.10.9) set an inline
     // `font-size: 80%` on the container, which correctly changed the
     // preview because parent-relative sizing cascaded to a few text
-    // nodes — but html2canvas captures the DOM at its natural size, and
+    // nodes - but html2canvas captures the DOM at its natural size, and
     // most children use `rem`/`px` (not `em`), so the raster came out
     // at 100% and the "80% compact" setting silently did nothing in the
     // real PDF. Now: multiply BOTH placement width AND height by the
@@ -2367,7 +2389,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
     const pdfScale = isFinite(rawScale) && rawScale > 0
       ? Math.max(0.5, Math.min(1.4, rawScale))
       : 1.0;
-    // v1.10.45 — Reserve vertical space for page-2+ header band and the
+    // v1.10.45 - Reserve vertical space for page-2+ header band and the
     // page-number footer band, so content never overlaps them.
     // Reported: business name "Hem E..." collided with the "TERMS &
     // CONDITIONS" heading on page 2 of a multi-page invoice because
@@ -2375,7 +2397,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
     // header was drawn at Y=6mm. Now: shrink the multi-page content
     // area by the header + footer bands and shift the image down on
     // page 2+ to sit BELOW the header. Single-page invoices are
-    // unaffected — page-header + footer aren't drawn on page 1.
+    // unaffected - page-header + footer aren't drawn on page 1.
     //
     // 14mm ≈ 9pt bold text (2mm cap) + 2mm gap + 2mm underline offset
     //         + 8mm safety pad (glyph descenders + page-scale slop).
@@ -2386,7 +2408,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
     const pageFooterReserve = isFooterOn ? 9  : 0;
 
     const availWidth  = Math.max(20, pdfWidth      - mLeft - mRight);
-    // "Full" = single-page availability (no reserve — page 1 has no header/footer bands).
+    // "Full" = single-page availability (no reserve - page 1 has no header/footer bands).
     // "Multi" = per-page availability during pagination (reserves both bands).
     const availHeightFull  = Math.max(20, pdfPageHeight - mTop - mBottom);
     const availHeightMulti = Math.max(20, availHeightFull - pageHeaderReserve - pageFooterReserve);
@@ -2428,23 +2450,23 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
       || (paperCfg.kind !== 'thermal' && scaledImgHeight <= contentHeightFull * 1.06);
     if (window.__lastPdfLayout) window.__lastPdfLayout.onePage = fitsOnePage;
     if (fitsOnePage) {
-      // Single-page fits — no cropping needed. Page 1 has no header/footer
+      // Single-page fits - no cropping needed. Page 1 has no header/footer
       // bands so we can use the full page height (no v1.10.45 reserve).
       const mainImg = mainCanvas.toDataURL(imgFormat === 'PNG' ? 'image/png' : 'image/jpeg', jpegQuality);
       const fit = paperCfg.kind === 'thermal' ? 1 : Math.min(1, contentHeightFull / scaledImgHeight);
       const finalH = paperCfg.kind === 'thermal' ? Math.min(scaledImgHeight, contentHeightFull) : scaledImgHeight * fit;
       const finalW = contentWidth * fit;
       const finalX = contentXOffset + (contentWidth - finalW) / 2;
-      // v1.10.33 — Thermal receipts: replace the padded 72×297mm page
+      // v1.10.33 - Thermal receipts: replace the padded 72×297mm page
       // with one exactly tall enough for the actual receipt content.
       // Prior behaviour: a 40-line receipt on thermal80 produced a PDF
       // with the receipt in the top ~130mm and 165mm of blank paper
-      // below — visible in Chrome's Save-as-PDF preview as the huge
+      // below - visible in Chrome's Save-as-PDF preview as the huge
       // dark area below the "cut here" line the user reported. Now
       // the PDF page height matches the receipt height (+ margins),
       // so the PDF looks like the on-screen preview.
       //
-      // Only fires for the single-page path — multi-page thermal
+      // Only fires for the single-page path - multi-page thermal
       // (extremely long receipts) still uses paperCfg.heightMm as a
       // reasonable page-break unit.
       if (paperCfg.kind === 'thermal') {
@@ -2459,7 +2481,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
       pdf.addImage(mainImg, imgFormat, finalX, contentYOffset, finalW, finalH, undefined, 'MEDIUM');
       pageRecipes.push({ img: mainImg, y: contentYOffset, h: finalH, x: finalX, w: finalW });
     } else {
-      // v1.10.8 multi-page path — snap page breaks to safe DOM row boundaries.
+      // v1.10.8 multi-page path - snap page breaks to safe DOM row boundaries.
       //
       // 1. Convert DOM-pixel boundaries → canvas-pixel boundaries.
       const domToCanvasScale = mainCanvas.width / domContainerWidth;
@@ -2471,10 +2493,10 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
       canvasBoundariesPx.sort((a, b) => a - b);
 
       // 2. How many canvas pixels correspond to one CONTENT height?
-      // v1.10.9 — was pdfPageHeight * (mainCanvas.width / pdfWidth). Now
+      // v1.10.9 - was pdfPageHeight * (mainCanvas.width / pdfWidth). Now
       // uses contentHeight (page - top - bottom margins) so page breaks
       // respect the margin band.
-      // v1.10.45 — uses contentHeightMulti so page splits also
+      // v1.10.45 - uses contentHeightMulti so page splits also
       // reserve room for the header/footer bands drawn on page 2+.
       const pdfPageHeightCanvasPx = contentHeightMulti * (mainCanvas.width / contentWidth);
 
@@ -2500,7 +2522,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
           }
         }
         // No safe boundary found in range (a single "row" bigger than a page,
-        // e.g. a huge terms block). Fall back to a hard slice — but still
+        // e.g. a huge terms block). Fall back to a hard slice - but still
         // print SOMETHING rather than looping forever.
         if (safeEnd === null) safeEnd = naiveEnd;
         pageSplits.push({ start: pageStart, end: safeEnd });
@@ -2512,8 +2534,8 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
       }
 
       // 4. For each page, crop mainCanvas → temp canvas → data URL → PDF.
-      // v1.10.9 — margins; v1.10.10 — pdfFontScale via centred placement.
-      // v1.10.45 — page 2+ shifts down by pageHeaderReserve so the
+      // v1.10.9 - margins; v1.10.10 - pdfFontScale via centred placement.
+      // v1.10.45 - page 2+ shifts down by pageHeaderReserve so the
       // business-name header drawn later never overlaps the invoice.
       for (let i = 0; i < pageSplits.length; i++) {
         const { start, end } = pageSplits[i];
@@ -2536,7 +2558,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
     }
 
     // Capture each extra section as a separate PDF page (also recipe-tracked).
-    // v1.10.45 — Extra pages are always page 2+ so they must reserve room
+    // v1.10.45 - Extra pages are always page 2+ so they must reserve room
     // for the header/footer bands too. Otherwise attached rich-text pages
     // hit the same "business name overlaps content" bug as multi-page
     // splits. yOffset shifts the image below the header band; the max
@@ -2555,11 +2577,11 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
       pageRecipes.push({ img: extraImg, y: extraYOffset, h: extraH });
     }
 
-    // v1.10.3 — scalerEl restoration moved to outer buildPDF's `finally`
+    // v1.10.3 - scalerEl restoration moved to outer buildPDF's `finally`
     // block so it runs even if a later step throws.
 
     // ============================================================
-    // v1.9.0 post-processing — every step below is toggleable via
+    // v1.9.0 post-processing - every step below is toggleable via
     // printSettings. Priority order is:
     //   1. Add margins (visual white border, if user set them)
     //   2. Multi-copy expansion (Original / Duplicate / Triplicate)
@@ -2574,7 +2596,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
 
     // ----- Multi-copy (Original / Duplicate / Triplicate) -----
     // GST Rule 48 for goods: 3 copies. For services: 2 copies.
-    // v1.10.3 — Rebuilt to correctly duplicate multi-page invoices. See
+    // v1.10.3 - Rebuilt to correctly duplicate multi-page invoices. See
     // pageRecipes comment above for background.
     if (ps.multiCopyEnabled && ps.multiCopyCount > 1) {
       const labels = ps.multiCopyLabels || ['ORIGINAL', 'DUPLICATE', 'TRIPLICATE'];
@@ -2583,7 +2605,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
       for (let copyIdx = 1; copyIdx < ps.multiCopyCount; copyIdx++) {
         for (const recipe of pageRecipes) {
           pdf.addPage();
-          // v1.10.9 — margins carry through to duplicated copies via
+          // v1.10.9 - margins carry through to duplicated copies via
           // recipe.x/w (fallback to 0/pdfWidth for legacy shapes).
           pdf.addImage(recipe.img, imgFormat,
             recipe.x ?? 0, recipe.y,
@@ -2612,15 +2634,15 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
       }
     }
 
-    // v1.10.3 — free the multi-megabyte base64 image strings once
+    // v1.10.3 - free the multi-megabyte base64 image strings once
     // multi-copy replay is done. Post-processing steps below only
     // mutate the PDF pages, they don't need the source images. Prior
     // code held mainImg + pageRecipes in closure through the whole
     // watermark/QR/page-number loop, doubling peak memory.
     pageRecipes.length = 0;
 
-    // v1.10.12 — Gate the A4/A5-only post-processing on thermal paper.
-    // Reports: (a) "watermark coming for thermal also — it should not
+    // v1.10.12 - Gate the A4/A5-only post-processing on thermal paper.
+    // Reports: (a) "watermark coming for thermal also - it should not
     // come", (b) page numbers "Page 2 of 3" don't make sense on a
     // continuous receipt roll, (c) invoice QR / feedback QR crowd out
     // the actual print on 58mm rolls. All post-processing steps below
@@ -2633,10 +2655,10 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
     // don't belong on a thermal roll.
 
     // ----- Watermark overlay -----
-    // v1.10.12 — Cleaned up the preset ↔ custom decision:
+    // v1.10.12 - Cleaned up the preset ↔ custom decision:
     //   • Custom mode ON  + custom text FILLED   → use custom text.
     //   • Custom mode ON  + custom text EMPTY    → skip (no silent
-    //     fallback to preset — that was the confusing behavior
+    //     fallback to preset - that was the confusing behavior
     //     reported as "after selecting predefined then customer
     //     watermark or else it is not working").
     //   • Custom mode OFF → use preset.
@@ -2663,7 +2685,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
         try {
           const gState = new pdf.GState({ opacity });
           pdf.setGState(gState);
-        } catch { /* older jsPDF versions — fallback to grey text */ }
+        } catch { /* older jsPDF versions - fallback to grey text */ }
         pdf.setTextColor(200, 200, 200);
         // Center the watermark on the page
         const cx = pdfWidth / 2;
@@ -2678,7 +2700,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
     }
 
     // ----- Reprint indicator (automatic when this bill has been printed before) -----
-    // v1.10.41 — Reported: "REPRINT · Copy #2" badge was overlapping the
+    // v1.10.41 - Reported: "REPRINT · Copy #2" badge was overlapping the
     // business logo in the top-left of the PDF. Root cause: badge was
     // pinned at x=4, y=4 which is exactly where every template's logo
     // sits. Two fixes:
@@ -2687,7 +2709,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
     //   2. Default reprintLabelEnabled = false (see printSettings.js) so
     //      users don't get the surprise stamp on every second download.
     //      Only retail/restaurant users who genuinely need POS reprint
-    //      tracking will turn it on — the Print Settings toggle is
+    //      tracking will turn it on - the Print Settings toggle is
     //      already gated to those business types.
     if (!archive && !isThermalPdf && ps.reprintLabelEnabled && Number(editingBill?.printedCount) > 0) {
       const label = `REPRINT · Copy #${(Number(editingBill.printedCount) || 0) + 1}`;
@@ -2725,7 +2747,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
           pdf.setTextColor(0);
         } catch { /* skip on error */ }
       }
-      // "Barcode" — jsPDF can't render true Code128 without a lib, so we render
+      // "Barcode" - jsPDF can't render true Code128 without a lib, so we render
       // a big monospace text version of the invoice number that scans as OCR-able
       // and is legible for humans + warehouse workflows.
       if (ps.invoiceBarcodeEnabled) {
@@ -2779,11 +2801,11 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
   };
 
   // Per-view keyboard shortcuts.
-  //   Ctrl/Cmd+S       — save invoice (no PDF) if meaningful
-  //   Ctrl/Cmd+P       — download PDF
-  //   Ctrl/Cmd+Enter   — add a new line item (v1.10.22)
-  //   Ctrl/Cmd+Shift+D — duplicate the LAST line item (v1.10.22)
-  //   Esc              — close the leave-guard modal (v1.10.22)
+  //   Ctrl/Cmd+S       - save invoice (no PDF) if meaningful
+  //   Ctrl/Cmd+P       - download PDF
+  //   Ctrl/Cmd+Enter   - add a new line item (v1.10.22)
+  //   Ctrl/Cmd+Shift+D - duplicate the LAST line item (v1.10.22)
+  //   Esc              - close the leave-guard modal (v1.10.22)
   useEffect(() => {
     const onKey = (e) => {
       // Esc closes the leave modal without needing Ctrl.
@@ -2804,13 +2826,13 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
         setTimeout(() => generatePDF(), 0);
       } else if (e.key === 'Enter') {
         // Add a new line item. Doesn't fire when the user is inside a form
-        // element that should get Enter (rich-text editor autofocus etc.) —
+        // element that should get Enter (rich-text editor autofocus etc.) -
         // browsers dispatch Ctrl+Enter to the row-level input which won't
         // preventDefault by itself.
         e.preventDefault();
         addItem();
       } else if (e.shiftKey && (e.key === 'd' || e.key === 'D')) {
-        // Duplicate the last item — quick win for "same item, next line".
+        // Duplicate the last item - quick win for "same item, next line".
         e.preventDefault();
         setItems(prev => {
           if (prev.length === 0) return prev;
@@ -2824,7 +2846,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isMeaningfulInvoice, leaveModal]);
 
-  // v1.10.3 — Shared print-via-iframe helper. Prior code duplicated the
+  // v1.10.3 - Shared print-via-iframe helper. Prior code duplicated the
   // "createObjectURL + iframe + revoke on load" pattern in 3 places and
   // ALL 3 leaked the blob URL if `onload` never fired (broken PDF,
   // iframe blocked). Now: revoked in error handler AND unconditionally
@@ -2856,11 +2878,11 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
     }
   };
 
-  // v1.10.42 — Vector-HTML thermal print (revived from v1.10.35). Clones
+  // v1.10.42 - Vector-HTML thermal print (revived from v1.10.35). Clones
   // the on-screen invoice-preview element + the document's stylesheets
   // into a hidden iframe, sets @page: size WIDTHmm auto, and calls
   // iframe.contentWindow.print(). Text stays VECTOR all the way to the
-  // printer driver — 203-dpi thermal rasterises at native resolution
+  // printer driver - 203-dpi thermal rasterises at native resolution
   // → sharp glyphs regardless of font size, smaller print jobs, faster
   // buffer fill on cheap thermal printers with tiny buffers.
   //
@@ -2872,7 +2894,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
   // drift class entirely.
   //
   // Returns true on success, false if the browser blocked programmatic
-  // iframe print (rare — chrome/edge/safari all allow it from a user-
+  // iframe print (rare - chrome/edge/safari all allow it from a user-
   // gesture click, which is our only caller). The false case lets the
   // caller fall back to the PDF path without a toast on the user.
   const printThermalViaHtml = async () => {
@@ -2885,7 +2907,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
 
     // Collect the document's CSS text so the iframe renders identically.
     // Cross-origin stylesheets (Google Fonts, etc.) throw on cssRules
-    // access — skip those; thermal renders fine with system fonts.
+    // access - skip those; thermal renders fine with system fonts.
     const collectStyles = () => {
       const parts = [];
       for (const sheet of Array.from(document.styleSheets)) {
@@ -2950,28 +2972,28 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
     }
   };
 
-  // v1.10.3 — Thermal receipts (58mm / 80mm rolls) no longer go through
+  // v1.10.3 - Thermal receipts (58mm / 80mm rolls) no longer go through
   // html2canvas → JPEG → jsPDF. That path was 100× the CPU/memory of
   // what's needed for a text-only receipt. Now: for thermal paper sizes
   // we hand the browser the invoice HTML directly via a print-focused
   // window.print() flow. Modern printer drivers handle 58/80mm rolls
   // natively when the CSS `@page size` matches.
   //
-  // v1.10.33 — Bug fix: was `.startsWith('thermal')` which does NOT
+  // v1.10.33 - Bug fix: was `.startsWith('thermal')` which does NOT
   // match the `custom` preset even when its width is under 100mm
   // (getPaperSize returns kind='thermal' for those). So a user picking
-  // Custom 76mm was routed through the sheet-print path — thick roll
+  // Custom 76mm was routed through the sheet-print path - thick roll
   // wasted paper, watermark stamped on receipt, HSN/rate lines shown.
-  // Now: single source of truth — getPaperSize().kind.
+  // Now: single source of truth - getPaperSize().kind.
   const isThermalPaper = () => getPaperSize(invoiceOptions.paperSize, invoiceOptions).kind === 'thermal';
 
-  // v1.10.26 — Focus mode moves the preview pane off-screen (position:
+  // v1.10.26 - Focus mode moves the preview pane off-screen (position:
   // absolute), which is fine for html2canvas (layout still computed) but
   // breaks window.print() for thermal (prints visible viewport only).
   // Un-collapse the preview for the duration of any print / download
   // operation and restore after.
   //
-  // v1.10.27 — Reported: "after print, preview panel comes back up and
+  // v1.10.27 - Reported: "after print, preview panel comes back up and
   // hiding again have to click." Prior code registered an `afterprint`
   // listener + 30s safety timeout, which never fired in two of the three
   // paths and left the preview expanded:
@@ -2990,7 +3012,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
     const wasCollapsed = previewCollapsed;
     if (!wasCollapsed) return fn();
     setPreviewCollapsed(false);
-    // v1.10.28 — bumped settle from 50ms → 200ms. Reported: PDF sometimes
+    // v1.10.28 - bumped settle from 50ms → 200ms. Reported: PDF sometimes
     // came out with content shoved to top-left on slower devices. Root
     // cause: after removing position: absolute, browser needs a real layout
     // pass; 50ms wasn't enough for React commit + reflow on low-end Android.
@@ -3004,22 +3026,22 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
     }
   };
 
-  // v1.10.36 — Print pipeline split into two functions:
-  //   1. `executePrint` — the actual work (buildPDF → printViaIframe).
+  // v1.10.36 - Print pipeline split into two functions:
+  //   1. `executePrint` - the actual work (buildPDF → printViaIframe).
   //      This is the SAME code path that was working in v1.10.34 and
   //      after the v1.10.35 → v1.10.36 revert. Guaranteed reliable.
-  //   2. `directPrint` — user-facing Print button click handler. For
+  //   2. `directPrint` - user-facing Print button click handler. For
   //      thermal invoices, opens the PrintPreviewModal first so the
   //      user sees exactly what will print before it goes. For A4/sheet,
   //      calls executePrint directly because the OS print dialog
   //      already shows a full page preview.
   //
   // The modal DOES NOT re-render or re-serialize anything for printing
-  // — its Print button just calls executePrint, which uses the parent's
+  // - its Print button just calls executePrint, which uses the parent's
   // existing on-screen `printRef`. Both the modal's <InvoicePreview>
   // and the printed output come from the SAME component with the SAME
   // props → bit-for-bit identical. Zero CSS drift risk (this was the
-  // v1.10.35 bug — a re-serialized iframe DOM diverged from the on-
+  // v1.10.35 bug - a re-serialized iframe DOM diverged from the on-
   // screen render because of dropped cross-origin fonts + max-width
   // caps beating inline widths). See PrintPreviewModal.jsx for details.
   // Save before any PDF or print is made, counting it as printed once more.
@@ -3043,10 +3065,10 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
   // Prints what the preview shows. Returns true when it was sent to print.
   const printPreview = () => withPreviewOnScreen(async () => {
     try {
-      // v1.10.42 — Thermal + user hasn't opted out of direct print?
+      // v1.10.42 - Thermal + user hasn't opted out of direct print?
       // Try the vector-HTML path first. If the browser blocks it
       // (returned false), silently fall through to the PDF path so
-      // the user still gets a print — no surfaced error required.
+      // the user still gets a print - no surfaced error required.
       if (isThermalPaper() && (getPrintSettings().thermalPrintMode || 'direct') === 'direct') {
         const ok = await printThermalViaHtml();
         if (ok) return true;
@@ -3056,7 +3078,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
       return true;
     } catch (err) {
       console.error('Print failed', err);
-      toast('Print failed — try Download PDF instead', 'error');
+      toast('Print failed - try Download PDF instead', 'error');
       return false;
     }
   });
@@ -3072,7 +3094,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
       await printPreview();
     } catch (err) {
       console.error('Print failed', err);
-      toast('Print failed — try Download PDF instead', 'error');
+      toast('Print failed - try Download PDF instead', 'error');
     } finally {
       setSaving(false);
     }
@@ -3119,7 +3141,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
 
   const directPrint = async () => {
     if (!printRef.current) return;
-    // v1.10.58 (#47) — same gate as Save: printing persists the bill and
+    // v1.10.58 (#47) - same gate as Save: printing persists the bill and
     // reserves an invoice number, so a blank one must not get through here
     // either.
     const problem = validateForSave();
@@ -3131,7 +3153,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
       setShowPrintPreview(true);
       return;
     }
-    // A4 / A5 / Letter / Legal — go straight to print. Chrome's own
+    // A4 / A5 / Letter / Legal - go straight to print. Chrome's own
     // dialog already shows a page-accurate preview, no in-app modal
     // needed for these.
     await executePrint();
@@ -3163,7 +3185,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
 
   const generatePDF = async () => {
     if (!printRef.current) return;
-    // v1.10.58 (#47) — same gate as Save: printing persists the bill and
+    // v1.10.58 (#47) - same gate as Save: printing persists the bill and
     // reserves an invoice number, so a blank one must not get through here
     // either.
     const problem = validateForSave();
@@ -3173,7 +3195,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
       // Save first so the PDF shows the number the invoice was saved under.
       const savedNumber = await saveForOutput();
       if (!savedNumber) return;
-      // v1.10.26 — force preview on-screen so html2canvas can snapshot it.
+      // v1.10.26 - force preview on-screen so html2canvas can snapshot it.
       const pdf = await withPreviewOnScreen(() => buildPDF());
       const fileName = `${typeConfig.prefix}_${savedNumber.replace(/\//g, '-')}.pdf`;
       pdf.save(fileName);
@@ -3189,13 +3211,13 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
       toast(`Invoice downloaded & saved to Saved Invoices/${clientName}/`, 'success');
       uploadToGoogleDrive(pdfBlob, fileName);
 
-      // v1.10.3 — auto-print via the shared printViaIframe helper.
-      // v1.10.5 — also fire when the loaded client has autoPrint=true,
+      // v1.10.3 - auto-print via the shared printViaIframe helper.
+      // v1.10.5 - also fire when the loaded client has autoPrint=true,
       // even if the app-wide autoPrintOnSave is off (per-client override).
       const ps = getPrintSettings();
       if (ps.autoPrintOnSave || invoiceOptions.clientAutoPrint) {
         try { printViaIframe(pdfBlob); }
-        catch { /* non-fatal — user already has the PDF downloaded */ }
+        catch { /* non-fatal - user already has the PDF downloaded */ }
       }
     } catch (err) {
       console.error(err);
@@ -3206,11 +3228,11 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
   };
 
   const shareWhatsApp = () => {
-    // v1.10.29 — reported: "when i use whatsapp button it is sending
+    // v1.10.29 - reported: "when i use whatsapp button it is sending
     // subtotal amount". Cause: this used `items.reduce((s, i) => s +
-    // (i.quantity * i.rate), 0)` — that's the pre-tax subtotal, not the
+    // (i.quantity * i.rate), 0)` - that's the pre-tax subtotal, not the
     // invoice total. Now uses totals.total (post-tax, post-discount, with
-    // round-off + TCS + invoice-level discount all applied) — the same
+    // round-off + TCS + invoice-level discount all applied) - the same
     // number that appears on the PDF and gets saved as bill.totalAmount.
     const cur = invoiceOptions.currency || 'INR';
     const total = formatCurrency(Number(totals.total) || 0, cur);
@@ -3224,7 +3246,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
       `Subtotal: ${subtotal}`,
       `*Total: ${total}*`,
     ];
-    if (businessName) lines.push('', `— ${businessName}`);
+    if (businessName) lines.push('', `- ${businessName}`);
     openWhatsAppShare(client?.phone, lines.join('\n'));
   };
 
@@ -3235,7 +3257,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
       toast('Add at least one item with a quantity and rate first.', 'warning');
       return;
     }
-    // v1.10.1 — Pass taxInclusive so back-calc taxable value on line items.
+    // v1.10.1 - Pass taxInclusive so back-calc taxable value on line items.
     // Otherwise E-Way Bill portal rejects with `amount_mismatch` on MRP-inclusive invoices.
     const ewb = generateEWayBillJSON(profile, client, details, items, totals, invoiceType, { taxInclusive });
     const blob = new Blob([JSON.stringify(ewb, null, 2)], { type: 'application/json' });
@@ -3274,18 +3296,18 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
       <div className="generator-toolbar">
         <div className="flex gap-2 items-center">
           <button className="btn btn-secondary" onClick={handleBack}><ArrowLeft size={18} /> Back</button>
-          <HelpButton title="Invoice Generator — how to use" doc="invoices">
+          <HelpButton title="Invoice Generator - how to use" doc="invoices">
             <ul style={{ paddingLeft: '1.1rem', margin: 0 }}>
-              <li><strong>Invoice type</strong> — Tax Invoice / Proforma / Bill of Supply / Composition / Credit Note / Delivery Challan. Switching type refreshes the number to that type's counter (or your custom prefix from Print Settings).</li>
-              <li><strong>Line items</strong> — start typing to auto-complete from your Products list. HSN autofills the GST rate for common codes. Click "+ Add description" for a detailed note under the item name.</li>
-              <li><strong>Discount</strong> — per line: pick ₹ (fixed) or % of the line. Below the items: whole-bill discount, applied after tax.</li>
-              <li><strong>Customize</strong> — toggle columns and sections on/off, pick paper size (A4, A5, Letter, Legal, B5, thermal rolls or a custom size), currency, TDS / TCS, recurring, the invoice title and PDF style. Changes are remembered for your next invoice.</li>
-              <li><strong>Hide Preview</strong> — gives the form the full width for long invoices. Show Preview brings it back.</li>
-              <li><strong>Keyboard</strong> — Ctrl+S save · Ctrl+P PDF · Ctrl+Enter add row · Ctrl+Shift+D duplicate last row · Esc close leave modal.</li>
-              <li><strong>Saving</strong> — a new invoice is stored when you first click Save, Save &amp; Download or Print. After that, changes save automatically. Leaving with unsaved changes asks first.</li>
+              <li><strong>Invoice type</strong> - Tax Invoice / Proforma / Bill of Supply / Composition / Credit Note / Delivery Challan. Switching type refreshes the number to that type's counter (or your custom prefix from Print Settings).</li>
+              <li><strong>Line items</strong> - start typing to auto-complete from your Products list. HSN autofills the GST rate for common codes. Click "+ Add description" for a detailed note under the item name.</li>
+              <li><strong>Discount</strong> - per line: pick ₹ (fixed) or % of the line. Below the items: whole-bill discount, applied after tax.</li>
+              <li><strong>Customize</strong> - toggle columns and sections on/off, pick paper size (A4, A5, Letter, Legal, B5, thermal rolls or a custom size), currency, TDS / TCS, recurring, the invoice title and PDF style. Changes are remembered for your next invoice.</li>
+              <li><strong>Hide Preview</strong> - gives the form the full width for long invoices. Show Preview brings it back.</li>
+              <li><strong>Keyboard</strong> - Ctrl+S save · Ctrl+P PDF · Ctrl+Enter add row · Ctrl+Shift+D duplicate last row · Esc close leave modal.</li>
+              <li><strong>Saving</strong> - a new invoice is stored when you first click Save, Save &amp; Download or Print. After that, changes save automatically. Leaving with unsaved changes asks first.</li>
             </ul>
           </HelpButton>
-          {/* v1.10.37 — Auto-save status pill. Reported: prior plain
+          {/* v1.10.37 - Auto-save status pill. Reported: prior plain
               grey text next to Back button looked unstyled. Now it's a
               proper chip with a coloured dot indicator that matches
               state (blue-pulse saving, green saved, amber draft) and
@@ -3302,7 +3324,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
               : 'var(--bg-secondary)';
             const label = saving ? 'Saving…'
               : saved ? 'All changes saved'
-              : isDraft ? 'Draft — click to complete'
+              : isDraft ? 'Draft - click to complete'
               : ((!editingBill || editingBill._isDuplicate) && !hasBeenSaved.current) ? 'Not saved yet'
               : 'Ready';
             const onClick = () => {
@@ -3349,16 +3371,16 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
           })()}
         </div>
         <div className="flex gap-2">
-          {/* v1.10.37 — Explicit Save button. Reported: "invoice page
+          {/* v1.10.37 - Explicit Save button. Reported: "invoice page
               needs a Save button". Previously only Download PDF was
               the primary action, forcing users who wanted to save
               without downloading to know Ctrl+S. Now: Save is the
               PRIMARY action, Download PDF is secondary. Save-only
               also fires the same "save to Saved Invoices/ folder"
               + auto-print + Drive sync side effects that generatePDF
-              does — minus the PDF file. */}
+              does - minus the PDF file. */}
           <button className="btn btn-primary" onClick={async () => {
-            // v1.10.58 (#47) — refuse a blank invoice. Saving reserves an
+            // v1.10.58 (#47) - refuse a blank invoice. Saving reserves an
             // invoice number, so an empty save leaves a permanent gap in a
             // sequence GST expects to be gapless.
             const problem = validateForSave();
@@ -3373,7 +3395,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
             } catch (err) {
               if (err?.status !== 409) {  // 409 already handled by retry inside saveInvoiceToDB
                 console.error('Save failed', err);
-                toast('Save failed — try again', 'error');
+                toast('Save failed - try again', 'error');
               }
             } finally {
               setSaving(false);
@@ -3402,12 +3424,12 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
               <Truck size={18} /> E-Way Bill
             </button>
           )}
-          {/* v1.10.65 — requested (#58 item 2, @sangwanmail-eng): "to access
+          {/* v1.10.65 - requested (#58 item 2, @sangwanmail-eng): "to access
               show preview and hide preview button once you are at the bottom
               of the page, you have to scroll all page."
               Moved here beside E-Way Bill, and this whole toolbar is now
-              sticky (see .generator-toolbar), so it — and Save, Print and the
-              rest — stay reachable from anywhere on a long invoice. */}
+              sticky (see .generator-toolbar), so it - and Save, Print and the
+              rest - stay reachable from anywhere on a long invoice. */}
           {/* v1.10.69 - requested (#71 item 1, @sangwanmail-eng): "Can we move
               the Customize button so that it appears before the Show Preview
               button?"
@@ -3432,7 +3454,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
       <div className={`split-view ${previewCollapsed ? 'split-view-focus' : ''}`}>
         <div className="editor-pane">
           {!editingBill && !hasBeenSaved.current && <AiInvoiceDraft businessId={profile?.id} formIdentity={aiInvoiceFormIdentity} disabled={aiInvoiceBlocked} onApply={applyAiInvoiceDraft} />}
-          {/* v1.10.67 (#66 item 6) — the "Billing From (Business Profile)"
+          {/* v1.10.67 (#66 item 6) - the "Billing From (Business Profile)"
               card was removed. The company picker at the top of the sidebar
               already sets which business an invoice belongs to; a second
               picker here only made it possible to issue the invoice from a
@@ -3461,15 +3483,15 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
             )}
             <p className="type-desc">{typeConfig?.description}</p>
 
-            {/* Goods / Services / Mixed selector — drives default line-item unit
+            {/* Goods / Services / Mixed selector - drives default line-item unit
                 (Hrs vs Nos) and filters the unit dropdown. Stays out of the way
                 for users who never touch services. */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
               <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginRight: '0.25rem' }}>This invoice is for:</span>
               {[
-                { id: 'goods',    label: '📦 Goods',    desc: 'Physical products — defaults to Nos / Kg / Pcs units' },
-                { id: 'services', label: '⏱ Services', desc: 'Time / work-based — defaults to Hrs and surfaces Session / Visit / Month units' },
-                { id: 'mixed',    label: '🔀 Mixed',   desc: 'Both — full unit list available, no filtering' },
+                { id: 'goods',    label: '📦 Goods',    desc: 'Physical products - defaults to Nos / Kg / Pcs units' },
+                { id: 'services', label: '⏱ Services', desc: 'Time / work-based - defaults to Hrs and surfaces Session / Visit / Month units' },
+                { id: 'mixed',    label: '🔀 Mixed',   desc: 'Both - full unit list available, no filtering' },
               ].map(opt => (
                 <button key={opt.id} type="button"
                   className={`type-chip ${(invoiceOptions.invoiceMode || 'goods') === opt.id ? 'type-chip-active' : ''}`}
@@ -3512,11 +3534,11 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
                       value={invoiceOptions.exchangeRate}
                       onChange={(e) => setInvoiceOptions(prev => ({ ...prev, exchangeRate: e.target.value }))}
                       placeholder={`1 ${invoiceOptions.currency} = ? INR`} />
-                    <small style={{ color: '#94a3b8', fontSize: '0.7rem' }}>Stored on this invoice — historical reports stay accurate even if rates change.</small>
+                    <small style={{ color: '#94a3b8', fontSize: '0.7rem' }}>Stored on this invoice - historical reports stay accurate even if rates change.</small>
                   </div>
                 )}
 
-                {/* Inline recurring — turn any invoice into a recurring template
+                {/* Inline recurring - turn any invoice into a recurring template
                     without leaving the form. On save, this writes both the
                     invoice AND a recurring template the server auto-fires on
                     schedule. Edit/cancel the template later via the Recurring
@@ -3620,7 +3642,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
                   );
                 })()}
 
-                {/* TCS — collected by seller, ADDS to total (Section 206C, Income Tax Act) */}
+                {/* TCS - collected by seller, ADDS to total (Section 206C, Income Tax Act) */}
                 {(profile?.country || 'India') === 'India' && (
                   <div className={`form-group${invoiceOptions.showTCS ? ' notice notice-warn' : ''}`} style={{ marginBottom: '0.75rem', padding: '0.6rem', borderRadius: '6px', display: 'block' }}>
                     <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.82rem', cursor: 'pointer' }}>
@@ -3635,7 +3657,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
                             : { ...prev, showTCS: turningOn };
                         })}
                         style={{ width: 16, height: 16, accentColor: 'var(--primary)' }} />
-                      <strong>TCS — Tax Collected at Source</strong>
+                      <strong>TCS - Tax Collected at Source</strong>
                       <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>(Adds to invoice total)</span>
                     </label>
                     {invoiceOptions.showTCS && (
@@ -3660,14 +3682,14 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
                   </div>
                 )}
 
-                {/* TDS — deducted by buyer from payment, INFORMATIONAL on invoice */}
+                {/* TDS - deducted by buyer from payment, INFORMATIONAL on invoice */}
                 {(profile?.country || 'India') === 'India' && (
                   <div className={`form-group${invoiceOptions.showTDS ? ' notice notice-info' : ''}`} style={{ marginBottom: '0.75rem', padding: '0.6rem', borderRadius: '6px', display: 'block' }}>
                     <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.82rem', cursor: 'pointer' }}>
                       <input type="checkbox" checked={!!invoiceOptions.showTDS}
                         onChange={() => setInvoiceOptions(prev => ({ ...prev, showTDS: !prev.showTDS }))}
                         style={{ width: 16, height: 16, accentColor: 'var(--primary)' }} />
-                      <strong>TDS — Tax Deducted at Source</strong>
+                      <strong>TDS - Tax Deducted at Source</strong>
                       <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>(Buyer deducts; informational)</span>
                     </label>
                     {invoiceOptions.showTDS && (
@@ -3688,7 +3710,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
                     )}
                   </div>
                 )}
-                {/* Payment account picker — lists the active business profile's active
+                {/* Payment account picker - lists the active business profile's active
                     accounts. Hidden when the profile has 0 accounts (preserves v1.4.3
                     "no bank block" behaviour). Stored as invoiceOptions.selectedAccountId
                     so re-opening the invoice produces the same PDF. */}
@@ -3701,7 +3723,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
                       <label className="form-label">Payment account on this invoice</label>
                       <select className="form-input" value={resolved?.id || ''}
                         onChange={(e) => {
-                          // v1.10.21 — reported: "working but on select it is not
+                          // v1.10.21 - reported: "working but on select it is not
                           // changing have to save and reopen it". Cause: the
                           // preview reads options.paymentAccountSnapshot first
                           // (bank frozen at the last save). Picking a new
@@ -3718,7 +3740,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
                         {accounts.map(a => (
                           <option key={a.id} value={a.id}>
                             {a.isDefault ? '⭐ ' : ''}{a.label || a.bankName || 'Untitled account'}
-                            {a.bankName && a.label !== a.bankName ? ` — ${a.bankName}` : ''}
+                            {a.bankName && a.label !== a.bankName ? ` - ${a.bankName}` : ''}
                           </option>
                         ))}
                       </select>
@@ -3783,17 +3805,17 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
                   { group: 'Items table', items: [
                     ['showHSN', 'HSN/SAC column'],
                     ['showItemQty', 'Qty column'],
-                    // v1.10.33 — Renamed from "Unit column" to match
+                    // v1.10.33 - Renamed from "Unit column" to match
                     // reality: InvoicePreview renders the unit INSIDE the
                     // Qty cell ("5 Nos", not a separate column). Prior
                     // label misled users into unticking Qty and expecting
-                    // Unit to survive as its own column — it just vanished
+                    // Unit to survive as its own column - it just vanished
                     // instead. Label now describes what actually happens.
                     ['showItemUnit', 'Unit suffix (next to Qty)'],
                     ['showRateColumn', 'Rate column'],
                     ['showDiscount', 'Discount column'],
                     ['showGST', 'Tax % column (GST/VAT/etc.)'],
-                    ['showCess', 'GST Cess % column (India — tobacco/auto/coal)'],
+                    ['showCess', 'GST Cess % column (India - tobacco/auto/coal)'],
                   ]},
                   { group: 'Totals', items: [
                     ['showSubtotal', 'Subtotal row'],
@@ -3803,10 +3825,10 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
                     ['showTaxInWords', 'Tax amount in words'],
                   ]},
                   { group: 'Compliance flags (India)', items: [
-                    ['reverseCharge', 'Reverse Charge applies (Section 9(3)/9(4)) — recipient pays GST'],
+                    ['reverseCharge', 'Reverse Charge applies (Section 9(3)/9(4)) - recipient pays GST'],
                   ]},
                   // Paper-size selector rendered outside the checkbox-grid pattern
-                  // — see the block below the .map(). Adding a group marker here
+                  // - see the block below the .map(). Adding a group marker here
                   // keeps the visual flow but the actual UI is a dropdown.
                   { group: '__PAPER_SIZE__', items: [] },
                   { group: 'Footer', items: [
@@ -3838,7 +3860,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
                           {getPaperSize(invoiceOptions.paperSize, invoiceOptions).hint}
                         </p>
 
-                        {/* Custom size inputs — shown only when Custom preset picked */}
+                        {/* Custom size inputs - shown only when Custom preset picked */}
                         {invoiceOptions.paperSize === 'custom' && (
                           <div style={{ marginTop: '0.5rem', padding: '0.55rem 0.65rem', background: 'var(--bg-secondary)', borderRadius: 6, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
                             <div>
@@ -3856,9 +3878,9 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
                                 className="form-input" style={{ fontSize: '0.8rem', padding: '0.35rem' }} />
                             </div>
                             <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', gridColumn: 'span 2', margin: 0 }}>
-                              Tip: enter your printer's <strong>printable</strong> width, not the roll width. Most 58mm thermals print at 48mm; 80mm print at 72mm. <strong>Below 100mm width auto-switches to thermal receipt layout</strong> — same rendering as the 58/80mm presets, just at your exact size.
+                              Tip: enter your printer's <strong>printable</strong> width, not the roll width. Most 58mm thermals print at 48mm; 80mm print at 72mm. <strong>Below 100mm width auto-switches to thermal receipt layout</strong> - same rendering as the 58/80mm presets, just at your exact size.
                             </p>
-                            {/* v1.10.30 — quick-pick chips for uncommon thermal rolls. */}
+                            {/* v1.10.30 - quick-pick chips for uncommon thermal rolls. */}
                             <div style={{ gridColumn: 'span 2', display: 'flex', gap: '0.35rem', flexWrap: 'wrap', marginTop: 4 }}>
                               <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', alignSelf: 'center' }}>Quick-pick:</span>
                               {[
@@ -3879,7 +3901,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
                           </div>
                         )}
 
-                        {/* Thermal-only extra settings — only shown when a
+                        {/* Thermal-only extra settings - only shown when a
                             thermal paper size is picked. Each control maps
                             to an invoiceOptions field consumed by the
                             thermal render path in InvoicePreview. */}
@@ -3970,13 +3992,13 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
                   <button type="button" className="btn btn-secondary"
                     onClick={() => setInvoiceOptions(prev => ({
                       ...DEFAULT_OPTIONS,
-                      // v1.10.33 — Preserve per-bill data that lives inside
+                      // v1.10.33 - Preserve per-bill data that lives inside
                       // invoiceOptions but is NOT a "display option" the
                       // reset button should touch. Prior code was a raw
                       // setInvoiceOptions(DEFAULT_OPTIONS) which nulled
                       // paymentAccountSnapshot (bank details frozen at save
                       // time, v1.10.20 invariant) and selectedAccountId
-                      // (the account picked for THIS bill) — so an edit-
+                      // (the account picked for THIS bill) - so an edit-
                       // then-reset silently repointed the bank block to the
                       // legacy profile bank.
                       paymentAccountSnapshot: prev.paymentAccountSnapshot,
@@ -3999,7 +4021,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
               <h3 className="section-title" style={{ margin: 0 }}>Billed To</h3>
             </div>
 
-            {/* v1.10.24 — Client credit banner. Shows when the picked
+            {/* v1.10.24 - Client credit banner. Shows when the picked
                 client has overpayment sitting unused on prior bills;
                 lets the user apply it as advance on this invoice. */}
             {!editingBill && clientCredit.available > 0.005 && (
@@ -4068,7 +4090,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
                     }}
                     onFocus={() => { if (savedClients.length > 0) setShowClientSuggestions(true); }}
                     onKeyDown={(e) => {
-                      // v1.10.37 — Arrow keys / Enter / Escape on the client
+                      // v1.10.37 - Arrow keys / Enter / Escape on the client
                       // picker. Reported: "20 invoices/day forces mouse on
                       // the client autocomplete." Now: keyboard-only path.
                       if (!showClientSuggestions || !filteredClients.length) return;
@@ -4150,13 +4172,20 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
               </div>
               <div className="form-group">
                 <label className="form-label">City</label>
-                <input type="text" className="form-input" value={client.city}
+                <input type="text" className="form-input" list="invoice-city-options" value={client.city}
+                  style={clientAddrErrors.city ? { borderColor: '#dc2626' } : undefined}
                   onChange={(e) => setClient({ ...client, city: e.target.value })} placeholder="e.g. Mumbai" />
+                <datalist id="invoice-city-options">{getCitiesForCountry(client.country || profile?.country || 'India').map(c => <option key={c} value={c} />)}</datalist>
+                {clientAddrErrors.city && <small style={addrErrStyle}>{clientAddrErrors.city}</small>}
               </div>
               <div className="form-group">
                 {(() => { const cc = getCountryConfig(client.country || profile?.country); return <label className="form-label">{cc.postalLabel}</label>; })()}
                 <input type="text" className="form-input" value={client.pin}
+                  inputMode={(client.country || profile?.country || 'India') === 'India' ? 'numeric' : undefined}
+                  maxLength={(client.country || profile?.country || 'India') === 'India' ? 6 : undefined}
+                  style={clientAddrErrors.pin ? { borderColor: '#dc2626' } : undefined}
                   onChange={(e) => setClient({ ...client, pin: e.target.value })} placeholder="Postal / PIN code" />
+                {clientAddrErrors.pin && <small style={addrErrStyle}>{clientAddrErrors.pin}</small>}
               </div>
               {invoiceOptions.showState && (() => {
                 const cc = getCountryConfig(client.country || profile?.country);
@@ -4184,7 +4213,9 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
                     <input type="text" className="form-input" value={client.gstin}
                       // v1.10.74 - drop the old hint on edit; it is re-checked on blur.
                       onChange={(e) => { setClient({ ...client, gstin: e.target.value.toUpperCase() }); setGstinHint(null); }}
-                      onBlur={handleClientGstinBlur} placeholder="Optional" maxLength={20} />
+                      onBlur={handleClientGstinBlur} placeholder="Optional" maxLength={(client.country || profile?.country || 'India') === 'India' ? 15 : 20}
+                      style={clientAddrErrors.gstin ? { borderColor: '#dc2626' } : undefined} />
+                    {clientAddrErrors.gstin && <small style={addrErrStyle}>{clientAddrErrors.gstin}</small>}
                     {gstinHint && (
                       <small style={{ color: gstinHint.tone === 'warn' ? '#d97706' : '#16a34a', fontSize: '0.7rem', display: 'block', marginTop: '0.2rem' }}>
                         {gstinHint.tone === 'warn' ? '⚠' : '✓'} {gstinHint.message}
@@ -4203,17 +4234,26 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
               <div className="form-group">
                 <label className="form-label">Invoice Number</label>
                 <input type="text" className="form-input" value={details.invoiceNumber}
+                  maxLength={(profile?.country || 'India') === 'India' ? 16 : 30}
+                  style={detailErrors.invoiceNumber ? { borderColor: '#dc2626' } : undefined}
                   onChange={(e) => setDetails({ ...details, invoiceNumber: e.target.value })} />
+                {detailErrors.invoiceNumber && <small style={addrErrStyle}>{detailErrors.invoiceNumber}</small>}
               </div>
               <div className="form-group">
                 <label className="form-label">Invoice Date</label>
                 <input type="date" className="form-input" value={details.invoiceDate}
+                  min={(profile?.country || 'India') === 'India' ? '2017-07-01' : '2000-01-01'} max={localToday()}
+                  style={detailErrors.invoiceDate ? { borderColor: '#dc2626' } : undefined}
                   onChange={(e) => setDetails({ ...details, invoiceDate: e.target.value })} />
+                {detailErrors.invoiceDate && <small style={addrErrStyle}>{detailErrors.invoiceDate}</small>}
               </div>
               <div className="form-group">
                 <label className="form-label">Due Date</label>
                 <input type="date" className="form-input" value={details.dueDate}
+                  min={details.invoiceDate || undefined}
+                  style={detailErrors.dueDate ? { borderColor: '#dc2626' } : undefined}
                   onChange={(e) => setDetails({ ...details, dueDate: e.target.value })} />
+                {detailErrors.dueDate && <small style={addrErrStyle}>{detailErrors.dueDate}</small>}
               </div>
               {invoiceOptions.showPlaceOfSupply && (() => {
                 const posOpts = getStatesForCountry(profile?.country);
@@ -4241,7 +4281,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
                 </div>
               )}
 
-              {/* v1.10.11 — Ship-to = Bill-to checkbox. When unchecked,
+              {/* v1.10.11 - Ship-to = Bill-to checkbox. When unchecked,
                    4 shipping fields appear. Rendered next to the billing
                    block in the PDF preview. */}
               <div className="form-group full-width" style={{ marginTop: '0.5rem', padding: '0.6rem 0.85rem', background: 'var(--bg-secondary)', borderRadius: 6 }}>
@@ -4261,14 +4301,18 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
                     </div>
                     <div className="form-group">
                       <label className="form-label" style={{ fontSize: '0.78rem' }}>Shipping City</label>
-                      <input type="text" className="form-input" value={details.shippingCity || ''}
+                      <input type="text" className="form-input" list="invoice-city-options" value={details.shippingCity || ''}
+                        style={detailErrors.shippingCity ? { borderColor: '#dc2626' } : undefined}
                         onChange={e => setDetails({ ...details, shippingCity: e.target.value })} />
+                      {detailErrors.shippingCity && <small style={addrErrStyle}>{detailErrors.shippingCity}</small>}
                     </div>
                     <div className="form-group">
                       <label className="form-label" style={{ fontSize: '0.78rem' }}>Shipping PIN</label>
                       <input type="text" className="form-input" value={details.shippingPin || ''}
                         onChange={e => setDetails({ ...details, shippingPin: e.target.value })}
-                        placeholder="6-digit PIN" maxLength={6} />
+                        style={detailErrors.shippingPin ? { borderColor: '#dc2626' } : undefined}
+                        placeholder="6-digit PIN" maxLength={6} inputMode="numeric" />
+                      {detailErrors.shippingPin && <small style={addrErrStyle}>{detailErrors.shippingPin}</small>}
                     </div>
                     <div className="form-group full-width">
                       <label className="form-label" style={{ fontSize: '0.78rem' }}>Shipping State</label>
@@ -4378,7 +4422,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
               )}
             </div>
 
-            {/* v1.10.22 — invoice-level (whole-bill) discount. Sits below
+            {/* v1.10.22 - invoice-level (whole-bill) discount. Sits below
                 the line items so it reads as "…and then take X off the
                 whole bill". Zero value = no line renders in the preview. */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: '0.75rem', flexWrap: 'wrap' }}>
@@ -4405,8 +4449,8 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
           <div className="glass-panel p-6 mb-6">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.75rem' }}>
               <h3 className="section-title" style={{ margin: 0 }}>Terms & Conditions</h3>
-              {/* v1.10.37 — Terms rendering mode picker. Reported: PDF was
-                  showing terms as compact all-caps run-together block —
+              {/* v1.10.37 - Terms rendering mode picker. Reported: PDF was
+                  showing terms as compact all-caps run-together block -
                   users wanted an option for normal formatted output too.
                   Compact = tiny 0.6rem, honours global allCaps, saves
                   paper on invoices where terms are boilerplate.
@@ -4415,7 +4459,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
               <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center' }}>
                 <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700 }}>PDF layout</span>
                 {[
-                  { id: 'compact', label: 'Compact', hint: 'Tiny footer text — saves paper' },
+                  { id: 'compact', label: 'Compact', hint: 'Tiny footer text - saves paper' },
                   { id: 'formatted', label: 'Formatted', hint: 'Larger readable paragraphs' },
                 ].map(mode => {
                   // v1.10.74 - same rule InvoicePreview prints with: per-invoice
@@ -4433,7 +4477,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
                         background: active
                           ? 'linear-gradient(135deg, var(--primary), var(--primary-darker))'
                           : 'var(--bg-secondary)',
-                        color: active ? '#fff' : 'var(--text)',
+                        color: active ? 'var(--on-primary, #fff)' : 'var(--text)',
                         border: active ? '1px solid transparent' : '1px solid var(--border)',
                         cursor: 'pointer', transition: 'all 0.15s',
                       }}>
@@ -4451,7 +4495,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
                     if (!e.target.value) return;
                     const preset = TERMS_PRESETS.find(p => p.id === e.target.value);
                     if (!preset) return;
-                    // P2 #33 — "never ask again" via sessionStorage flag.
+                    // P2 #33 - "never ask again" via sessionStorage flag.
                     // Users iterating through 3 presets to compare shouldn't
                     // see 3 confirm dialogs. Ask once per session; subsequent
                     // presets swap silently until they close the tab.
@@ -4460,7 +4504,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
                       if (!skipConfirm) {
                         const proceed = await confirmAction({
                           title: 'Replace current Terms?',
-                          message: 'Your existing Terms text will be lost. Subsequent preset swaps this session will happen silently — this confirmation is shown once.',
+                          message: 'Your existing Terms text will be lost. Subsequent preset swaps this session will happen silently - this confirmation is shown once.',
                           confirmLabel: 'Replace',
                           tone: 'warning',
                         });
@@ -4473,7 +4517,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
                     e.target.value = '';
                     if (preset.body) toast(`Inserted "${preset.label}" preset`, 'success');
                   }}>
-                  <option value="">— Pick a business type —</option>
+                  <option value="">- Pick a business type -</option>
                   {TERMS_PRESETS.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
                 </select>
                 <small style={{ color: '#94a3b8', fontSize: '0.7rem' }}>India-specific starter wording. Edit freely.</small>
@@ -4482,14 +4526,14 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label">Load saved template</label>
                   <select className="form-input" value={selectedTermsId} onChange={(e) => handleTermsSelect(e.target.value)}>
-                    <option value="">— Custom —</option>
+                    <option value="">- Custom -</option>
                     {termsTemplates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                   </select>
                 </div>
               )}
             </div>
             <div className="form-group">
-              <label className="form-label">Terms (appears on invoice — supports rich formatting)</label>
+              <label className="form-label">Terms (appears on invoice - supports rich formatting)</label>
               <RichEditor toolbar value={customTerms}
                 onChange={(v) => { setCustomTerms(v); setSelectedTermsId(''); }}
                 placeholder="Enter or paste your terms & conditions..." />
@@ -4553,9 +4597,9 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
           </div>
         </div>
 
-        {/* Live Preview — visually hidden in focus mode (v1.10.22) but
+        {/* Live Preview - visually hidden in focus mode (v1.10.22) but
             kept in the DOM so printRef stays live for PDF generation.
-            v1.10.26 — reported: "in this mode print not working" for focus
+            v1.10.26 - reported: "in this mode print not working" for focus
             mode. Root cause: `display: none` removes the element from
             layout entirely, so html2canvas renders a 0×0 canvas → blank
             PDF and blank print. Fix: move the pane off-screen (position:
@@ -4566,9 +4610,9 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
         <div ref={previewPaneRef} className="preview-pane" style={previewCollapsed
           ? { position: 'absolute', left: '-99999px', top: 0, width: '794px', pointerEvents: 'none', opacity: 0 }
           : undefined}>
-          {/* v1.10.37 — Preview label + zoom control bar redesign.
+          {/* v1.10.37 - Preview label + zoom control bar redesign.
               Reported: prior label was a plain span with tiny black
-              zoom buttons squeezed on the right — visually unfinished.
+              zoom buttons squeezed on the right - visually unfinished.
               Now: single-line pill bar with a preview icon + short
               label, a proper segmented zoom cluster (− / % / +) and
               a dedicated Fit button, all styled consistently with
@@ -4588,7 +4632,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
               Live preview
             </span>
             <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-              {/* Segmented zoom cluster — three cells welded into one pill */}
+              {/* Segmented zoom cluster - three cells welded into one pill */}
               <div style={{
                 display: 'inline-flex', alignItems: 'center',
                 background: 'var(--bg-secondary)',
@@ -4604,7 +4648,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
                   onClick={() => setPreviewZoom(z => Math.min(200, z + 10))}
                   style={{ padding: '0.25rem 0.7rem', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 700, color: 'var(--text)', lineHeight: 1 }}>+</button>
               </div>
-              {/* v1.10.33 — REAL fit-to-width. Prior code was
+              {/* v1.10.33 - REAL fit-to-width. Prior code was
                   setPreviewZoom(100), which just set 100%, not "fit". */}
               <button type="button" title="Fit preview to the pane width"
                 onClick={handleFitToWidth}
@@ -4620,7 +4664,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
                 }}>Fit</button>
             </span>
           </div>
-          {/* v1.10.48 — The frame reserves the SCALED size (natural × zoom)
+          {/* v1.10.48 - The frame reserves the SCALED size (natural × zoom)
               so the pane's layout matches what is painted. See the
               previewNatural measurement above for why.
 
@@ -4647,7 +4691,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
         </div>
       </div>
 
-      {/* v1.10.36 — Portal print preview modal for thermal invoices.
+      {/* v1.10.36 - Portal print preview modal for thermal invoices.
           Renders the SAME <InvoicePreview> component with the SAME
           props as the on-screen preview → identical output. The Print
           button calls executePrint which uses the parent's printRef
@@ -4672,7 +4716,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
         invoiceOptions={invoiceOptions}
       />
 
-      {/* P2 #32 — 3-option leave modal. Replaces the previous confusing
+      {/* P2 #32 - 3-option leave modal. Replaces the previous confusing
           browser confirm() where OK=save was counterintuitive. */}
       {leaveModal && (
         <div className="modal-overlay" onClick={leaveActions.cancel}>
