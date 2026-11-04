@@ -284,7 +284,7 @@ export default function DashboardOverview({
                 </button>
               </div>
               <p className="overview-chart-note">
-                Recorded payments, receipts and expenses—not a bank balance.
+                Recorded payments, receipts and expenses-not a bank balance.
                 Untracked purchase payments and manual journals are excluded.
               </p>
             </section>
@@ -446,8 +446,8 @@ export default function DashboardOverview({
                 Open{" "}
                 {type === "All"
                   ? "invoice register"
-                  : `${type.toLowerCase()} register`}{" "}
-                ↗
+                  : `${type.toLowerCase()} register`}
+                <ArrowUpRight size={12} aria-hidden="true" />
               </button>
             </div>
           </section>
@@ -456,7 +456,7 @@ export default function DashboardOverview({
               <div className="overview-card-head">
                 <h2>Books & tax</h2>
                 <button onClick={() => go("filing")}>
-                  Open GST workspace ↗
+                  Open GST workspace <ArrowUpRight size={12} aria-hidden="true" />
                 </button>
               </div>
               <div className="overview-bottom-content">
@@ -494,7 +494,9 @@ export default function DashboardOverview({
                     records
                   </p>
                 </div>
-                <button onClick={() => go("controlpanel")}>Manage ↗</button>
+                <button onClick={() => go("controlpanel")}>
+                  Manage <ArrowUpRight size={12} aria-hidden="true" />
+                </button>
               </div>
             </section>
           </div>

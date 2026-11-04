@@ -1,5 +1,5 @@
 // Google Drive integration via Google Identity Services + REST API
-// No backend needed — runs entirely in the browser.
+// No backend needed - runs entirely in the browser.
 
 const SCOPES = 'https://www.googleapis.com/auth/drive.file';
 
@@ -208,7 +208,7 @@ export async function uploadJSON(fileName, jsonString, folderId) {
   return await driveResponse(res, 'JSON upload failed');
 }
 
-// v1.10.6 — audit L6: `listBackupsInFolder()` and `downloadFileText()`
+// v1.10.6 - audit L6: `listBackupsInFolder()` and `downloadFileText()`
 // had no importers. The "Restore from Drive" UI they were built for
 // never landed; the current Drive integration is upload-only. Reintroduce
 // when the restore-from-Drive feature does.

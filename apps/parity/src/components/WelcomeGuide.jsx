@@ -20,7 +20,7 @@ export default function WelcomeGuide({ onComplete }) {
     email: '', phone: '', bankName: '', accountNumber: '', ifsc: '', swift: '',
     logo: '', signature: '', upiId: '', googleClientId: '', googleDriveFolder: 'GST Billing Invoices',
   });
-  // v1.10.67 (#66 item 2, @sangwanmail-eng) — this is an India-first GST app,
+  // v1.10.67 (#66 item 2, @sangwanmail-eng) - this is an India-first GST app,
   // so India is the default. It used to be chosen from the browser locale, and
   // a Windows set to en-US started people on "Outside India" with a United
   // States company profile. The other two options are one click away.
@@ -57,7 +57,7 @@ export default function WelcomeGuide({ onComplete }) {
       setRegionMode(region);
       // Mirror the wizard's flat bank/UPI inputs into a single payment account
       // so the multi-account manager has a starting entry. If the user
-      // skipped all bank fields, we don't create an empty account — they can
+      // skipped all bank fields, we don't create an empty account - they can
       // add one later in Settings.
       const hasBank = profile.bankName || profile.accountNumber || profile.ifsc || profile.swift || profile.upiId;
       const profileToSave = hasBank ? {
@@ -123,7 +123,7 @@ export default function WelcomeGuide({ onComplete }) {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '2rem', textAlign: 'left' }}>
                 {[
                   { title: 'Create Invoices', desc: 'Tax Invoice, Proforma, Credit Note, Bill of Supply, Delivery Challan' },
-                  { title: 'Auto GST Calculation', desc: 'CGST/SGST for same state, IGST for different state — automatic' },
+                  { title: 'Auto GST Calculation', desc: 'CGST/SGST for same state, IGST for different state - automatic' },
                   { title: 'GST Reports', desc: 'GSTR-1, GSTR-3B, HSN reports auto-generated. Download CSVs for portal.' },
                   { title: 'Local storage', desc: 'All data stored locally as files. No online account required.' },
                 ].map((item, i) => (
@@ -233,7 +233,7 @@ export default function WelcomeGuide({ onComplete }) {
             <div>
               <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.5rem', color: 'var(--text-primary)' }}>Bank & UPI Details</h2>
               <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1.5rem' }}>
-                Shown on your invoices so clients know where to pay. Optional — you can add this later.
+                Shown on your invoices so clients know where to pay. Optional - you can add this later.
               </p>
 
               <div style={{ display: 'grid', gap: '1rem' }}>

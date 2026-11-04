@@ -30,7 +30,7 @@ export default function BillOCR({ onClose, onExtracted }) {
   const [parsed, setParsed] = useState(null);
   const latestParsed = useRef(parsed);
   latestParsed.current = parsed;
-  // v1.10.35 — Products catalog loaded once on mount. Used to enrich
+  // v1.10.35 - Products catalog loaded once on mount. Used to enrich
   // extracted line items with the user's known HSN + GST rate so they
   // don't have to retype for products they've already saved.
   const [catalog, setCatalog] = useState([]);
@@ -161,7 +161,7 @@ export default function BillOCR({ onClose, onExtracted }) {
       });
       setParsed(result);
       setRawText(
-        "ChatGPT extraction — compare every value with the original image.",
+        "ChatGPT extraction - compare every value with the original image.",
       );
       setStatus("done");
     } catch (e) {
@@ -187,7 +187,7 @@ export default function BillOCR({ onClose, onExtracted }) {
     }
     if (f.size > 3 * 1024 * 1024) {
       toast(
-        "Image is over 3MB — please compress first (or take a smaller photo).",
+        "Image is over 3MB - please compress first (or take a smaller photo).",
         "warning",
       );
       return;
@@ -232,7 +232,7 @@ export default function BillOCR({ onClose, onExtracted }) {
         toast(issue, "warning");
         return;
       }
-      // v1.10.35 — Also ship line items + tax breakdown to the parent so
+      // v1.10.35 - Also ship line items + tax breakdown to the parent so
       // the purchase form is pre-filled top to bottom (was: header only,
       // items always blank).
       onExtracted({
@@ -253,7 +253,7 @@ export default function BillOCR({ onClose, onExtracted }) {
     }
   };
 
-  // v1.10.35 — Line-item editors: user can tweak / add / remove
+  // v1.10.35 - Line-item editors: user can tweak / add / remove
   // before applying to the form. Each row is displayed with name,
   // HSN, qty, rate, tax%, amount + a match-badge if the row was
   // auto-linked to a saved product.
@@ -487,7 +487,7 @@ export default function BillOCR({ onClose, onExtracted }) {
                 type="number"
               />
 
-              {/* v1.10.35 — Tax breakdown from OCR */}
+              {/* v1.10.35 - Tax breakdown from OCR */}
               {parsed.taxBreakdown &&
                 (parsed.taxBreakdown.taxableValue ||
                   parsed.taxBreakdown.cgst ||
@@ -587,7 +587,7 @@ export default function BillOCR({ onClose, onExtracted }) {
                   </div>
                 )}
 
-              {/* v1.10.35 — Line items with per-row editors */}
+              {/* v1.10.35 - Line items with per-row editors */}
               <div style={{ marginTop: 12 }}>
                 <div
                   style={{

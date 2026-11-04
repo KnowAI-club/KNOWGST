@@ -1,4 +1,4 @@
-// v1.10.66 (#63) — CSV export safety.
+// v1.10.66 (#63) - CSV export safety.
 //
 // Run: `node scripts/csv-test.mjs`
 //

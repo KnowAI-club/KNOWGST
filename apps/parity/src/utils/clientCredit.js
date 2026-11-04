@@ -1,13 +1,13 @@
 /*
- * v1.10.24 — Client credit balance from overpayments.
+ * v1.10.24 - Client credit balance from overpayments.
  *
  * Reported: "this extra payment can be added to the next bill of
- * customer, u enabled that — auto or manual."
+ * customer, u enabled that - auto or manual."
  *
  * Design.
  * When a client pays more than the invoice total on Bill A, the excess
  * sits as an overpayment on Bill A. When Bill B is later created for
- * the same client, we let the user "apply" that credit — accounting is
+ * the same client, we let the user "apply" that credit - accounting is
  * a dual-entry transfer:
  *
  *   Bill A gets an extra payment entry `{amount: -X, mode:
@@ -42,7 +42,7 @@ export function getBillOverpayment(bill) {
   const cashPaid = (bill.payments || []).reduce((s, p) => {
     // 'credit-transferred-out' entries reduce the raw paidAmount to show
     // that the excess has been moved off this bill. Skip 'credit-applied'
-    // entries — those are inbound-from-another-bill and don't affect our
+    // entries - those are inbound-from-another-bill and don't affect our
     // overpayment tally.
     if (p.mode === 'credit-applied') return s;
     return s + (Number(p.amount) || 0);
@@ -68,7 +68,7 @@ export function getClientCredit(clientName, allBills) {
       available += over;
     }
   }
-  // Oldest first — natural FIFO allocation on apply.
+  // Oldest first - natural FIFO allocation on apply.
   sources.sort((a, b) => new Date(a.invoiceDate || 0) - new Date(b.invoiceDate || 0));
   return { available, sources };
 }

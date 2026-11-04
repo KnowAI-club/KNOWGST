@@ -1,10 +1,10 @@
-/* v1.10.2 — Removed render-blocking `@import url(https://fonts.googleapis.com/...)`.
+/* v1.10.2 - Removed render-blocking `@import url(https://fonts.googleapis.com/...)`.
    Two problems it caused:
    1. First-ever offline load (fresh install, never online) blocked the
       whole stylesheet parser waiting for the network → unstyled fallback,
       layout shift.
    2. Duplicate fetch: this @import requested Inter 300/400/500/600/700/800
-      while `<link>` in src/index.html requested 400/500/600/700 — two
+      while `<link>` in src/index.html requested 400/500/600/700 - two
       separate network round trips for overlapping weights.
    The `<link>` in the HTML remains (it's preload-friendly and the SW
    caches it after first visit). Weights we actually use in components
@@ -16,16 +16,16 @@
   --primary: #2563eb;
   --primary-hover: #1d4ed8;
   --primary-light: rgba(37, 99, 235, 0.08);
-  /* v1.10.40 — RGB channels of --primary for rgba() composition.
+  /* v1.10.40 - RGB channels of --primary for rgba() composition.
      html2canvas (which rasterizes the invoice for the PDF) does NOT
-     support color-mix(in oklab, …) — reported as "Attempting to parse
+     support color-mix(in oklab, …) - reported as "Attempting to parse
      an unsupported color function oklab" on Save & Download. So all
      dynamic tints that used to be color-mix now use rgba(var(--primary-rgb), α). */
   --primary-rgb: 37, 99, 235;
   --primary-darker: #1e3a8a;
   --bg: #f0f2f5;
   --bg-primary: #f0f2f5;
-  --bg-secondary: #f8fafc;       /* card / inset surface — light grey on light, dark slate on dark */
+  --bg-secondary: #f8fafc;       /* card / inset surface - light grey on light, dark slate on dark */
   --bg-tertiary: #f1f5f9;        /* hover / selected inset */
   --card-bg: rgba(255, 255, 255, 0.92);
   --text: #111827;
@@ -417,7 +417,7 @@ body {
   display: flex;
   flex-direction: column;
   border-right: 1px solid rgba(255,255,255,0.06);
-  /* v1.10.46 — Reported in issue #20: "no scroll option in menu bar".
+  /* v1.10.46 - Reported in issue #20: "no scroll option in menu bar".
      On 1366×768 laptops the sidebar has 14+ nav items (Dashboard, New
      Invoice, Clients, Products, Expenses, Purchases, Recurring,
      Receipts, Reports, GST Returns, Income Tax, User Guide, Dark Mode,
@@ -514,7 +514,7 @@ body {
   .low-stock-ticker-track > [aria-hidden="true"] { display: none; }
 }
 
-/* v1.10.66 (#59) — phones get a hide/show menu. Below 768px the fixed 260px
+/* v1.10.66 (#59) - phones get a hide/show menu. Below 768px the fixed 260px
    sidebar took most of the screen and squeezed every page into a sliver, so it
    now slides in from the left behind a menu button in a slim top bar and closes
    again once a page is picked. The desktop layout is unchanged. */
@@ -778,10 +778,10 @@ body {
 }
 
 /* ========= Page Headers ========= */
-/* v1.10.37 — All page headers get the treatment introduced in the
+/* v1.10.37 - All page headers get the treatment introduced in the
    Settings redesign: soft primary-accent gradient card, rounded 12px
    corners, subtle border. Reported: "I like the heading you gave into
-   Settings — I want you to do in all the pages, that looks better."
+   Settings - I want you to do in all the pages, that looks better."
    By upgrading the shared class instead of each file, every page
    (Dashboard, Clients, Inventory, GST Returns, Income Tax, Reports,
    Purchase Bills, Recurring Invoices, Expenses, Receipts, User Guide,
@@ -814,7 +814,7 @@ body {
   font-size: 0.86rem;
   margin: 0;
 }
-/* Fallback for dark mode — some browsers render color-mix() with
+/* Fallback for dark mode - some browsers render color-mix() with
    `oklab` slightly differently; the fallback ensures the gradient
    still reads correctly. */
 [data-theme="dark"] .page-header {
@@ -876,7 +876,7 @@ body {
   box-shadow: 0 0 0 3px var(--primary-light);
 }
 
-/* v1.10.34 — Private-note textarea gets a warm-ivory tint in light
+/* v1.10.34 - Private-note textarea gets a warm-ivory tint in light
    mode (visually separates it from regular fields), a muted warm tint
    in dark mode. Prior inline `background:'#fffef5'` looked yellow-on-
    dark and unreadable in dark mode. */
@@ -942,7 +942,7 @@ textarea.form-input { resize: vertical; min-height: 60px; }
   border-color: #d1d5db;
 }
 
-/* v1.10.33 — Icon buttons: slightly larger tap target (28→30px),
+/* v1.10.33 - Icon buttons: slightly larger tap target (28→30px),
    subtle background transition, and a lift on hover so the row's
    actions feel interactive rather than static. */
 .icon-btn {
@@ -976,13 +976,13 @@ textarea.form-input { resize: vertical; min-height: 60px; }
 .icon-btn-red:hover { background: rgba(220, 38, 38, 0.18); box-shadow: 0 2px 6px rgba(220,38,38,0.15); }
 
 /* ========= Dashboard ========= */
-/* v1.10.33 — Bumped from 1000px. The invoice table has 8 columns
-   including a 7-8 icon Actions column (~250px) — 1000px squeezed
+/* v1.10.33 - Bumped from 1000px. The invoice table has 8 columns
+   including a 7-8 icon Actions column (~250px) - 1000px squeezed
    the last icon(s) off-screen on wide monitors. 1400px gives room
    for every column at natural width while still preventing infinite
    stretch on ultra-wide displays. */
 .dashboard-container { max-width: 1400px; margin: 0 auto; width: 100%; }
-/* v1.10.37 — Widened 800 → 1100px. Reported: "settings page could
+/* v1.10.37 - Widened 800 → 1100px. Reported: "settings page could
    be widened so nav pills fit on one line". 11-chip jump-nav needs
    ~950px to render without horizontal scroll, so 1100 gives comfortable
    margin. Existing form grids inside were already `grid-cols-2` and
@@ -1049,7 +1049,7 @@ textarea.form-input { resize: vertical; min-height: 60px; }
 
 .table-header h3 { margin: 0; font-size: 1rem; }
 
-/* v1.10.33 — Scroll container gets a fade at the right edge so
+/* v1.10.33 - Scroll container gets a fade at the right edge so
    users know there's more table off-screen on narrow viewports. */
 .table-scroll {
   overflow-x: auto;
@@ -1060,7 +1060,7 @@ textarea.form-input { resize: vertical; min-height: 60px; }
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
-  /* v1.10.33 — Bumped from 900px to 1100px. The 8-column + 8-icon
+  /* v1.10.33 - Bumped from 900px to 1100px. The 8-column + 8-icon
      action row needs 1050-1100px to render without ellipsis pressure
      on Amount / Client. */
   min-width: 1100px;
@@ -1071,8 +1071,8 @@ textarea.form-input { resize: vertical; min-height: 60px; }
 
 .data-table th {
   text-align: left;
-  padding: 0.7rem 0.6rem;   /* v1.10.33 — was 0.5rem/0.5rem, felt cramped */
-  font-size: 0.68rem;        /* +0.03rem — 0.65rem was borderline unreadable */
+  padding: 0.7rem 0.6rem;   /* v1.10.33 - was 0.5rem/0.5rem, felt cramped */
+  font-size: 0.68rem;        /* +0.03rem - 0.65rem was borderline unreadable */
   text-transform: uppercase;
   letter-spacing: 0.06em;    /* wider tracking → premium feel */
   color: var(--text-secondary);
@@ -1083,22 +1083,22 @@ textarea.form-input { resize: vertical; min-height: 60px; }
 }
 
 .data-table td {
-  padding: 0.75rem 0.6rem;   /* v1.10.33 — was 0.5rem, needed breathing room */
+  padding: 0.75rem 0.6rem;   /* v1.10.33 - was 0.5rem, needed breathing room */
   border-bottom: 1px solid rgba(148, 163, 184, 0.15);  /* softer than --border */
   vertical-align: middle;
-  font-size: 0.82rem;        /* +0.04rem — 0.78rem read as micro */
+  font-size: 0.82rem;        /* +0.04rem - 0.78rem read as micro */
   white-space: nowrap;
 }
 
 .data-table td.td-client {
   white-space: normal;
-  max-width: 200px;          /* v1.10.33 — was 160px, ellipsis triggered too early */
+  max-width: 200px;          /* v1.10.33 - was 160px, ellipsis triggered too early */
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .data-table tr:last-child td { border-bottom: none; }
-/* v1.10.33 — Row hover: subtle background + a hair-line primary
+/* v1.10.33 - Row hover: subtle background + a hair-line primary
    accent on the left edge. Makes the row feel selectable without
    changing layout. */
 .data-table tbody tr {
@@ -1111,7 +1111,7 @@ textarea.form-input { resize: vertical; min-height: 60px; }
   box-shadow: inset 3px 0 0 var(--primary);
 }
 
-/* v1.10.33 — Actions column: keep it flush right so the last icon
+/* v1.10.33 - Actions column: keep it flush right so the last icon
    never hits the scroll edge, and give it a tiny left padding so
    Delete doesn't kiss the Email button on narrow rows. */
 .data-table th:last-child,
@@ -1122,14 +1122,14 @@ textarea.form-input { resize: vertical; min-height: 60px; }
   padding: 0.2rem 0.5rem;
   background: var(--primary-light);
   color: var(--primary);
-  border-radius: 6px;         /* was 5px — matches --radius-sm rhythm */
+  border-radius: 6px;         /* was 5px - matches --radius-sm rhythm */
   font-size: 0.74rem;
   font-weight: 600;
   white-space: nowrap;
   letter-spacing: 0.01em;
 }
 
-/* v1.10.33 — Currency chip on non-INR amounts. Was an inline-style
+/* v1.10.33 - Currency chip on non-INR amounts. Was an inline-style
    pill; extracted so dark mode + hover states can carry through. */
 .currency-chip {
   display: inline-block;
@@ -1147,12 +1147,12 @@ textarea.form-input { resize: vertical; min-height: 60px; }
 
 .table-actions {
   display: flex;
-  gap: 0.3rem;                /* v1.10.33 — was 0.25rem; tighter set felt cluttered */
+  gap: 0.3rem;                /* v1.10.33 - was 0.25rem; tighter set felt cluttered */
   flex-wrap: nowrap;
   justify-content: center;   /* v1.10.79 (#94): centred under a centred Actions heading on every screen */
 }
 
-/* v1.10.33 — Muted em-dash placeholder for empty numeric cells
+/* v1.10.33 - Muted em-dash placeholder for empty numeric cells
    (Paid, Due Date, etc.). Wraps `-` looks weak against real values;
    an em-dash in --text-muted reads as "no data" instead of "typo". */
 .data-table td .cell-empty {
@@ -1182,12 +1182,12 @@ textarea.form-input { resize: vertical; min-height: 60px; }
   min-height: 0;
 }
 
-/* v1.10.65 — requested (#58 item 2, @sangwanmail-eng): "to access show
+/* v1.10.65 - requested (#58 item 2, @sangwanmail-eng): "to access show
    preview and hide preview button once you are at the bottom of the page,
    you have to scroll all page."
 
-   Moving that one button was not the fix. The whole toolbar — Save, Save &
-   Download, Print, WhatsApp, E-Way Bill — sat at the top of a long form and
+   Moving that one button was not the fix. The whole toolbar - Save, Save &
+   Download, Print, WhatsApp, E-Way Bill - sat at the top of a long form and
    scrolled away, so ANY of those actions meant scrolling back up. Pinning
    the bar fixes the complaint for all of them at once.
 
@@ -1215,8 +1215,8 @@ textarea.form-input { resize: vertical; min-height: 60px; }
   min-height: 0;
   gap: 2rem;
 }
-/* v1.10.37 — Mobile breakpoint. Reported: "editor + preview both
-   shrink to ~180px on 375px phone — line-item rows need 700px min".
+/* v1.10.37 - Mobile breakpoint. Reported: "editor + preview both
+   shrink to ~180px on 375px phone - line-item rows need 700px min".
    At ≤ 900px, stack vertically and hide the preview pane by default
    (Focus mode toggle can re-show it). Line items keep the .line-item-row
    layout which is already flex-wrappable, so each row gracefully
@@ -1239,7 +1239,7 @@ textarea.form-input { resize: vertical; min-height: 60px; }
     padding-right: 0;
   }
 }
-/* v1.10.22 — focus mode: preview pane is display:none, editor takes the
+/* v1.10.22 - focus mode: preview pane is display:none, editor takes the
    full width and its max-width relaxes so line-item rows have room to
    breathe (Description + HSN + Qty + Unit + Rate + Discount + Tax + Cess). */
 .split-view-focus .editor-pane {
@@ -1258,17 +1258,17 @@ textarea.form-input { resize: vertical; min-height: 60px; }
   overflow: auto;
   display: flex;
   flex-direction: column;
-  /* v1.10.48 — `safe center` centres the preview while it fits, but falls
+  /* v1.10.48 - `safe center` centres the preview while it fits, but falls
      back to start-alignment the moment it overflows. Plain `center` in a
      scroll container pushes the leading edge into negative scroll space
-     where it can never be reached — that is what clipped the left side of
+     where it can never be reached - that is what clipped the left side of
      the invoice on narrow panes. The unprefixed `center` above stays as a
      fallback for engines that do not know the `safe` keyword. */
   align-items: center;
   align-items: safe center;
 }
 
-/* v1.10.48 — Reserves natural × zoom so the layout box matches the painted
+/* v1.10.48 - Reserves natural × zoom so the layout box matches the painted
    size; `transform` alone never shrinks layout. Sized inline from the
    measured preview. */
 .preview-scaler-frame {
@@ -1478,7 +1478,7 @@ textarea.form-input { resize: vertical; min-height: 60px; }
   flex-wrap: wrap;
 }
 
-/* v1.10.23 — reported: "INCREASE THE FIELD AREAS IT WILL PROPERLY VISIBLE
+/* v1.10.23 - reported: "INCREASE THE FIELD AREAS IT WILL PROPERLY VISIBLE
    FOR ENTRY". The discount %/₹ dropdown added in v1.10.22 squeezed the
    discount input to ~40px on narrow viewports. Now every field has a
    min-width so nothing gets crushed; the row wraps to two lines on
@@ -1523,7 +1523,7 @@ textarea.form-input { resize: vertical; min-height: 60px; }
 .product-suggestion-meta { font-size: 0.72rem; color: var(--text-secondary); }
 
 /* ========= Print media: strip everything except the invoice preview =========
-   v1.10.29 — reported: "thermal print me kuch error ho raha hai" with a
+   v1.10.29 - reported: "thermal print me kuch error ho raha hai" with a
    screenshot showing the browser's print preview printing the WHOLE app
    (sidebar, menu, toolbar, editor pane) instead of just the invoice.
    Root cause: directPrint() for thermal calls window.print() which prints
@@ -1533,10 +1533,10 @@ textarea.form-input { resize: vertical; min-height: 60px; }
    position it at 0,0 with no margins, kill any preview-scaler transform
    that would shrink it. Works for thermal (window.print) and for anyone
    who hits Ctrl+P on the app in general. */
-/* v1.10.29 — scoped with :has() so Ctrl+P on Dashboard / Clients / Reports
+/* v1.10.29 - scoped with :has() so Ctrl+P on Dashboard / Clients / Reports
    (any view without #invoice-preview in the DOM) still gets the browser's
    default print behaviour instead of a blank page. :has() is supported in
-   every Chromium 105+, Safari 15.4+, Firefox 121+ browser — safe for our
+   every Chromium 105+, Safari 15.4+, Firefox 121+ browser - safe for our
    PWA target. */
 @media print {
   body:has(#invoice-preview) * { visibility: hidden !important; }
@@ -1558,7 +1558,7 @@ textarea.form-input { resize: vertical; min-height: 60px; }
   body:has(#invoice-preview) .preview-scaler {
     transform: none !important;
   }
-  /* v1.10.48 — The scaler now sits inside a frame carrying an inline
+  /* v1.10.48 - The scaler now sits inside a frame carrying an inline
      width/height of natural × zoom. #invoice-preview is absolutely
      positioned here so the frame cannot clip it, but the frame would
      still reserve a stale scaled box on the printed page. Release it
@@ -1596,14 +1596,14 @@ textarea.form-input { resize: vertical; min-height: 60px; }
    rules add layout adjustments for the compact formats. */
 
 /* ============================================================
-   v1.9.2 — PDF style system, PROPERLY targeting the actual DOM classes.
+   v1.9.2 - PDF style system, PROPERLY targeting the actual DOM classes.
    v1.9.1 had CSS targeting classes that didn't exist (.invoice-header-*)
-   — the templates rendered indistinguishably. Now uses the real classes:
+   - the templates rendered indistinguishably. Now uses the real classes:
    .inv-header, .inv-title, .inv-meta-label, .inv-section-label,
    .inv-business-name, .inv-party-name, .inv-tax-badge, .inv-table.
    ============================================================ */
 
-/* ---- Corporate — formal navy header, uppercase labels ---- */
+/* ---- Corporate - formal navy header, uppercase labels ---- */
 .template-corporate .inv-header {
   background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%) !important;
   color: #f1f5f9 !important;
@@ -1632,7 +1632,7 @@ textarea.form-input { resize: vertical; min-height: 60px; }
   color: #fff !important;
 }
 
-/* ---- Minimalist — grayscale + Inter + whitespace ---- */
+/* ---- Minimalist - grayscale + Inter + whitespace ---- */
 .template-minimalist { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important; }
 .template-minimalist * {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
@@ -1678,7 +1678,7 @@ textarea.form-input { resize: vertical; min-height: 60px; }
 }
 
 /* ============================================================
-   v1.9.2 — PRINTING MODE. html2canvas onclone adds .printing-mode
+   v1.9.2 - PRINTING MODE. html2canvas onclone adds .printing-mode
    to the clone. All light grays get forced darker so paper printers
    render them clearly. Fixes user complaint that A4/A5 PDFs had
    very-light text that faded on print.
@@ -1705,7 +1705,7 @@ textarea.form-input { resize: vertical; min-height: 60px; }
 .printing-mode .inv-title {
   color: #0f172a !important;
 }
-/* v1.10.14 — the base .inv-business-details p rule at #64748b (light grey)
+/* v1.10.14 - the base .inv-business-details p rule at #64748b (light grey)
    used to beat the container-level printing-mode override because CSS's
    directly-applied color wins over an inherited color even when the
    parent has !important. Now every p / strong inside the header parties
@@ -1719,13 +1719,13 @@ textarea.form-input { resize: vertical; min-height: 60px; }
 .printing-mode [style*="color:#64748b"] {
   color: #1e293b !important;
 }
-/* Tables — force border colours darker on print */
+/* Tables - force border colours darker on print */
 .printing-mode .inv-table th,
 .printing-mode .inv-table td,
 .printing-mode .inv-table tr {
   border-color: #334155 !important;
 }
-/* v1.10.3 — Keep table rows whole across the html2canvas capture. When
+/* v1.10.3 - Keep table rows whole across the html2canvas capture. When
    a multi-page invoice's tall image gets stamped at negative Y offsets,
    rows near the page seam get cut mid-content. `page-break-inside:
    avoid` on <tr> nudges html2canvas' layout so rows push to the next
@@ -1740,7 +1740,7 @@ textarea.form-input { resize: vertical; min-height: 60px; }
 .printing-mode .inv-table thead {
   display: table-header-group !important;
 }
-/* v1.9.11 — HSN codes, business address, GSTIN line, party details:
+/* v1.9.11 - HSN codes, business address, GSTIN line, party details:
    these were faded on PDF paper output per reference photos user shared. */
 .printing-mode .inv-td-muted,
 .printing-mode .inv-td-hsn,
@@ -1756,12 +1756,12 @@ textarea.form-input { resize: vertical; min-height: 60px; }
   color: #334155 !important;
 }
 
-/* v1.10.11 — Compact upper-header mode. When users flip
+/* v1.10.11 - Compact upper-header mode. When users flip
    `headerCompact: true` in Print Settings, the invoice header + parties
    + place-of-supply blocks shrink so more line items fit on page 1
    before pagination kicks in. Padding is reduced ~40%, section labels
    drop to smaller text, address blocks tighten line-height. Preserves
-   the visual hierarchy of every template — just removes wasted space. */
+   the visual hierarchy of every template - just removes wasted space. */
 .invoice-preview-container[data-header-compact="1"] .inv-header {
   padding-top: 12px !important;
   padding-bottom: 8px !important;
@@ -1787,7 +1787,7 @@ textarea.form-input { resize: vertical; min-height: 60px; }
 .invoice-preview-container[data-header-compact="1"] .inv-business-name {
   margin-bottom: 2px !important;
 }
-/* v1.10.14 — Amazon-style compact meta: put Invoice # / Date / Due Date
+/* v1.10.14 - Amazon-style compact meta: put Invoice # / Date / Due Date
    on ONE row instead of a column, three (label, value) pairs inline.
    Saves ~30mm vertical space in the header block. */
 .invoice-preview-container[data-header-compact="1"] .inv-meta {
@@ -1808,7 +1808,7 @@ textarea.form-input { resize: vertical; min-height: 60px; }
   margin-top: 0 !important;
 }
 
-/* v1.10.13 — Reported: even with compact + 80% scale the shipping
+/* v1.10.13 - Reported: even with compact + 80% scale the shipping
    address pushed content to page 2. Now when compact is on AND a
    ship-to block exists, the parties row switches to a tighter
    3-col grid, address blocks lose paragraph margins entirely, and
@@ -1837,7 +1837,7 @@ textarea.form-input { resize: vertical; min-height: 60px; }
   font-size: 0.72em !important;
 }
 /* Business-details block (Company address / phone / email / GSTIN)
-   under the invoice header — when compact, collapse the tight column
+   under the invoice header - when compact, collapse the tight column
    into two lines by inlining pairs of items. Not perfect, but shaves
    ~20mm of vertical space on typical A4 renders. */
 .invoice-preview-container[data-header-compact="1"] .inv-business-details {
@@ -1855,7 +1855,7 @@ textarea.form-input { resize: vertical; min-height: 60px; }
   content: "";
 }
 
-/* v1.10.10 — Higher-specificity print-mode overrides for the Minimalist
+/* v1.10.10 - Higher-specificity print-mode overrides for the Minimalist
    and Modern templates. Prior code's `.printing-mode .inv-*` rules were
    OUTGUNNED by `.template-minimalist .inv-meta-label { color: #64748b
    !important }` (both !important, but template-* has higher specificity
@@ -1883,7 +1883,7 @@ textarea.form-input { resize: vertical; min-height: 60px; }
   color: #1e293b !important;
 }
 
-/* v1.9.8 — Print Settings split layout. Sticky preview on the right;
+/* v1.9.8 - Print Settings split layout. Sticky preview on the right;
    collapses to stacked on narrow screens so mobile users don't get a
    tiny preview crushed to 100px wide. */
 @media (max-width: 900px) {
@@ -1896,7 +1896,7 @@ textarea.form-input { resize: vertical; min-height: 60px; }
     max-height: 600px !important;
   }
 }
-/* v1.9.9 — prevent horizontal text overflow inside setting cards. Long
+/* v1.9.9 - prevent horizontal text overflow inside setting cards. Long
    hint paragraphs and label lines were clipping at the right edge when
    the grid squeezed cards narrow. */
 .print-settings-body { min-width: 0; }
@@ -1906,7 +1906,7 @@ textarea.form-input { resize: vertical; min-height: 60px; }
 .print-settings-body input { max-width: 100%; box-sizing: border-box; }
 .print-settings-preview-pane { overflow: hidden; }
 
-/* v1.9.13 — PDF preview now consumes Typography settings the same way
+/* v1.9.13 - PDF preview now consumes Typography settings the same way
    the thermal render does. Font family / size / weight / all-caps used
    to be thermal-only, so changes from the Typography section didn't
    visibly do anything in the PDF preview and users reported the preview
@@ -1930,14 +1930,14 @@ textarea.form-input { resize: vertical; min-height: 60px; }
 .invoice-preview-container[data-pdf-font-weight="ultra"] .inv-business-name,
 .invoice-preview-container[data-pdf-font-weight="ultra"] .inv-table thead th,
 .invoice-preview-container[data-pdf-font-weight="ultra"] .inv-td-amount { font-weight: 900 !important; }
-/* ALL CAPS across the whole invoice — respects white-space on numeric cells */
+/* ALL CAPS across the whole invoice - respects white-space on numeric cells */
 .invoice-preview-container[data-pdf-caps="1"] { text-transform: uppercase; }
 .invoice-preview-container[data-pdf-caps="1"] .inv-td-amount,
 .invoice-preview-container[data-pdf-caps="1"] .inv-td-hsn,
 .invoice-preview-container[data-pdf-caps="1"] input,
 .invoice-preview-container[data-pdf-caps="1"] .qr-code-container { text-transform: none; }
 
-/* v1.9.13 — dropdown text was clipping ("Monospace (Courier) — thermal-optimiz"
+/* v1.9.13 - dropdown text was clipping ("Monospace (Courier) - thermal-optimiz"
    with the 'ed' cut off). Give selects room to breathe and let long option
    labels wrap in the closed state via ellipsis rather than hard clip. */
 .print-settings-body select {
@@ -1948,7 +1948,7 @@ textarea.form-input { resize: vertical; min-height: 60px; }
   width: 100%;
 }
 
-/* v1.9.12 — Dark-mode fixes for the Print Settings preview pane and the
+/* v1.9.12 - Dark-mode fixes for the Print Settings preview pane and the
    invoice-preview inside it. The invoice preview always renders on a
    white canvas (invoices are printed on white paper), so its inner text
    uses light-on-white assumptions. In app dark mode, the pane container
@@ -1964,7 +1964,7 @@ textarea.form-input { resize: vertical; min-height: 60px; }
 [data-theme="dark"] .print-settings-preview-pane .invoice-preview-container * {
   color-scheme: light;
 }
-/* Preset card contrast fix — the coloured swatch strip could look muddy
+/* Preset card contrast fix - the coloured swatch strip could look muddy
    on the dark card background. Add a subtle inner divider. */
 [data-theme="dark"] .print-settings-body button[title] {
   background: var(--bg-secondary, #0f172a) !important;
@@ -1974,7 +1974,7 @@ textarea.form-input { resize: vertical; min-height: 60px; }
   color: var(--text, #f1f5f9);
 }
 
-/* v1.9.4 — Accessibility improvements */
+/* v1.9.4 - Accessibility improvements */
 button:focus-visible,
 select:focus-visible,
 input:focus-visible,
@@ -1989,7 +1989,7 @@ a:focus-visible {
   --text-muted-safe: #475569; /* was #94a3b8 in some places */
 }
 
-/* v1.9.3 — Row density modifier. Applied to invoice-preview-container via
+/* v1.9.3 - Row density modifier. Applied to invoice-preview-container via
    data-row-density attribute. Cascades to table rows + section blocks. */
 .invoice-preview-container[data-row-density="compact"] .inv-table th,
 .invoice-preview-container[data-row-density="compact"] .inv-table td { padding: 4px 6px !important; line-height: 1.25 !important; }
@@ -2001,7 +2001,7 @@ a:focus-visible {
 .invoice-preview-container[data-row-density="comfortable"] .inv-parties,
 .invoice-preview-container[data-row-density="comfortable"] .inv-section { padding: 20px 24px !important; }
 
-/* v1.9.2 — user-configurable colours via CSS custom properties.
+/* v1.9.2 - user-configurable colours via CSS custom properties.
    PrintSettings sets --pdf-primary-text etc. on the container; these
    rules cascade them down to child elements. */
 .invoice-preview-container[data-user-colors="1"] .inv-meta-label,
@@ -2037,14 +2037,14 @@ a:focus-visible {
   color: var(--pdf-accent-text, #ffffff) !important;
 }
 
-/* A4 Landscape — 297 × 210 mm. Same styles as portrait A4 but wider.
-   No special adjustments needed — the invoice-preview-container gets its
+/* A4 Landscape - 297 × 210 mm. Same styles as portrait A4 but wider.
+   No special adjustments needed - the invoice-preview-container gets its
    width set inline (297mm) from getPaperSize, and existing layout flexes. */
 .paper-a4-landscape.invoice-preview-container {
   min-height: 210mm;
 }
 
-/* A5 Landscape — 210 × 148 mm. Same width as A4 portrait so full-width
+/* A5 Landscape - 210 × 148 mm. Same width as A4 portrait so full-width
    layouts fit; height is halved so we drop the min-height and shrink
    some vertical padding to keep content on ONE page. Users print two
    invoices per A4 sheet with this. */
@@ -2068,7 +2068,7 @@ a:focus-visible {
 .paper-a5-landscape img[alt="logo"],
 .paper-a5-landscape img[alt="signature"] { max-height: 40px !important; }
 
-/* A5 — half a sheet. v1.8.5 AGGRESSIVE compaction so a full invoice
+/* A5 - half a sheet. v1.8.5 AGGRESSIVE compaction so a full invoice
    (header + client + 4-6 items + totals + terms + footer) fits on ONE
    A5 page. Previous version still had A4-sized padding that pushed
    content to a second page. */
@@ -2095,7 +2095,7 @@ a:focus-visible {
 .paper-a5 .invoice-header-modern,
 .paper-a5 .invoice-header-classic,
 .paper-a5 .invoice-header-minimal { padding: 8px 12px !important; }
-/* Sections — down from 1.5rem to 6px */
+/* Sections - down from 1.5rem to 6px */
 .paper-a5 .invoice-section,
 .paper-a5 .invoice-block,
 .paper-a5 .invoice-footer,
@@ -2107,15 +2107,15 @@ a:focus-visible {
 /* Totals block emphasis */
 .paper-a5 .table-total,
 .paper-a5 .totals-block strong { font-size: 1em !important; }
-/* Terms text — usually the longest block, shrink hardest */
+/* Terms text - usually the longest block, shrink hardest */
 .paper-a5 .terms-block,
 .paper-a5 [class*="terms"] { font-size: 7.5px !important; line-height: 1.25 !important; padding: 4px 8px !important; }
-/* Bank details block — tight */
+/* Bank details block - tight */
 .paper-a5 .bank-block { padding: 4px 8px !important; font-size: 8.5px !important; }
 /* Reduce the standard invoice-block gap between sections */
 .paper-a5 > * { margin-bottom: 2px !important; }
 
-/* Thermal — 80mm / 58mm receipt printer roll. Single-column, dense,
+/* Thermal - 80mm / 58mm receipt printer roll. Single-column, dense,
    monospace-ish. All decorative color panels + gradients removed since
    thermal printers are black-and-white and drying complex fills wastes
    ribbon / thermal paper. */
@@ -2172,19 +2172,19 @@ a:focus-visible {
   padding-top: 4px !important;
   background: transparent !important;
 }
-/* v1.10.12 — UPI QR now renders on 58mm thermal too. Reported: "QR
+/* v1.10.12 - UPI QR now renders on 58mm thermal too. Reported: "QR
    for payment should also add on 2 inch thermal too because this
    feature is working in market". Previously hidden due to width
    concerns; a 32×32mm QR fits comfortably on 48mm-printable 58mm rolls
    as long as we cap its size. */
-/* v1.10.36 — Reverted to the pre-v1.10.33 CSS. Reported (Hinglish):
+/* v1.10.36 - Reverted to the pre-v1.10.33 CSS. Reported (Hinglish):
    "qr small ho gaya hai ... phele jaisa kar dijiye just custom me
    problem tha". The v1.10.33 max-width caps here were smaller than
    InvoicePreview's inline widths (thermal58 got 70px cap vs the
    inline 90px, thermal80 got 100px cap vs inline 90px), and since
    `max-width` wins over inline width, the QR shrank on every roll.
    The historical behaviour (no CSS cap, inline width from qrSizePx
-   drives everything) is restored — only the custom-thermal case
+   drives everything) is restored - only the custom-thermal case
    keeps a defence-in-depth cap for < 100mm rolls where the inline
    fallback might overshoot the paper edge.
    .thermal-qr / .thermal-logo classNames stay so a future targeted
@@ -2195,9 +2195,9 @@ a:focus-visible {
   display: block;
 }
 .paper-thermal-custom .thermal-qr {
-  max-width: 60%;  /* 60% of the paper width — cheap safety net */
+  max-width: 60%;  /* 60% of the paper width - cheap safety net */
 }
-/* Hide multi-column grid layouts on thermal — stack everything. */
+/* Hide multi-column grid layouts on thermal - stack everything. */
 .paper-thermal .grid,
 .paper-thermal [class*="grid-"] {
   display: block !important;
@@ -2210,7 +2210,7 @@ a:focus-visible {
 }
 
 /* Header */
-/* v1.10.28 — compacted base spacing (was 2rem 2.5rem 0 / margin-bottom 2rem).
+/* v1.10.28 - compacted base spacing (was 2rem 2.5rem 0 / margin-bottom 2rem).
    Reported: "your format was great but some tweaks can make it compact and
    clear". Matches the density of Vyapar / MargERP / nVertex-style templates. */
 .inv-header {
@@ -2247,7 +2247,7 @@ a:focus-visible {
   font-weight: 600;
 }
 
-/* v1.10.28 — header-right widened (45% → 48%) since header padding
+/* v1.10.28 - header-right widened (45% → 48%) since header padding
    dropped; business name a touch smaller to match the reference density. */
 .inv-header-right { text-align: right; max-width: 48%; }
 
@@ -2264,7 +2264,7 @@ a:focus-visible {
   line-height: 1.65;
 }
 
-/* v1.10.14 — bumped from #64748b (light grey) to #334155 (slate 700).
+/* v1.10.14 - bumped from #64748b (light grey) to #334155 (slate 700).
    Base body / address / phone lines were too faded on paper output even
    with the printing-mode class applied because the p-level color was
    more specific than the container-level printing-mode override. */
@@ -2272,7 +2272,7 @@ a:focus-visible {
 .inv-business-details strong { color: #0f172a; font-weight: 600; }
 
 /* Parties */
-/* v1.10.28 — margin 0 2.5rem 2rem → 0 1.5rem 0.75rem, padding 1.5rem → 0.85rem.
+/* v1.10.28 - margin 0 2.5rem 2rem → 0 1.5rem 0.75rem, padding 1.5rem → 0.85rem.
    Tightens the billing/shipping/place-of-supply band by ~50% vertical. */
 .inv-parties {
   display: flex;
@@ -2299,14 +2299,14 @@ a:focus-visible {
   margin-bottom: 0.3rem;
 }
 
-/* v1.10.14 — same #64748b → #334155 bump as .inv-business-details above. */
+/* v1.10.14 - same #64748b → #334155 bump as .inv-business-details above. */
 .inv-party-details { font-size: 0.8rem; color: #334155; line-height: 1.65; }
 .inv-party-details p { margin: 0; color: #334155; }
 .inv-party-details strong { color: #0f172a; }
 
 .inv-party-right { text-align: right; display: flex; flex-direction: column; justify-content: center; }
 
-/* v1.10.66 (#64 item 5) — fixed, print-safe colours instead of the app theme's.
+/* v1.10.66 (#64 item 5) - fixed, print-safe colours instead of the app theme's.
    The badge sits on the invoice paper, which is white in every theme, so the
    theme greens and blues were the wrong source: the light theme's green reached
    only 3.6:1 and faded on a black-and-white printer, and the dark theme's paler
@@ -2328,7 +2328,7 @@ a:focus-visible {
 }
 
 /* Items Table */
-/* v1.10.28 — table now fills 100% - 2.5rem (was 3rem) and bottom margin cut
+/* v1.10.28 - table now fills 100% - 2.5rem (was 3rem) and bottom margin cut
    in half so more items fit per page and less whitespace before totals. */
 .inv-table {
   width: calc(100% - 2.5rem);
@@ -2361,7 +2361,7 @@ a:focus-visible {
 .inv-td-name { font-weight: 600; color: #1e293b; white-space: normal; word-wrap: break-word; overflow-wrap: break-word; }
 .inv-td-center { text-align: center; }
 .inv-td-right { text-align: right; }
-/* v1.9.11 — HSN column was rendering at #94a3b8 which was almost
+/* v1.9.11 - HSN column was rendering at #94a3b8 which was almost
    invisible on PDF paper output (user complaint with reference photo).
    Bumped to a readable dark grey; .printing-mode drops it even darker. */
 .inv-td-muted { color: #475569; }
@@ -2380,7 +2380,7 @@ a:focus-visible {
 }
 
 /* Totals */
-/* v1.10.28 — totals band tightened: padding 0 2.5rem → 0 1.5rem, margin
+/* v1.10.28 - totals band tightened: padding 0 2.5rem → 0 1.5rem, margin
    bottom 2.5rem → 1rem. Amount-in-words padding-right 3rem → 1.5rem so
    totals can grow left without dead space. */
 .inv-totals-section {
@@ -2414,8 +2414,8 @@ a:focus-visible {
 
 .inv-total-row span:last-child { font-weight: 500; color: #1e293b; }
 
-/* v1.10.38 — TOTAL DUE row gains a proper visual anchor. Prior look
-   was just a top-border + slightly larger amount — subtotal / IGST /
+/* v1.10.38 - TOTAL DUE row gains a proper visual anchor. Prior look
+   was just a top-border + slightly larger amount - subtotal / IGST /
    TOTAL sat as three equal-weight rows and the eye had no cue where
    to land. Now: a subtle accent-tinted background bar wraps the row,
    the label upsizes to 1rem, the amount to 1.4rem. Modern style stays
@@ -2451,7 +2451,7 @@ a:focus-visible {
 .inv-total-modern span:last-child { color: #fff; }
 
 /* Footer */
-/* v1.10.28 — footer padding + block spacing tightened. Bank details +
+/* v1.10.28 - footer padding + block spacing tightened. Bank details +
    signature block used to eat ~50mm of vertical; now ~30mm. */
 .inv-footer {
   display: flex;
@@ -2464,10 +2464,10 @@ a:focus-visible {
 
 .inv-footer-left { flex: 1; }
 
-/* v1.10.38 — Match Bill-To visual treatment for the footer blocks
+/* v1.10.38 - Match Bill-To visual treatment for the footer blocks
    (Bank Details, Terms & Conditions, Notes, Exchange Rate). Prior
    look had Bill-To sitting inside a soft-grey border box while these
-   blocks floated as plain paragraphs — visually inconsistent. Now
+   blocks floated as plain paragraphs - visually inconsistent. Now
    they share the same subtle container so the page reads as a set of
    uniform sections. Kept the padding conservative (0.7rem) so the
    PDF doesn't inflate vertically and existing multi-page cuts still
@@ -2481,7 +2481,7 @@ a:focus-visible {
 }
 .inv-footer-block:last-child { margin-bottom: 0; }
 [data-theme="dark"] .inv-footer-block { background: #f8fafc !important; border-color: #e2e8f0 !important; }
-/* Minimal PDF style keeps the airy no-border look — the design's
+/* Minimal PDF style keeps the airy no-border look - the design's
    whole personality is negative space, containers would fight it. */
 .template-minimal .inv-footer-block,
 .template-minimalist .inv-footer-block {
@@ -2512,16 +2512,16 @@ a:focus-visible {
   margin: 0;
 }
 
-/* v1.10.57 — reported (#44 item 1, @sangwanmail-eng): "Term and condition
+/* v1.10.57 - reported (#44 item 1, @sangwanmail-eng): "Term and condition
    not arrange properly". Numbered terms printed as one run-on paragraph.
 
-   Cause: the global reset at the top of this file — `* { margin: 0;
-   padding: 0 }` — strips spacing from EVERY element, <p>, <ul>, <ol> and
+   Cause: the global reset at the top of this file - `* { margin: 0;
+   padding: 0 }` - strips spacing from EVERY element, <p>, <ul>, <ol> and
    <li> included. Rich terms are user HTML, so once that spacing is gone
    the paragraphs butt together and list markers lose their indent, and a
    tidy numbered list arrives as a wall of text.
 
-   v1.10.37 added the rules that put it back — but only under
+   v1.10.37 added the rules that put it back - but only under
    `.inv-terms-formatted`, and the default mode is `compact` (see
    printSettings.js). So every invoice except a services one rendered the
    flattened version.
@@ -2538,10 +2538,10 @@ a:focus-visible {
 .inv-terms.inv-rich li:last-child { margin-bottom: 0; }
 .inv-terms.inv-rich br { line-height: 1.6; }
 
-/* v1.10.37 — "Formatted" mode overrides. Reported: current "compact"
+/* v1.10.37 - "Formatted" mode overrides. Reported: current "compact"
    render was small + uppercase-inherited + hard to read on the PDF.
    Users who want terms customers actually read pick termsFormatMode:
-   'formatted' — this class overrides to a mixed-case, readable
+   'formatted' - this class overrides to a mixed-case, readable
    0.78rem layout with proper paragraph spacing. */
 .inv-terms.inv-terms-formatted {
   font-size: 0.78rem;
@@ -2606,7 +2606,7 @@ a:focus-visible {
 .inv-extra-content strong, .inv-extra-content b { font-weight: 600; }
 
 /* Rich-text Terms & Notes: same look as the extra-section content but shown inside
-   the small footer block — slightly tighter spacing. */
+   the small footer block - slightly tighter spacing. */
 .inv-rich p { margin: 0 0 0.35rem; }
 .inv-rich p:last-child { margin-bottom: 0; }
 .inv-rich ul, .inv-rich ol { margin: 0.25rem 0 0.35rem 1.25rem; padding: 0; }
@@ -2626,7 +2626,7 @@ a:focus-visible {
    chip, key-value list, or modal-checkbox row.
    ================================================================ */
 
-/* Notice cards — info (green), warn (yellow), note (yellow softer), danger */
+/* Notice cards - info (green), warn (yellow), note (yellow softer), danger */
 .notice {
   display: flex; align-items: flex-start; gap: 0.6rem;
   padding: 0.85rem 1rem; border-radius: 8px;
@@ -2651,7 +2651,7 @@ a:focus-visible {
   color: var(--text-primary);
 }
 
-/* Status pill — colour passed via inline `--pill-color` so the bg/text stay
+/* Status pill - colour passed via inline `--pill-color` so the bg/text stay
    theme-aware without repeating the rgba() everywhere. */
 .status-pill {
   display: inline-block; padding: 2px 8px; border-radius: 10px;
@@ -2660,7 +2660,7 @@ a:focus-visible {
   color: var(--pill-color, var(--primary));
 }
 
-/* Modal checkbox-row pattern — used by Export/Import modals, options panels.
+/* Modal checkbox-row pattern - used by Export/Import modals, options panels.
    Replaces 5+ duplicated inline-styled <label> blocks. */
 .cbx-row {
   display: flex; align-items: flex-start; gap: 0.55rem;
@@ -2682,14 +2682,14 @@ a:focus-visible {
 .cbx-list .cbx-row { border: 0; border-bottom: 1px dashed var(--border-color); border-radius: 0; padding: 0.4rem 0.5rem; background: transparent; }
 .cbx-list .cbx-row:last-child { border-bottom: 0; }
 
-/* Key/value list — used by FAQ, Troubleshooting, etc. */
+/* Key/value list - used by FAQ, Troubleshooting, etc. */
 .kv-list { width: 100%; border-collapse: collapse; }
 .kv-list tr { border-bottom: 1px solid var(--border-color); }
 .kv-list td { padding: 0.5rem 0.75rem; vertical-align: top; }
 .kv-list td:first-child { font-weight: 600; color: var(--text-primary); width: 30%; }
 .kv-list td:last-child  { color: var(--text-secondary); }
 
-/* Section label small caps — already used as `inv-section-label`; alias here */
+/* Section label small caps - already used as `inv-section-label`; alias here */
 .section-mini-label {
   font-size: 0.7rem; font-weight: 700; color: var(--text-muted);
   text-transform: uppercase; letter-spacing: 0.06em;
@@ -2702,7 +2702,7 @@ code, .code-chip {
   padding: 1px 5px; border-radius: 3px; font-size: 0.85em;
 }
 
-/* Keyboard shortcut chip — small "key cap" look for the shortcuts help modal */
+/* Keyboard shortcut chip - small "key cap" look for the shortcuts help modal */
 kbd {
   background: var(--bg-tertiary); color: var(--text-primary);
   border: 1px solid var(--border-color);
@@ -2928,14 +2928,14 @@ kbd {
   color: var(--text);
   cursor: pointer;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
-  /* v1.9.15 — user reported date input clipping to "n-yyyy" on narrow
+  /* v1.9.15 - user reported date input clipping to "n-yyyy" on narrow
      dashboard views. Browsers give <input type="date"> whatever width
      they feel like; force a comfortable minimum. */
   min-width: 130px;
 }
 .filter-date { min-width: 145px; }
 
-/* v1.10.33 — Filter focus now matches search-input's ring so the
+/* v1.10.33 - Filter focus now matches search-input's ring so the
    filter row looks like one cohesive control group instead of a
    grab-bag of inputs. */
 .filter-select:focus, .filter-date:focus {
@@ -2944,7 +2944,7 @@ kbd {
   box-shadow: 0 0 0 3px var(--primary-light);
 }
 
-/* v1.10.33 — Type badge: uppercase micro-caps, monospace, and a
+/* v1.10.33 - Type badge: uppercase micro-caps, monospace, and a
    subtle border so it reads as a "kind" tag rather than plain grey
    text. */
 .type-badge {
@@ -3168,7 +3168,7 @@ kbd {
 
 .status-badge:hover { opacity: 0.8; }
 
-/* v1.10.33 — Status pill: rounded-full shape, slightly larger tap
+/* v1.10.33 - Status pill: rounded-full shape, slightly larger tap
    target, and a soft focus ring so keyboard users see selection
    without the browser's default 2px black outline. */
 .status-select {
@@ -3387,13 +3387,13 @@ kbd {
 .spin { animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* v1.10.67 (#66 item 10, @sangwanmail-eng) — centre the short columns.
+/* v1.10.67 (#66 item 10, @sangwanmail-eng) - centre the short columns.
    Amounts stay right-aligned and names left-aligned: a column of rupee
    figures only reads as a column when the decimal points line up. */
 .data-table th.col-center,
 .data-table td.col-center { text-align: center; }
 
-/* v1.10.67 (#66 item 8, @sangwanmail-eng) — the sidebar follows the theme.
+/* v1.10.67 (#66 item 8, @sangwanmail-eng) - the sidebar follows the theme.
    It was hard-coded dark navy, so Light Mode left the app half light and
    half dark. Scoped to "not dark", so the dark look is untouched. */
 html:not([data-theme="dark"]) .sidebar {

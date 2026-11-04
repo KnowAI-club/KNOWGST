@@ -7,35 +7,35 @@ import { getStateCode, numberToWords, printedSubtotal, formatCurrency, INVOICE_T
 import { getPrintSettings, getLabel, formatCurrencyEx, formatDate } from '../utils/printSettings';
 import InvoiceGridLayout, { HsnSummaryTable } from './InvoiceGridLayout';
 
-// v1.10.36 — Optional `previewOnly` prop suppresses the internal
+// v1.10.36 - Optional `previewOnly` prop suppresses the internal
 // `id="invoice-preview"`. The parent's on-screen preview keeps the id
 // (needed by the @media print CSS rules in index.css:1258 for the
 // A4 window.print fallback path); the PrintPreviewModal's *second*
 // instance renders with previewOnly=true so it doesn't create a
-// duplicate id on the page — HTML-invalid + could confuse getElementById
+// duplicate id on the page - HTML-invalid + could confuse getElementById
 // lookups.
 const InvoicePreview = React.forwardRef(({ profile: profileProp, client, details, items, totals, invoiceType = 'tax-invoice', customTerms, customNotes, extraSections = [], options = {}, previewOnly = false, cancelled = false }, ref) => {
   // v1.10.76 - the business profile can still be loading on the first render
   // (a page refresh while editing an invoice), and reading a bank field from
   // null blanked the whole app. Empty until it arrives.
   const profile = profileProp || {};
-  // Interstate detection must match InvoiceGenerator.jsx — it honours
+  // Interstate detection must match InvoiceGenerator.jsx - it honours
   // details.placeOfSupply (POS override) and client.isSEZ (SEZ supplies
   // are always interstate regardless of physical state). Without this
   // the totals block could show IGST while the item table showed
   // CGST+SGST for the same bill (POS override or SEZ client).
   //
   // Cheapest correct signal: totals.igst > 0 means the computation upstream
-  // routed the tax as IGST — so trust that, and fall back to the state
+  // routed the tax as IGST - so trust that, and fall back to the state
   // comparison only if totals aren't populated (e.g. legacy JSON with no
   // igst field).
   const businessState = profile?.state?.trim().toLowerCase();
   const clientState = client?.state?.trim().toLowerCase();
   //
-  // v1.10.66 (#61) — the tax engine's own decision now wins. computeInvoiceTotals
+  // v1.10.66 (#61) - the tax engine's own decision now wins. computeInvoiceTotals
   // records `isInterstate` beside the amounts it produced, and every row below
   // has to describe THOSE amounts. The name comparison further down could
-  // disagree with the engine — a Delhi client supplied in Punjab, say — and the
+  // disagree with the engine - a Delhi client supplied in Punjab, say - and the
   // invoice then printed "IGST ₹0.00" above a total that really held CGST +
   // SGST. The comparison survives only for invoices saved before the flag.
   const isInterstate = typeof totals?.isInterstate === 'boolean'
@@ -53,11 +53,11 @@ const InvoicePreview = React.forwardRef(({ profile: profileProp, client, details
   // Resolve the payment account once per render. Falls back to the synthesised
   // legacy account (built from flat profile bank fields) when no array exists,
   // so v1.4.3 invoices render byte-identical with no `selectedAccountId`.
-  // v1.10.18 — Prefer options.paymentAccountSnapshot when present. That's the
+  // v1.10.18 - Prefer options.paymentAccountSnapshot when present. That's the
   // frozen-at-save-time copy of the account details, so editing a bank in
   // Settings after the invoice was made no longer rewrites the invoice's
   // displayed bank. Old invoices without the snapshot (pre-v1.10.18) fall
-  // through to the live profile lookup — legacy behaviour preserved.
+  // through to the live profile lookup - legacy behaviour preserved.
   const account = options.paymentAccountSnapshot || getAccountById(profile, options.selectedAccountId);
   const showAccountLabel = options.showAccountLabel === true;
 
@@ -87,7 +87,7 @@ const InvoicePreview = React.forwardRef(({ profile: profileProp, client, details
   const showItemUnit = opt('showItemUnit');
   const showRateColumn = opt('showRateColumn');
   const showSubtotal = opt('showSubtotal');
-  // Header / client meta — default ON
+  // Header / client meta - default ON
   const showBusinessName = opt('showBusinessName');
   const showBusinessAddress = opt('showBusinessAddress');
   const showBusinessPhone = opt('showBusinessPhone');
@@ -98,7 +98,7 @@ const InvoicePreview = React.forwardRef(({ profile: profileProp, client, details
   const showInvoiceNumber = opt('showInvoiceNumber');
   const showInvoiceDate = opt('showInvoiceDate');
   const customTitle = options.customTitle || typeConfig.title;
-  // v1.10.66 (#62) — Rule 46(p) of the CGST Rules: a tax invoice has to state
+  // v1.10.66 (#62) - Rule 46(p) of the CGST Rules: a tax invoice has to state
   // whether tax is payable on reverse charge. The notice under the totals only
   // appears for "Yes", so an ordinary invoice never said "No" at all. Credit
   // notes carry the same flag, which GSTR-1 reports for them.
@@ -106,7 +106,7 @@ const InvoicePreview = React.forwardRef(({ profile: profileProp, client, details
   const reverseChargeText = options.reverseCharge ? 'Yes' : 'No';
   const currencySymbol = options.currency || 'INR';
 
-  // v1.10.4 — Single read of print settings per render. Prior code
+  // v1.10.4 - Single read of print settings per render. Prior code
   // called getPrintSettings() at 6 different points, each hitting
   // localStorage.getItem + JSON.parse. Multiplied by every keystroke
   // in InvoiceGenerator (which rerenders the preview), this was a
@@ -129,7 +129,7 @@ const InvoicePreview = React.forwardRef(({ profile: profileProp, client, details
   // Aliases for the different callsites below; all point to the same
   // object so they stay in sync.
   const _ps_dc = _ps;
-  // v1.9.3 — same settings alias used by getLabel() calls throughout the JSX
+  // v1.9.3 - same settings alias used by getLabel() calls throughout the JSX
   const _ps_labels = _ps_dc;
   // The document total is independent of payments already received.
   const _totalLabel = getLabel(_ps_labels, 'total');
@@ -190,15 +190,15 @@ const InvoicePreview = React.forwardRef(({ profile: profileProp, client, details
     'bill-of-supply': '#343c34',
     'credit-note': '#343c34',
   };
-  // v1.9.14 — When userColorsEnabled is on, pdfAccent MUST feed the
+  // v1.9.14 - When userColorsEnabled is on, pdfAccent MUST feed the
   // header-block background too.
-  // v1.10.4 — reuses `_ps` from top of function (was a fresh
-  // getPrintSettings() call — one of 6 in this render).
+  // v1.10.4 - reuses `_ps` from top of function (was a fresh
+  // getPrintSettings() call - one of 6 in this render).
   const accent = options.accentColor
     || (_ps.userColorsEnabled && _ps.pdfAccent)
     || accentColors[invoiceType]
     || accentColors['tax-invoice'];
-  // v1.9.1 — template style. Priority: per-invoice options.pdfStyle → app-wide
+  // v1.9.1 - template style. Priority: per-invoice options.pdfStyle → app-wide
   // printSettings.pdfTemplate → 'classic' fallback. Also accept the new
   // "corporate" and "minimalist" values that map to existing render paths
   // with slight tweaks (colour tint + spacing) applied via CSS class.
@@ -357,7 +357,7 @@ const InvoicePreview = React.forwardRef(({ profile: profileProp, client, details
   // Billing parties section (shared but styled per variant)
   const renderParties = () => {
     const padStyle = pdfStyle === 'modern' ? { padding: '1rem 2rem' } : pdfStyle === 'minimal' ? { padding: '0 2rem 1rem', border: 'none' } : {};
-    // v1.10.11 — Ship To block. When the user unchecked "Ship to same as
+    // v1.10.11 - Ship To block. When the user unchecked "Ship to same as
     // bill-to" in the invoice form, `details.shipToSameAsBilling === false`
     // and shipping fields are populated. Renders as a third column in
     // the parties row. When same-as-billing, we don't render it (bill-to
@@ -406,7 +406,7 @@ const InvoicePreview = React.forwardRef(({ profile: profileProp, client, details
   // adopts the target paper's width in mm so what-you-see matches
   // what-you-print. For A4/A5 (sheets), the existing multi-column layout
   // renders at scaled type. For thermal 80mm/58mm, we switch to a
-  // completely different template — see renderThermalReceipt below.
+  // completely different template - see renderThermalReceipt below.
   //
   // The problem in v1.8.1 was: only the container width changed; the inline
   // margins (`margin: '0 2rem'`) inside the items table + party blocks
@@ -421,21 +421,21 @@ const InvoicePreview = React.forwardRef(({ profile: profileProp, client, details
     ...(isThermal ? { fontFamily: '"Courier New", monospace', fontSize: paperCfg.widthMm >= 80 ? '10.5px' : '9px' } : {}),
   };
 
-  // Thermal receipt render — single column, no colour panels, no margins.
+  // Thermal receipt render - single column, no colour panels, no margins.
   // Used for both 80mm and 58mm; the CSS class (`paper-thermal-58` vs
   // `paper-thermal-80`) further trims (hide QR at 58mm etc.). Inlined here
   // rather than extracted to a helper because it needs access to all the
   // opt() / totals / items closures. Escape-hatch: user can switch back to
   // A4/A5 any time in Customize.
   if (isThermal) {
-    // v1.8.4 thermal render — every user-configurable setting from
+    // v1.8.4 thermal render - every user-configurable setting from
     // PrintSettings component flows through here. Backward compat: fields
     // fall back to sensible defaults if the bill was created pre-v1.8.4.
     //
     // The app-wide printSettings (localStorage) provides DEFAULTS. Each
     // invoice's own invoiceOptions.thermal* fields OVERRIDE those defaults.
     // Priority: options → printSettings → hardcoded fallback.
-    const printSettings = _ps;  // v1.10.4 — reuse top-of-function read
+    const printSettings = _ps;  // v1.10.4 - reuse top-of-function read
     const eff = {
       thermalFontSize:    options.thermalFontSize    ?? printSettings.fontSize,
       thermalFontFamily:  options.thermalFontFamily  ?? printSettings.fontFamily,
@@ -463,9 +463,9 @@ const InvoicePreview = React.forwardRef(({ profile: profileProp, client, details
     const sellerCurrency = getCountryConfig(profile?.country).currency;
     const currencySymbol = sellerCurrency === 'INR' ? 'Rs.' : sellerCurrency;
     const showRoundOff = opt('showRoundOff', false);
-    // v1.10.33 — Split the single "isNarrow" threshold into two.
+    // v1.10.33 - Split the single "isNarrow" threshold into two.
     // Prior code used `widthMm < 80` for everything, but thermal80 has
-    // widthMm=72 (printable area) and thermal76 has 68 — BOTH tripped
+    // widthMm=72 (printable area) and thermal76 has 68 - BOTH tripped
     // the flag and silently:
     //   (a) hid the HSN column even with showHSN=true
     //   (b) rendered at the same tiny font as thermal58
@@ -501,7 +501,7 @@ const InvoicePreview = React.forwardRef(({ profile: profileProp, client, details
 
     // Base font-size in px based on paper width + user preference.
     // Larger widths get slightly bigger base so 80mm reads bolder than 58mm.
-    // v1.10.30 — reported: "fix the font issue and print issue in thermal".
+    // v1.10.30 - reported: "fix the font issue and print issue in thermal".
     // Bumped every size ~10-15% so even 58mm at 'small' stays readable
     // after the print driver's raster smoothing. Baseline print quality on
     // low-DPI POS printers is what these numbers are tuned against.
@@ -522,7 +522,7 @@ const InvoicePreview = React.forwardRef(({ profile: profileProp, client, details
     const baseWeight = fontWeight === 'ultra' ? 800
                      : fontWeight === 'normal' ? 500
                      : 700; // bold (default)
-    // Bold multiplier for headers/totals — 100 heavier than baseline capped at 900
+    // Bold multiplier for headers/totals - 100 heavier than baseline capped at 900
     const strongWeight = Math.min(900, baseWeight + 200);
     const contrastFilter = contrast === 'ultra' ? 'grayscale(1) contrast(3) brightness(0.85)'
                         : contrast === 'high' ? 'grayscale(1) contrast(2) brightness(0.95)'
@@ -537,7 +537,7 @@ const InvoicePreview = React.forwardRef(({ profile: profileProp, client, details
     const cap = (s) => allCaps ? String(s || '').toUpperCase() : String(s || '');
     // Consistent divider styling (dashed lines don't print well; solid does)
     const dashLine = { borderBottom: '1px solid #000', borderTop: 'none' };
-    // Root style — EVERY visual attribute set here so nothing accidentally
+    // Root style - EVERY visual attribute set here so nothing accidentally
     // inherits lighter/gray from parent CSS.
     //
     // v1.8.5 darkness fix: text-shadow with a 0.5px horizontal offset in the
@@ -546,7 +546,7 @@ const InvoicePreview = React.forwardRef(({ profile: profileProp, client, details
     // -webkit-text-stroke this makes even the lightest thermal printer
     // produce crisp readable output. User can turn it OFF via Ultra weight
     // setting if they don't need it.
-    // v1.10.30 — stronger double-strike for thermal readability. Prior
+    // v1.10.30 - stronger double-strike for thermal readability. Prior
     // 0.4px shadow was thin; bumping to 0.6px + adding a diagonal makes
     // glyphs read darker on lightly-burning heads without needing a
     // heavier font weight (which fattens columns and misaligns numbers).
@@ -574,7 +574,7 @@ const InvoicePreview = React.forwardRef(({ profile: profileProp, client, details
         {/* ================= HEADER ================= */}
         <div style={{ padding: '8px 4px 6px', textAlign: headerAlign, ...dashLine, color: '#000' }}>
           {showLogo && profile?.logo && (
-            /* v1.10.36 — Reverted the v1.10.33 formula
+            /* v1.10.36 - Reverted the v1.10.33 formula
                `Math.min(45, widthMm * 3.78 * 0.4)` which shrank the
                logo on standard 58/80mm rolls (thermal80 → 45px cap
                vs the historical 45px, thermal58 → 40px). The historical
@@ -784,7 +784,7 @@ const InvoicePreview = React.forwardRef(({ profile: profileProp, client, details
         {showBankDetails && (account?.bankName || profile?.bankName) && (
           <div style={{ padding: secPad, fontSize: '0.9em', fontWeight: baseWeight, ...dashLine }}>
             <div style={{ fontWeight: strongWeight, textAlign: 'center', marginBottom: 3 }}>{cap('BANK DETAILS')}</div>
-            {/* v1.10.37 — Account holder name on thermal too, ONLY if
+            {/* v1.10.37 - Account holder name on thermal too, ONLY if
                 the user explicitly filled it (differs from business
                 name). Skip when blank so the compact 48/72mm receipt
                 doesn't grow a line for a value that would be redundant
@@ -802,21 +802,21 @@ const InvoicePreview = React.forwardRef(({ profile: profileProp, client, details
           </div>
         )}
 
-        {/* v1.10.13 — reported: "QR for payment should also add on 2 inch
+        {/* v1.10.13 - reported: "QR for payment should also add on 2 inch
              thermal too because this feature is working in market". Prior
              code gated the UPI QR on `!isNarrow` (widthMm < 80) so 58mm
              rolls silently dropped it. Now: always render when enabled;
              on 58mm the QR is smaller (auto via qrSizePx below) to fit
              the 48mm printable width. */}
         {opt('showUPI') && qrDataUrl && (() => {
-          // v1.10.36 — Reverted to the pre-v1.10.33 QR sizing.
+          // v1.10.36 - Reverted to the pre-v1.10.33 QR sizing.
           // Reported (Hinglish): "qr small ho gaya hai ... phele jaisa
           // kar dijiye just custom me problem tha". The 50%-of-width
           // formula introduced in v1.10.33 was too aggressive on
           // standard rolls (thermal58/76/80 all shrank), and users had
           // already tuned qrSizePx via the thermalQrSize picker
           // (small=60/medium=90/large=120px). The ONLY roll that needed
-          // a defensive cap was the custom sub-100mm case — on a 40mm
+          // a defensive cap was the custom sub-100mm case - on a 40mm
           // custom roll the fixed 90px QR spilled off the paper edge.
           // Now: keep the historical behaviour on every preset roll,
           // apply the width-based cap ONLY when paperSize === 'custom'.
@@ -860,23 +860,23 @@ const InvoicePreview = React.forwardRef(({ profile: profileProp, client, details
     );
   }
 
-  // v1.9.1 — company letterhead + template variant CSS class
-  // v1.9.2 — user-configurable colours via CSS custom properties + font scale
-  const _ps_final = _ps;  // v1.10.4 — reuse top-of-function read
+  // v1.9.1 - company letterhead + template variant CSS class
+  // v1.9.2 - user-configurable colours via CSS custom properties + font scale
+  const _ps_final = _ps;  // v1.10.4 - reuse top-of-function read
   const letterheadOn = _ps_final.letterheadEnabled && _ps_final.letterheadImage;
   const hideHeaderBecauseLetterhead = letterheadOn && _ps_final.letterheadHideHeader;
 
-  // v1.9.14 — Inline style typography wiring. Data-attribute CSS from
+  // v1.9.14 - Inline style typography wiring. Data-attribute CSS from
   // v1.9.13 lost specificity wars against dark-mode overrides and
   // template-* rules, so users saw the font stay put no matter what
   // they picked. Inline styles beat every CSS class regardless of
-  // specificity — this is the reliable path.
+  // specificity - this is the reliable path.
   //
-  // v1.10.9 — decoupled Typography settings from PDF. The Typography
+  // v1.10.9 - decoupled Typography settings from PDF. The Typography
   // section explicitly says "Monospace prints crisper on most thermal
-  // printers" — users reasonably expect it to be thermal-only.
+  // printers" - users reasonably expect it to be thermal-only.
   // Meanwhile the dedicated "PDF FONT FAMILY" dropdown (helvetica /
-  // times / courier) had NO consumer at all — clicking it did
+  // times / courier) had NO consumer at all - clicking it did
   // nothing. Now: Typography → thermal only. `pdfFontFamily` →
   // actual PDF font. Font weight + ALL CAPS still bridge to PDF via
   // Typography (they're layout-neutral choices).
@@ -889,13 +889,13 @@ const InvoicePreview = React.forwardRef(({ profile: profileProp, client, details
     ? (PDF_FAMILY_MAP[_ps_final.pdfFontFamily] || PDF_FAMILY_MAP.helvetica)
     : undefined;
 
-  // v1.10.10 — pdfFontScale REMOVED from the preview CSS layer.
+  // v1.10.10 - pdfFontScale REMOVED from the preview CSS layer.
   // Previously we multiplied `basePct × pdfFontScale` here, but most
   // child elements use `rem`/`px` (not `em`), so a container
   // `font-size: 80%` only cascaded to a handful of nodes and neither
   // the preview nor the real PDF actually shrank. The scale now applies
-  // at the PDF-placement layer in buildPDF — shrinking the whole image
-  // area on the page — which is both reliable and matches how MS Word
+  // at the PDF-placement layer in buildPDF - shrinking the whole image
+  // area on the page - which is both reliable and matches how MS Word
   // "shrink to fit" works. Preview font-size stays base-preset only.
   const PDF_FONT_SIZE_PCT = { small: 87, medium: 100, large: 112, xlarge: 122 };
   const basePct = !isThermal ? (PDF_FONT_SIZE_PCT[_ps_final.fontSize] || 100) : 100;
@@ -905,11 +905,11 @@ const InvoicePreview = React.forwardRef(({ profile: profileProp, client, details
   const pdfFontWeightCss = !isThermal ? (PDF_FONT_WEIGHT[_ps_final.fontWeight] || 400) : undefined;
   const pdfCapsOn = !isThermal && _ps_final.allCaps === true;
 
-  // v1.10.37 — Terms & Notes rendering mode. Per-invoice option.termsFormatMode
+  // v1.10.37 - Terms & Notes rendering mode. Per-invoice option.termsFormatMode
   // wins over the global printSettings.termsFormatMode. Falls back to
   // 'compact' (historical) so old invoices keep the same PDF pixel-for-pixel.
   //
-  // v1.10.38 — Smart default. If no explicit choice was made AND the
+  // v1.10.38 - Smart default. If no explicit choice was made AND the
   // invoice is services-only (freelancers / consultants / dev shops
   // typically have B2B clients who actually read the terms), default
   // to 'formatted'. Goods invoices stay on 'compact' because their
@@ -929,12 +929,12 @@ const InvoicePreview = React.forwardRef(({ profile: profileProp, client, details
       backgroundRepeat: 'no-repeat',
       backgroundPosition: 'center top',
     } : {}),
-    // v1.9.2 — CSS custom properties for user-controlled colours. Only
+    // v1.9.2 - CSS custom properties for user-controlled colours. Only
     // applied when userColorsEnabled = true (data attribute gates the CSS).
     // Each var falls back to a template default if the user doesn't set it.
     ...(_ps_final.userColorsEnabled ? (() => {
       const accent = _ps_final.pdfAccent || '#343c34';
-      // v1.10.40 — Also compute an RGB channel string so CSS rules can
+      // v1.10.40 - Also compute an RGB channel string so CSS rules can
       // build rgba(var(--pdf-accent-rgb), α) tints. Was using
       // color-mix(in oklab, …) but html2canvas doesn't parse it and
       // fails on Save & Download with "unsupported color function oklab".
@@ -952,13 +952,13 @@ const InvoicePreview = React.forwardRef(({ profile: profileProp, client, details
         '--pdf-divider':      _ps_final.pdfDividerColor|| '#334155',
       };
     })() : {}),
-    // v1.9.14/1.10.9 — inline typography. pdfFontSizeCss already folds
+    // v1.9.14/1.10.9 - inline typography. pdfFontSizeCss already folds
     // in the pdfFontScale multiplier (see the compute above).
     ...(pdfFontFamilyCss ? { fontFamily: pdfFontFamilyCss } : {}),
     ...(pdfFontSizeCss ? { fontSize: pdfFontSizeCss } : {}),
     ...(pdfFontWeightCss ? { fontWeight: pdfFontWeightCss } : {}),
     ...(pdfCapsOn ? { textTransform: 'uppercase' } : {}),
-    // v1.10.67 (#66 item 12) — origin for the CANCELLED watermark below.
+    // v1.10.67 (#66 item 12) - origin for the CANCELLED watermark below.
     position: 'relative',
   };
 
@@ -1127,7 +1127,7 @@ const InvoicePreview = React.forwardRef(({ profile: profileProp, client, details
                 </tr>
               </>
             ) : (
-              // Foreign: single tax column (VAT/SST/etc.) — no CGST/SGST/IGST split
+              // Foreign: single tax column (VAT/SST/etc.) - no CGST/SGST/IGST split
               <>
                 <tr>
                   <th className="inv-th" rowSpan="2">#</th>
@@ -1168,7 +1168,7 @@ const InvoicePreview = React.forwardRef(({ profile: profileProp, client, details
                 <td className="inv-td inv-td-muted">{index + 1}</td>
                 <td className="inv-td inv-td-name">
                   {item.name || '-'}
-                  {/* v1.10.22 — optional per-line description shown under the
+                  {/* v1.10.22 - optional per-line description shown under the
                       name in a smaller, muted font. Renders only when set so
                       pre-existing invoices without a description look
                       identical. */}
@@ -1217,7 +1217,7 @@ const InvoicePreview = React.forwardRef(({ profile: profileProp, client, details
             <>
               <h4 className="inv-section-label">{getLabel(_ps_labels, 'amountInWords')}</h4>
               <p className="inv-words-text">{amountInWords(totals.total)}</p>
-              {/* v1.9.1 — dual currency below the words line (foreign clients) */}
+              {/* v1.9.1 - dual currency below the words line (foreign clients) */}
               {dualCurrencyOn && (
                 <p style={{ fontSize: '0.85em', color: '#555', fontStyle: 'italic', margin: '0.15rem 0 0' }}>
                   Total: {fmt(totals.total)} · {fmtDualSecondary(totals.total)}
@@ -1293,7 +1293,7 @@ const InvoicePreview = React.forwardRef(({ profile: profileProp, client, details
               <span>{fmt(totals.tcsAmount)}</span>
             </div>
           )}
-          {/* v1.10.22 — invoice-level (post-tax) discount, if any. */}
+          {/* v1.10.22 - invoice-level (post-tax) discount, if any. */}
           {totals.invoiceDiscountAmount > 0 && (
             <div className="inv-total-row" style={{ color: '#dc2626' }}>
               <span>
@@ -1350,7 +1350,7 @@ const InvoicePreview = React.forwardRef(({ profile: profileProp, client, details
         </div>
       ) : null}
 
-      {/* Reverse-charge declaration (India) — printed prominently between the
+      {/* Reverse-charge declaration (India) - printed prominently between the
           tax block and the footer when the seller has flagged this invoice as
           RCM. The buyer is responsible for paying GST under Section 9(3)/9(4). */}
       {options.reverseCharge && isIndia && showGST && (
@@ -1359,7 +1359,7 @@ const InvoicePreview = React.forwardRef(({ profile: profileProp, client, details
         </div>
       )}
 
-      {/* Composition-scheme mandatory declaration — Rule 46A of CGST Rules. The
+      {/* Composition-scheme mandatory declaration - Rule 46A of CGST Rules. The
           exact wording is prescribed; do not paraphrase. */}
       {invoiceType === 'composition' && (
         <div style={{ margin: '0 2rem 0.5rem', padding: '0.5rem 0.75rem', background: 'var(--info-bg)', border: '1px solid var(--info-border)', borderRadius: 4, fontSize: '0.78rem', color: 'var(--info-text)', fontStyle: 'italic' }}>
@@ -1373,7 +1373,7 @@ const InvoicePreview = React.forwardRef(({ profile: profileProp, client, details
         <div className="inv-footer-left">
           {/* Bank details render from the resolved payment account. Account fields
               fall back to the flat profile fields when neither array entry nor flat
-              field exists — guarantees byte-identical PDFs for v1.4.3 invoices. */}
+              field exists - guarantees byte-identical PDFs for v1.4.3 invoices. */}
           {showBankDetails && (account?.bankName || profile?.bankName) && (
             <div className="inv-footer-block">
               <h4 className="inv-section-label">{getLabel(_ps_labels, 'bankDetails')}</h4>
@@ -1383,9 +1383,9 @@ const InvoicePreview = React.forwardRef(({ profile: profileProp, client, details
                 </p>
               )}
               <div className="inv-footer-details">
-                {/* v1.10.37 — Account Holder Name renders FIRST (above
+                {/* v1.10.37 - Account Holder Name renders FIRST (above
                     Bank) because clients doing NEFT/RTGS need it for
-                    beneficiary lookup — printing it prominently
+                    beneficiary lookup - printing it prominently
                     prevents the "name mismatch" payment failures
                     reported by users. Falls back to businessName when
                     the field is blank so existing accounts render the
@@ -1395,7 +1395,7 @@ const InvoicePreview = React.forwardRef(({ profile: profileProp, client, details
                 )}
                 <p><span className="inv-detail-label">Bank:</span> {account?.bankName || profile.bankName}</p>
                 <p><span className="inv-detail-label">A/C No:</span> {account?.accountNumber || profile.accountNumber}
-                  {/* v1.10.37 — Account type appended inline next to
+                  {/* v1.10.37 - Account type appended inline next to
                       the number so it doesn't add a whole extra row on
                       the PDF. Uses the human label for CC/OD which
                       won't parse well as an abbreviation to non-banking
@@ -1420,7 +1420,7 @@ const InvoicePreview = React.forwardRef(({ profile: profileProp, client, details
           )}
           {/* Terms and notes accept rich HTML; same DOMPurify sanitization the extraSections
               block uses, which keeps b/i/u/lists/links/headings and strips everything else.
-              v1.10.5 — audit M25 fix. `termsSeparatePage` was a saved
+              v1.10.5 - audit M25 fix. `termsSeparatePage` was a saved
               setting the UI toggled but nothing consumed. Now: when
               true, T&C + notes render inside a `data-pdf-page` container
               (same mechanism the extraSections feature uses). buildPDF's
@@ -1460,7 +1460,7 @@ const InvoicePreview = React.forwardRef(({ profile: profileProp, client, details
             </div>
           )}
         </div>
-        {/* v1.10.5 — Separate T&C page. Uses the same data-pdf-page
+        {/* v1.10.5 - Separate T&C page. Uses the same data-pdf-page
              attribute the extraSections feature uses, so buildPDF's
              existing extraPages loop captures it on its own page. */}
         {_ps.termsSeparatePage && (customTerms || customNotes) && (
@@ -1488,13 +1488,13 @@ const InvoicePreview = React.forwardRef(({ profile: profileProp, client, details
           </div>
         )}
         {(() => {
-          // v1.9.0: signature source priority — profile.signature (per-business,
+          // v1.9.0: signature source priority - profile.signature (per-business,
           // legacy), then printSettings.signatureImage (app-wide default set
           // via Print Settings). Same for the signatory name.
-          const printCfg = _ps;  // v1.10.4 — reuse top-of-function read
+          const printCfg = _ps;  // v1.10.4 - reuse top-of-function read
           const sigImg = profile?.signature || (printCfg.signatureShow !== false ? printCfg.signatureImage : null);
           const sigName = profile?.businessName || printCfg.signatureName;
-          // v1.10.67 (#66 item 13) — the stamp is a separate image with its own
+          // v1.10.67 (#66 item 13) - the stamp is a separate image with its own
           // height, so it no longer has to be pasted into the signature file.
           // Either one alone is enough to print the block.
           const stampImg = profile?.stamp || null;
@@ -1525,7 +1525,7 @@ const InvoicePreview = React.forwardRef(({ profile: profileProp, client, details
           <div key={section.id} className="inv-extra-page" data-pdf-page={idx + 2}>
             <div className="inv-extra-page-header">
               <div>
-                <span className="inv-extra-ref">{customTitle} — {details?.invoiceNumber}</span>
+                <span className="inv-extra-ref">{customTitle} - {details?.invoiceNumber}</span>
                 {client?.name && <span className="inv-extra-ref"> | {client.name}</span>}
               </div>
             </div>

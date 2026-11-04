@@ -9,7 +9,7 @@ import { openWhatsAppShare } from '../utils/share';
 import { confirmAction } from './ConfirmModal';
 import { toast } from './Toast';
 
-// v1.10.31 — UI-C3: Shared helper to resolve the user's accent color as an
+// v1.10.31 - UI-C3: Shared helper to resolve the user's accent color as an
 // RGB tuple usable with jsPDF setFillColor / setDrawColor. Falls back to the
 // legacy blue (#1e40af = rgb(30, 64, 175)) when the user hasn't customised.
 function getAccentRGB() {
@@ -21,7 +21,7 @@ function getAccentRGB() {
         return [parseInt(hex.slice(0, 2), 16), parseInt(hex.slice(2, 4), 16), parseInt(hex.slice(4, 6), 16)];
       }
     }
-  } catch { /* ignore — fall through to default */ }
+  } catch { /* ignore - fall through to default */ }
   return [30, 64, 175];
 }
 import ClientModal from './ClientModal';
@@ -83,7 +83,7 @@ export default function ClientsView({ onEdit, onDuplicate, onNew, initialAiDraft
     loadData();
   }, []);
 
-  // Client Statement PDF — feature A from v1.6.7 audit ("#1 daily ask when
+  // Client Statement PDF - feature A from v1.6.7 audit ("#1 daily ask when
   // a client disputes a bill"). Produces a single-page account statement:
   // invoice list + credit notes + payments + running balance. Reuses the
   // profile block from InvoicePreview for the seller header so the styling
@@ -105,7 +105,7 @@ export default function ClientsView({ onEdit, onDuplicate, onNew, initialAiDraft
       const savedClient = clients.find(c => c.name === clientName) || { name: clientName };
       const stats = getClientStats(clientName);
       const pageW = 210, marginL = 15, marginR = 195, tableW = marginR - marginL; // = 180
-      // Helvetica core font can't render Rupee symbol properly — use "Rs." plaintext.
+      // Helvetica core font can't render Rupee symbol properly - use "Rs." plaintext.
       // Numbers are formatted with Indian digit grouping (2,5,000.00 style).
       const fmt = (n) => {
         const v = Number(n) || 0;
@@ -162,7 +162,7 @@ export default function ClientsView({ onEdit, onDuplicate, onNew, initialAiDraft
         savedClient.phone ? `Ph: ${savedClient.phone}` : null,
       ].filter(Boolean);
 
-      // v1.10.31 — UI-C1 fix: `splitTextToSize` returns an ARRAY of
+      // v1.10.31 - UI-C1 fix: `splitTextToSize` returns an ARRAY of
       // wrapped sub-lines; jsPDF draws each at line-height 4mm but the
       // outer loop only advanced `dy += 4`, so a 2-line-wrapped address
       // collided with the next logical line ("Birnagar / Bhagar" bleed
@@ -213,15 +213,15 @@ export default function ClientsView({ onEdit, onDuplicate, onNew, initialAiDraft
       // Credit = payment received / credit note (decreases receivable)
       // Balance = running Dr - Cr
       //
-      // v1.10.35 — Column widths widened after a report showed "Dr"
+      // v1.10.35 - Column widths widened after a report showed "Dr"
       // suffix crowding the balance number. Prior debitEnd=140 /
       // creditEnd=168 / balanceEnd=193 left only 4mm between Credit
-      // and Balance text — tight when both were 5-digit rupee amounts.
+      // and Balance text - tight when both were 5-digit rupee amounts.
       // Now the Particulars column is trimmed by 5mm and that space is
       // distributed into Debit/Credit/Balance so each has proper breathing
       // room and long "Dr/Cr" suffixes never clip the page margin.
       const col = {
-        dateEnd: 40,        // Date column: 15 to 40 (25mm — dd/mm/yyyy fits at 8.5pt)
+        dateEnd: 40,        // Date column: 15 to 40 (25mm - dd/mm/yyyy fits at 8.5pt)
         particEnd: 100,     // Particulars: 40 to 100 (60mm)
         debitEnd: 133,      // Debit right-aligned at 133
         creditEnd: 163,     // Credit right-aligned at 163
@@ -240,11 +240,11 @@ export default function ClientsView({ onEdit, onDuplicate, onNew, initialAiDraft
       doc.setTextColor(0);
       y += 11;
 
-      // Opening balance row — italic + muted, above the first real row.
+      // Opening balance row - italic + muted, above the first real row.
       doc.setFontSize(8.5); doc.setFont('helvetica', 'italic'); doc.setTextColor(80);
       doc.text('Opening Balance', col.dateEnd + 2, y);
       doc.text(fmt(0), col.balanceEnd, y, { align: 'right' });
-      // v1.10.35 — thin separator so the opening line reads as a
+      // v1.10.35 - thin separator so the opening line reads as a
       // distinct baseline, not as a squished header extension.
       doc.setDrawColor(226, 232, 240); doc.setLineWidth(0.15);
       doc.line(marginL, y + 2, marginR, y + 2);
@@ -269,7 +269,7 @@ export default function ClientsView({ onEdit, onDuplicate, onNew, initialAiDraft
         doc.text('Credit', col.creditEnd, y + 6, { align: 'right' });
         doc.text('Balance', col.balanceEnd, y + 6, { align: 'right' });
         doc.setTextColor(0);
-        y += 12;   // v1.10.35 — was 11; 1mm extra so text doesn't kiss the header rectangle bottom
+        y += 12;   // v1.10.35 - was 11; 1mm extra so text doesn't kiss the header rectangle bottom
       };
 
       for (let i = 0; i < sortedBills.length; i++) {
@@ -287,17 +287,17 @@ export default function ClientsView({ onEdit, onDuplicate, onNew, initialAiDraft
         // Page break with header repeat
         if (y > 260) { doc.addPage(); y = 20; drawHeader(); }
 
-        // v1.10.35 — Row rendering rewrite for the reported "shows data
+        // v1.10.35 - Row rendering rewrite for the reported "shows data
         // in incorrect way" screenshot:
         //   - Row height increased 6mm → 7mm so descenders don't kiss
         //     the next row and the alt-shade rectangle covers the whole
         //     row cleanly.
         //   - Alt shading Y offset fixed (was y-4, showed above the row
         //     text baseline on some renders).
-        //   - Empty debit/credit cells render as a light em-dash "—"
+        //   - Empty debit/credit cells render as a light em-dash "-"
         //     instead of a hard hyphen "-", matching the app's cell-empty
         //     convention and reducing visual noise.
-        //   - The " Dr" / " Cr" suffix now uses the actual sign — was
+        //   - The " Dr" / " Cr" suffix now uses the actual sign - was
         //     always " Dr" even for credit-side balances.
         const rowH = 7;
         if (i % 2 === 1) {
@@ -313,19 +313,19 @@ export default function ClientsView({ onEdit, onDuplicate, onNew, initialAiDraft
         const particulars = `${bill.invoiceNumber || ''} · ${typeLabel}`;
         const particText = doc.splitTextToSize(particulars, col.particEnd - col.dateEnd - 4);
         doc.text(particText[0] || '', col.dateEnd + 2, y);
-        // Debit — em-dash placeholder for empty cells.
+        // Debit - em-dash placeholder for empty cells.
         if (debit > 0) {
           doc.text(fmt(debit), col.debitEnd, y, { align: 'right' });
         } else {
-          doc.setTextColor(180); doc.text('—', col.debitEnd, y, { align: 'right' }); doc.setTextColor(15, 23, 42);
+          doc.setTextColor(180); doc.text('-', col.debitEnd, y, { align: 'right' }); doc.setTextColor(15, 23, 42);
         }
         // Credit
         if (credit > 0) {
           doc.text(fmt(credit), col.creditEnd, y, { align: 'right' });
         } else {
-          doc.setTextColor(180); doc.text('—', col.creditEnd, y, { align: 'right' }); doc.setTextColor(15, 23, 42);
+          doc.setTextColor(180); doc.text('-', col.creditEnd, y, { align: 'right' }); doc.setTextColor(15, 23, 42);
         }
-        // Balance — sign determines Dr / Cr suffix. Red for owing (Dr),
+        // Balance - sign determines Dr / Cr suffix. Red for owing (Dr),
         // green for surplus (Cr), black for balanced.
         runningBalance += debit - credit;
         const isDr = runningBalance > 0.01;
@@ -370,11 +370,11 @@ export default function ClientsView({ onEdit, onDuplicate, onNew, initialAiDraft
       }
 
       // ============== CLOSING BALANCE ==============
-      // v1.10.14 — the v1.10.11 fix (label at col.debitEnd=140mm) still overlapped
+      // v1.10.14 - the v1.10.11 fix (label at col.debitEnd=140mm) still overlapped
       // for medium/large balances: "CLOSING BALANCE" at 11pt bold is ~33mm wide so
       // its right edge lands at ~173mm, but "Rs. X,XXX.XX Dr" at 12pt right-aligned
       // at balanceEnd (~193mm) has its left edge as far left as ~165mm for 4-digit
-      // amounts. Real fix: park the label at marginL (~17mm) — 3x more breathing
+      // amounts. Real fix: park the label at marginL (~17mm) - 3x more breathing
       // room and it reads better as a bottom-of-page summary line anyway.
       y += 3;
       doc.setDrawColor(...getAccentRGB()); doc.setLineWidth(0.6);
@@ -399,7 +399,7 @@ export default function ClientsView({ onEdit, onDuplicate, onNew, initialAiDraft
       doc.text(profileForStatement?.businessName || '', marginR - 28, y + 8, { align: 'center' });
 
       doc.setFontSize(7.5); doc.setFont('helvetica', 'italic'); doc.setTextColor(120);
-      doc.text('Please review and confirm within 7 days. This is a computer-generated statement — no signature required.', pageW / 2, 285, { align: 'center' });
+      doc.text('Please review and confirm within 7 days. This is a computer-generated statement - no signature required.', pageW / 2, 285, { align: 'center' });
       doc.text('Generated by KnowGST', pageW / 2, 290, { align: 'center' });
 
       doc.save(`statement-${clientName.replace(/[^\w]+/g, '-')}-${localToday()}.pdf`);
@@ -410,12 +410,12 @@ export default function ClientsView({ onEdit, onDuplicate, onNew, initialAiDraft
     }
   };
 
-  // v1.10.59 — reported (#44 item 4, @sangwanmail-eng): "slow moving scroll
+  // v1.10.59 - reported (#44 item 4, @sangwanmail-eng): "slow moving scroll
   // bar in many tabs, like purchase tab client tab etc."
   //
   // getClientBills() scanned EVERY bill and re-sorted, and getClientStats()
   // called it. Nothing was memoised, so the whole thing re-ran on every
-  // render — including every keystroke in the search box. Worse, the client
+  // render - including every keystroke in the search box. Worse, the client
   // sort below calls getClientStats() from inside its comparator, so a full
   // scan of all bills happened O(n log n) times per render on top of once
   // per rendered row.
@@ -472,7 +472,7 @@ export default function ClientsView({ onEdit, onDuplicate, onNew, initialAiDraft
     || { total: 0, paid: 0, unpaid: 0, count: 0 };
 
 
-  // v1.10.22 — Aging analysis: bucket unpaid amounts by how long they've
+  // v1.10.22 - Aging analysis: bucket unpaid amounts by how long they've
   // been outstanding. Age = today − dueDate (falls back to invoiceDate
   // when a bill has no explicit due date, since most CA-billed invoices
   // don't set one but are treated as due-on-issue).
@@ -505,10 +505,10 @@ export default function ClientsView({ onEdit, onDuplicate, onNew, initialAiDraft
     return { buckets, unpaidBills };
   };
 
-  // v1.10.22 — Aging Report PDF: single-page overdue-bucket breakdown
+  // v1.10.22 - Aging Report PDF: single-page overdue-bucket breakdown
   // (0-30, 31-60, 61-90, 90+ days) plus a per-invoice list showing
   // outstanding + age. Distinct from generateClientStatement above,
-  // which is a full ledger with running balance — this is the "how
+  // which is a full ledger with running balance - this is the "how
   // overdue are they?" view accountants ask for during collection calls.
   const generateAgingReport = async (clientName) => {
     try {
@@ -557,9 +557,9 @@ export default function ClientsView({ onEdit, onDuplicate, onNew, initialAiDraft
       const fmt = (n) => (Number(n) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
       for (const { bill, ageDays, outstanding } of unpaidBills) {
         if (y > 265) { doc.addPage(); y = 20; }
-        const due = bill.data?.details?.dueDate ? new Date(bill.data.details.dueDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : '—';
-        const dt = bill.invoiceDate ? new Date(bill.invoiceDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : '—';
-        doc.text(String(bill.invoiceNumber || '—').slice(0, 24), marginL, y);
+        const due = bill.data?.details?.dueDate ? new Date(bill.data.details.dueDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : '-';
+        const dt = bill.invoiceDate ? new Date(bill.invoiceDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : '-';
+        doc.text(String(bill.invoiceNumber || '-').slice(0, 24), marginL, y);
         doc.text(dt, marginL + 40, y);
         doc.text(due, marginL + 65, y);
         doc.text(`${ageDays}d`, marginL + 90, y);
@@ -627,7 +627,7 @@ export default function ClientsView({ onEdit, onDuplicate, onNew, initialAiDraft
   const handleDeleteClient = async (id) => {
     if (await confirmAction({
       title: 'Remove this saved client?',
-      message: 'Their existing invoices stay untouched — this only removes them from your saved clients list. You can add them again anytime.',
+      message: 'Their existing invoices stay untouched - this only removes them from your saved clients list. You can add them again anytime.',
       confirmLabel: 'Remove',
       tone: 'danger',
     })) {
@@ -765,14 +765,14 @@ export default function ClientsView({ onEdit, onDuplicate, onNew, initialAiDraft
   return (
     <div className="dashboard-container">
       <PageHeader title="Clients" subtitle={<>Client-wise invoice ledger and outstanding</>}>
-          <HelpButton title="Clients — how to use" doc="clients">
+          <HelpButton title="Clients - how to use" doc="clients">
             <ul style={{ paddingLeft: '1.1rem', margin: 0 }}>
               <li><strong>Click a client name</strong> to see every invoice, payment, and credit note in one place.</li>
-              <li><strong>Statement PDF</strong> — a full account ledger with running balance. Send it when a client disputes a bill.</li>
-              <li><strong>Aging PDF</strong> — outstanding invoices bucketed by 0-30 / 31-60 / 61-90 / 90+ days. Use it for collection calls.</li>
-              <li><strong>Aging strip</strong> — the same buckets inline so you can see who's slow to pay at a glance.</li>
-              <li><strong>Import CSV</strong> — bulk-load clients from a spreadsheet (columns: name, address, state, gstin, email, phone). To back up clients, use Settings → Data Management → Export Backup.</li>
-              <li><strong>WhatsApp / Email</strong> — quick outreach without leaving the app.</li>
+              <li><strong>Statement PDF</strong> - a full account ledger with running balance. Send it when a client disputes a bill.</li>
+              <li><strong>Aging PDF</strong> - outstanding invoices bucketed by 0-30 / 31-60 / 61-90 / 90+ days. Use it for collection calls.</li>
+              <li><strong>Aging strip</strong> - the same buckets inline so you can see who's slow to pay at a glance.</li>
+              <li><strong>Import CSV</strong> - bulk-load clients from a spreadsheet (columns: name, address, state, gstin, email, phone). To back up clients, use Settings → Data Management → Export Backup.</li>
+              <li><strong>WhatsApp / Email</strong> - quick outreach without leaving the app.</li>
             </ul>
           </HelpButton>
         <div className="flex gap-2">
@@ -814,7 +814,7 @@ export default function ClientsView({ onEdit, onDuplicate, onNew, initialAiDraft
           <Search size={16} className="search-icon" />
           <input type="text" placeholder="Search clients..." value={search}
             onChange={e => setSearch(e.target.value)} className="search-input" />
-          {search && <button className="icon-btn" onClick={() => setSearch('')}><X size={14} /></button>}
+          {search && <button className="icon-btn" onClick={() => setSearch('')} title="Clear search" aria-label="Clear search"><X size={14} /></button>}
         </div>
       </div>
 
@@ -864,7 +864,7 @@ export default function ClientsView({ onEdit, onDuplicate, onNew, initialAiDraft
                       <span className="client-stat-value" style={{ color: '#059669' }}>{formatCurrency(stats.paid)}</span>
                     </div>
                     <div className="client-stat">
-                      {/* v1.10.23 — surface overpayment explicitly (was
+                      {/* v1.10.23 - surface overpayment explicitly (was
                           hidden as "Outstanding: ₹0" when paid > total). */}
                       <span className="client-stat-label">
                         {stats.unpaid < -0.005 ? 'Overpaid' : 'Outstanding'}
@@ -882,14 +882,14 @@ export default function ClientsView({ onEdit, onDuplicate, onNew, initialAiDraft
                 {/* Expanded: invoice list */}
                 {isExpanded && (
                   <div className="client-invoices">
-                    {/* Action bar (right-aligned) — Statement + Aging PDFs. */}
+                    {/* Action bar (right-aligned) - Statement + Aging PDFs. */}
                     <div style={{ padding: '0.5rem 1.5rem', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', flexWrap: 'wrap' }}>
                       <button className="btn btn-secondary" style={{ fontSize: '0.78rem', padding: '0.35rem 0.75rem' }}
                         onClick={() => generateClientStatement(clientName)}
                         title="Account statement: every invoice, credit note, payment, and running balance in one PDF">
                         <Download size={14} /> Statement PDF
                       </button>
-                      {/* v1.10.22 — Aging breakdown (0-30 / 31-60 / 61-90 / 90+). */}
+                      {/* v1.10.22 - Aging breakdown (0-30 / 31-60 / 61-90 / 90+). */}
                       <button className="btn btn-secondary" style={{ fontSize: '0.78rem', padding: '0.35rem 0.75rem' }}
                         onClick={() => generateAgingReport(clientName)}
                         title="Aging report: outstanding invoices bucketed by how overdue they are">
@@ -897,7 +897,7 @@ export default function ClientsView({ onEdit, onDuplicate, onNew, initialAiDraft
                       </button>
                     </div>
 
-                    {/* v1.10.22 — Aging summary strip: shows the four
+                    {/* v1.10.22 - Aging summary strip: shows the four
                         buckets inline so users get the answer without
                         having to open the PDF. */}
                     {(() => {

@@ -16,10 +16,10 @@ import SupportNudge from './SupportNudge';
 import { toast } from './Toast';
 import { confirmAction } from './ConfirmModal';
 
-// v1.10.13 — `bg` values switched from opaque tints (#fffbeb / #f5f3ff /
+// v1.10.13 - `bg` values switched from opaque tints (#fffbeb / #f5f3ff /
 // etc.) to translucent alpha versions of the accent color. Reason:
 // prior hex backgrounds were LIGHT-MODE ONLY. In dark mode the status
-// pills appeared as pale rectangles on the dark row background — the
+// pills appeared as pale rectangles on the dark row background - the
 // user reported "NEW ISSUE IN CASE OF DARK MODE". rgba() with 12%
 // alpha lets the underlying row bg show through and works in both
 // themes.
@@ -73,7 +73,7 @@ const STATUS_CONFIG = {
   partial: { label: 'Partial', icon: Clock,          color: '#8b5cf6', bg: 'rgba(139, 92, 246, 0.14)' },
   paid:    { label: 'Paid',    icon: CheckCircle,    color: '#059669', bg: 'rgba(5, 150, 105, 0.14)'  },
   overdue: { label: 'Overdue', icon: AlertTriangle,  color: '#dc2626', bg: 'rgba(220, 38, 38, 0.14)'  },
-  // v1.10.67 (#66 item 12) — a cancelled document keeps its number but counts
+  // v1.10.67 (#66 item 12) - a cancelled document keeps its number but counts
   // for nothing. Picking any other status here un-cancels it.
   cancelled: { label: 'Cancelled', icon: Ban, color: '#64748b', bg: 'rgba(100, 116, 139, 0.16)' },
 };
@@ -86,10 +86,10 @@ const PAYMENT_MODES = [
 ];
 const paymentModeName = (mode) => (PAYMENT_MODES.find(([v]) => v === mode) || [])[1] || mode;
 
-// v1.10.6 — audit L4: was a local copy of getFYOptions. Now imported
+// v1.10.6 - audit L4: was a local copy of getFYOptions. Now imported
 // from ../utils so a bugfix touches one file, not five.
 
-// v1.10.9 — Payment Receipt modal. Renders a printable receipt for a
+// v1.10.9 - Payment Receipt modal. Renders a printable receipt for a
 // specific payment against a specific invoice. Print button uses
 // window.print() and the CSS injected on mount hides everything else so
 // only the receipt shows on paper.
@@ -155,7 +155,7 @@ function ReceiptModal({ target, onClose }) {
           <table style={{ width: '100%', fontSize: '0.85rem', marginBottom: '0.75rem' }}>
             <tbody>
               <tr><td style={{ padding: '3px 0', color: '#475569' }}>Receipt No.</td><td style={{ textAlign: 'right', fontWeight: 600 }}>{receiptNo}</td></tr>
-              <tr><td style={{ padding: '3px 0', color: '#475569' }}>Payment Date</td><td style={{ textAlign: 'right', fontWeight: 600 }}>{payment.date ? new Date(payment.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}</td></tr>
+              <tr><td style={{ padding: '3px 0', color: '#475569' }}>Payment Date</td><td style={{ textAlign: 'right', fontWeight: 600 }}>{payment.date ? new Date(payment.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '-'}</td></tr>
               <tr><td style={{ padding: '3px 0', color: '#475569' }}>Against Invoice</td><td style={{ textAlign: 'right', fontWeight: 600 }}>{bill.invoiceNumber}</td></tr>
               <tr><td style={{ padding: '3px 0', color: '#475569' }}>Payment Mode</td><td style={{ textAlign: 'right', fontWeight: 600 }}>{paymentModeLabel}</td></tr>
               {payment.note && <tr><td style={{ padding: '3px 0', color: '#475569' }}>Ref / Note</td><td style={{ textAlign: 'right' }}>{payment.note}</td></tr>}
@@ -181,7 +181,7 @@ function ReceiptModal({ target, onClose }) {
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: '#334155', marginBottom: '1rem' }}>
             <span>Invoice Total: <strong>{formatCurrency(Number(bill.totalAmount) || 0, currency)}</strong></span>
             <span>Total Paid: <strong>{formatCurrency(Number(bill.paidAmount) || 0, currency)}</strong></span>
-            {/* v1.10.22 — surface overpayments explicitly. Was previously
+            {/* v1.10.22 - surface overpayments explicitly. Was previously
                 clamped to zero via Math.max, silently swallowing the
                 "customer paid extra by ₹X" case. */}
             <span>
@@ -208,11 +208,11 @@ function ReceiptModal({ target, onClose }) {
 }
 
 export default function Dashboard({ onNew, onEdit, onPrint, onDuplicate, onConvert, onOpenProducts, onOpenSettings, onOpenGuide, onOpenSupport, activeProfile, initialSearch = '', initialStatus = 'all' }) {
-  // v1.10.64 — requested (#55, @sangwanmail-eng): "An invoice belonging to one
+  // v1.10.64 - requested (#55, @sangwanmail-eng): "An invoice belonging to one
   // company should not appear under the other."
   //
   // Bills and the active business load independently, so filtering at load
-  // time would race — whichever arrived second would be ignored. Instead the
+  // time would race - whichever arrived second would be ignored. Instead the
   // raw list is held and the visible list derived, which stays correct when
   // either changes, including when the user switches business from the
   // header without a reload.
@@ -222,7 +222,7 @@ export default function Dashboard({ onNew, onEdit, onPrint, onDuplicate, onConve
   const [allBills, setBills] = useState([]);
   const [profileState, setProfileState] = useState(null);
 
-  // v1.10.65 — requested (#58 item 1, @sangwanmail-eng): "Dashboard should
+  // v1.10.65 - requested (#58 item 1, @sangwanmail-eng): "Dashboard should
   // refresh automatically after company switch."
   //
   // It did not, because the dashboard fetched the business ONCE when it
@@ -240,13 +240,13 @@ export default function Dashboard({ onNew, onEdit, onPrint, onDuplicate, onConve
     [allBills, profile],
   );
   const [filtered, setFiltered] = useState([]);
-  // v1.10.66 (#64 item 3) — the headline cards are computed from `bills`, the
+  // v1.10.66 (#64 item 3) - the headline cards are computed from `bills`, the
   // list already narrowed to the active business. They used to be summed in
   // loadBills() from the raw server response, so Total Invoiced, Tax Collected,
   // Outstanding and the invoice count added up EVERY company's invoices while
   // the table underneath showed only one.
   const stats = useMemo(() => {
-    // v1.10.67 (#66 item 7, @sangwanmail-eng) — these cards are turnover, so
+    // v1.10.67 (#66 item 7, @sangwanmail-eng) - these cards are turnover, so
     // only real sales count. A proforma is a quote, a delivery challan moves
     // goods without selling them, a credit note takes money back, and a
     // cancelled document counts for nothing.
@@ -284,7 +284,7 @@ export default function Dashboard({ onNew, onEdit, onPrint, onDuplicate, onConve
     setSelectionFilterKey(filterKey);
     if (selectedIds.size) setSelectedIds(new Set());
   }
-  // v1.9.4 — column picker. Persist to localStorage. Default set matches
+  // v1.9.4 - column picker. Persist to localStorage. Default set matches
   // the pre-v1.9.4 hardcoded columns so no visual change on upgrade.
   const [visibleColumns, setVisibleColumns] = useState(() => {
     try {
@@ -304,12 +304,12 @@ export default function Dashboard({ onNew, onEdit, onPrint, onDuplicate, onConve
   const [paymentModal, setPaymentModal] = useState(null);
   // v1.10.80 (#100) - the invoice shown read-only by the View button.
   const [viewBill, setViewBill] = useState(null);
-  // v1.10.9 — receipt modal state. Opens automatically after
+  // v1.10.9 - receipt modal state. Opens automatically after
   // recordPayment succeeds; can also be opened via openReceiptFor(...)
   // for reprints.
   const [receiptTarget, setReceiptTarget] = useState(null); // { bill, payment, remaining }
 
-  // v1.10.13 — full-edit payment modal. { bill, idx, form: { amount, date, mode, note } }
+  // v1.10.13 - full-edit payment modal. { bill, idx, form: { amount, date, mode, note } }
   const [editPaymentModal, setEditPaymentModal] = useState(null);
   const [paymentInput, setPaymentInput] = useState({ amount: '', date: '', mode: 'bank-transfer', note: '' });
   const [showRemindAll, setShowRemindAll] = useState(false);
@@ -320,7 +320,7 @@ export default function Dashboard({ onNew, onEdit, onPrint, onDuplicate, onConve
   });
   const [lowStockProducts, setLowStockProducts] = useState([]);
 
-  // v1.10.4 — audit M14. getFYOptions is date-based (only changes across
+  // v1.10.4 - audit M14. getFYOptions is date-based (only changes across
   // April-1 boundary); memoize with an empty dep so we run it once per
   // component mount, not on every render.
   const fyOptions = useMemo(() => getFYOptions(), []);
@@ -331,11 +331,11 @@ export default function Dashboard({ onNew, onEdit, onPrint, onDuplicate, onConve
       // Local date (toISOString() is UTC: still yesterday in India until 05:30).
       const today = localToday();
 
-      // v1.10.41 — Orphaned-payment reconciliation. Reported: user
-      // recorded a payment in an older version — the receipt file
+      // v1.10.41 - Orphaned-payment reconciliation. Reported: user
+      // recorded a payment in an older version - the receipt file
       // exists on disk (Receipts page shows it) but the bill's
       // paidAmount stayed at 0 and Dashboard showed the invoice as
-      // Overdue with PAID = "—". Root cause was cross-file data
+      // Overdue with PAID = "-". Root cause was cross-file data
       // drift: receipts persist in data/receipts/*.json with a
       // billId reference; bills persist in data/bills/*.json with
       // their own payments[] array. If a save regression or stale
@@ -360,7 +360,7 @@ export default function Dashboard({ onNew, onEdit, onPrint, onDuplicate, onConve
         }
         const reconcileWrites = [];
         for (const bill of data) {
-          // v1.10.66 (#64) — only a receipt from the business that raised the
+          // v1.10.66 (#64) - only a receipt from the business that raised the
           // invoice may repair it. Two businesses can share an invoice number,
           // and matching on the number alone posted one company's payment onto
           // the other company's invoice every time the Dashboard opened.
@@ -406,7 +406,7 @@ export default function Dashboard({ onNew, onEdit, onPrint, onDuplicate, onConve
           reconcileWrites.push(saveBill(bill, { overwrite: true }).catch(() => null));
         }
         if (reconcileWrites.length) await Promise.allSettled(reconcileWrites);
-      } catch { /* non-fatal — worst case, user still sees orphaned state */ }
+      } catch { /* non-fatal - worst case, user still sees orphaned state */ }
       if (reconciled > 0) {
         toast(`Reconciled ${reconciled} orphaned payment${reconciled === 1 ? '' : 's'} against ${reconciled === 1 ? 'its' : 'their'} invoice${reconciled === 1 ? '' : 's'}`, 'success', 6000);
       }
@@ -472,7 +472,7 @@ export default function Dashboard({ onNew, onEdit, onPrint, onDuplicate, onConve
     setFiltered(result);
   }, [bills, search, typeFilter, statusFilter, fyFilter, dateFrom, dateTo]);
 
-  // v1.10.67 (#66 item 12, @sangwanmail-eng) — an issued invoice is not
+  // v1.10.67 (#66 item 12, @sangwanmail-eng) - an issued invoice is not
   // deleted: its number has to stay in the books, gapless, for GST. Cancelling
   // keeps the document and takes it out of every total and return. Any other
   // status from the dropdown brings it back.
@@ -618,7 +618,7 @@ export default function Dashboard({ onNew, onEdit, onPrint, onDuplicate, onConve
     await saveBill(updatedBill, { overwrite: true });
     toast(`Payment of ${formatCurrency(amount, bill.currency)} recorded`, 'success');
     setPaymentModal(null);
-    // v1.10.22 — reported: "Balance should be 1 but calculating zero" —
+    // v1.10.22 - reported: "Balance should be 1 but calculating zero" -
     // ₹649 invoice + ₹650 paid was hiding the ₹1 overpayment because the
     // remaining calc used Math.max(0, …). Now: send the signed value so
     // the receipt can show "Overpaid ₹1" instead of silently rounding away.
@@ -626,16 +626,16 @@ export default function Dashboard({ onNew, onEdit, onPrint, onDuplicate, onConve
     loadBills();
   };
 
-  // v1.10.9 — Reprint / view an existing payment's receipt.
+  // v1.10.9 - Reprint / view an existing payment's receipt.
   const openReceiptFor = (bill, payment) => {
     const totalPaid = (bill.payments || []).reduce((s, p) => s + (Number(p.amount) || 0), 0);
-    // v1.10.22 — signed remaining; see setReceiptTarget above for context.
+    // v1.10.22 - signed remaining; see setReceiptTarget above for context.
     setReceiptTarget({ bill, payment, remaining: amountDue(bill) - totalPaid });
   };
 
-  // v1.10.10 — Delete/Edit a specific payment BY INDEX.
+  // v1.10.10 - Delete/Edit a specific payment BY INDEX.
   // Prior code used `p.id === paymentId`, but legacy payments (recorded
-  // before v1.10.9 which added `pay_<base36>` ids) don't have ids —
+  // before v1.10.9 which added `pay_<base36>` ids) don't have ids -
   // `(p.id || '') === undefined` matched EVERY legacy row, so editing
   // one silently edited none (or all). Now the caller passes the row
   // index directly. Modern rows still have ids for the receipt modal
@@ -656,12 +656,12 @@ export default function Dashboard({ onNew, onEdit, onPrint, onDuplicate, onConve
     loadBills();
   };
 
-  // v1.10.13 — reported: "receipt edit option edit only enables to add
+  // v1.10.13 - reported: "receipt edit option edit only enables to add
   // notes to that should give option to edit the amount too because by
   // mistake if wrong amount entered, customer without delete can edit
   // directly". Now opens a proper edit modal (see editPaymentModal
   // state + JSX below) that lets the user change amount, date, mode,
-  // and note together — with the same "cannot exceed outstanding"
+  // and note together - with the same "cannot exceed outstanding"
   // guard that recordPayment already enforces.
   const editPaymentAt = (bill, idx) => {
     const target = (bill.payments || [])[idx];
@@ -747,13 +747,13 @@ export default function Dashboard({ onNew, onEdit, onPrint, onDuplicate, onConve
       title: `Mark ${sel.length} invoice${sel.length !== 1 ? 's' : ''} as ${STATUS_CONFIG[newStatus]?.label || newStatus}?`,
       message: newStatus === 'paid'
         ? 'A payment for the balance is recorded on each, so payment history and reports stay right.'
-        : 'The status change is reversible — you can flip it back any time.',
+        : 'The status change is reversible - you can flip it back any time.',
       confirmLabel: `Mark as ${STATUS_CONFIG[newStatus]?.label || newStatus}`,
     })) return;
     setBulkBusy(true);
     try {
       // Bulk mark-paid must push synthetic payments per bill so payment
-       // history and cashflow stay consistent — see changeStatus above for
+       // history and cashflow stay consistent - see changeStatus above for
        // the same fix on the single-row path (P1 #18).
       // Invoices being brought back from Cancelled take their stock out
       // again, as on the single-row dropdown.
@@ -809,7 +809,7 @@ export default function Dashboard({ onNew, onEdit, onPrint, onDuplicate, onConve
     const sel = getSelectedBills();
     if (sel.length === 0) return;
     // Lightweight "give me these N bills as a portable file". Different from
-    // the full Settings → Export Backup — this is a per-selection share, e.g.
+    // the full Settings → Export Backup - this is a per-selection share, e.g.
     // for sending a CA only Q1 invoices. Could be re-imported via the
     // existing Import Backup modal (which only restores ticked sections).
     const blob = new Blob([JSON.stringify({
@@ -827,16 +827,16 @@ export default function Dashboard({ onNew, onEdit, onPrint, onDuplicate, onConve
     toast(`Exported ${sel.length} invoice${sel.length !== 1 ? 's' : ''} as JSON`, 'success');
   };
 
-  // Bulk PDF export — feature C from the v1.6.7 audit ("All March invoices
+  // Bulk PDF export - feature C from the v1.6.7 audit ("All March invoices
    // as one zip"). Renders each selected bill through the existing
    // InvoicePreview → jsPDF pipeline (see openBillPDF in this file's edit
    // handler) and stitches them into a single multi-page PDF. Zip would be
    // cleaner but pulling in JSZip inflates the bundle by ~140KB; one big
    // PDF is what CAs want anyway (one file to archive).
-  // v1.10.35 — `billsOverride` skips the selectedIds read entirely. Used
+  // v1.10.35 - `billsOverride` skips the selectedIds read entirely. Used
   // by the "Quick print" filter buttons (bulkPrintByFilter) which need
   // to export a computed set WITHOUT waiting for a React state commit
-  // — the old code called `setSelectedIds(new Set(target))` then
+  // - the old code called `setSelectedIds(new Set(target))` then
   // `setTimeout(bulkExportPDF, 20)`, but the setTimeout captured the
   // stale bulkExportPDF closure whose getSelectedBills read the OLD
   // (empty) selectedIds → silent no-op. Reported: "Paid button blinks,
@@ -865,7 +865,7 @@ export default function Dashboard({ onNew, onEdit, onPrint, onDuplicate, onConve
       container.style.cssText = 'position:fixed;left:-99999px;top:0;width:794px;background:#fff;';
       document.body.appendChild(container);
       const root = createRoot(container);
-      // v1.10.3 — Audit H18/H19: bulk export used to freeze the tab
+      // v1.10.3 - Audit H18/H19: bulk export used to freeze the tab
       // silently (no progress UI). On a 3× DPR Android, scale went to
       // 4.5× → 16MP canvas per invoice × 50 invoices retained as JPEG
       // data URLs = OOM before doc.save() fired. Now: capped scale,
@@ -915,13 +915,13 @@ export default function Dashboard({ onNew, onEdit, onPrint, onDuplicate, onConve
       doc.save(filename);
       toast(`Exported ${ok} of ${sel.length} invoices`, 'success');
     } catch (e) {
-      toast('Bulk PDF export failed — see console', 'error');
+      toast('Bulk PDF export failed - see console', 'error');
       console.error('bulkExportPDF', e);
     }
     setBulkBusy(false);
   };
 
-  // v1.9.1 — Quick bulk-print by filter. Reuses the existing bulkExportPDF
+  // v1.9.1 - Quick bulk-print by filter. Reuses the existing bulkExportPDF
   // engine by temporarily overriding the selection with a computed set.
   // Selection is restored afterwards.
   const bulkPrintByFilter = async (filterKind) => {
@@ -932,7 +932,7 @@ export default function Dashboard({ onNew, onEdit, onPrint, onDuplicate, onConve
       toast(`No ${filterKind === 'all' ? '' : filterKind + ' '}invoices to print`, 'warning');
       return;
     }
-    // v1.10.35 — Pass the computed bill set directly. Prior code briefly
+    // v1.10.35 - Pass the computed bill set directly. Prior code briefly
     // mutated selectedIds via setState then setTimeout(...bulkExportPDF)
     // which read stale state through the setTimeout closure and printed
     // nothing. Now the export runs immediately with the correct set and
@@ -940,7 +940,7 @@ export default function Dashboard({ onNew, onEdit, onPrint, onDuplicate, onConve
     await bulkExportPDF(targetBills);
   };
 
-  // v1.10.22 — Generate a single-bill PDF as a Blob. Split out of the
+  // v1.10.22 - Generate a single-bill PDF as a Blob. Split out of the
   // bulk-export path so the WhatsApp / native share flows can attach the
   // actual PDF via navigator.share (with a text-only URL fallback on
   // desktop / browsers that don't support file sharing yet).
@@ -978,7 +978,7 @@ export default function Dashboard({ onNew, onEdit, onPrint, onDuplicate, onConve
     }
   };
 
-  // v1.10.24 — Build a rich WhatsApp / Email caption that carries the full
+  // v1.10.24 - Build a rich WhatsApp / Email caption that carries the full
   // payment status. Reported: "please forward with text message too with
   // status op payment." On mobile the message rides as WhatsApp caption
   // alongside the PDF; on desktop (where PDF can't attach via Web Share)
@@ -1015,13 +1015,13 @@ export default function Dashboard({ onNew, onEdit, onPrint, onDuplicate, onConve
       paymentLine,
       `Status: ${status}`,
     ];
-    if (businessName) lines.push('', `— ${businessName}`);
+    if (businessName) lines.push('', `- ${businessName}`);
     return lines.join('\n');
   };
 
   const shareWhatsApp = async (bill) => {
     const msg = buildShareMessage(bill);
-    // v1.10.22 — try the native Web Share API first, with the actual PDF
+    // v1.10.22 - try the native Web Share API first, with the actual PDF
     // attached. On mobile Chrome / Safari the share sheet lets the user
     // pick WhatsApp (or any other target). Falls through to the text-only
     // wa.me URL on desktop and older browsers.
@@ -1066,7 +1066,7 @@ export default function Dashboard({ onNew, onEdit, onPrint, onDuplicate, onConve
       downloaded = true;
     } catch { /* PDF failed: still open the chat with the text */ }
     toast(downloaded
-      ? `PDF downloaded. Drag it into the WhatsApp chat${phone ? '' : ' (choose the contact there)'} — browsers can't attach it for you.`
+      ? `PDF downloaded. Drag it into the WhatsApp chat${phone ? '' : ' (choose the contact there)'} - browsers can't attach it for you.`
       : 'WhatsApp opened with the invoice details. Download the PDF from the invoice to send the file.', 'info', 7000);
   };
 
@@ -1074,7 +1074,7 @@ export default function Dashboard({ onNew, onEdit, onPrint, onDuplicate, onConve
   const emailPdf = (bill) => setEmailDocument({kind:'invoice',name:bill.invoiceNumber||'invoice',to:bill.data?.client?.email||clients.find(c=>c.name===bill.clientName)?.email||'',subject:`Invoice ${bill.invoiceNumber}`,text:`Hello ${bill.clientName||''},\n\nPlease find your invoice ${bill.invoiceNumber} attached.\n\nThank you.`,buildPdf:()=>generateSingleBillPdfBlob(bill)});
 
   const shareEmail = (bill) => {
-    // v1.10.24 — same rich payment status as the WhatsApp share (strip
+    // v1.10.24 - same rich payment status as the WhatsApp share (strip
     // markdown asterisks since mailto: doesn't render them).
     const subject = `Invoice ${bill.invoiceNumber} - ${formatCurrency(bill.totalAmount, bill.currency)}`;
     const richBody = buildShareMessage(bill).replace(/\*/g, '');
@@ -1091,7 +1091,7 @@ export default function Dashboard({ onNew, onEdit, onPrint, onDuplicate, onConve
     setSearch(''); setTypeFilter('all'); setStatusFilter('all'); setFyFilter('all'); setDateFrom(''); setDateTo('');
   };
 
-  // v1.10.4 — trivial boolean, still cheap but consistent with the rest.
+  // v1.10.4 - trivial boolean, still cheap but consistent with the rest.
   const hasFilters = useMemo(
     () => Boolean(search || typeFilter !== 'all' || statusFilter !== 'all' || fyFilter !== 'all' || dateFrom || dateTo),
     [search, typeFilter, statusFilter, fyFilter, dateFrom, dateTo]);
@@ -1102,16 +1102,16 @@ export default function Dashboard({ onNew, onEdit, onPrint, onDuplicate, onConve
     const dueDate = bill.data?.details?.dueDate ? new Date(bill.data.details.dueDate).toLocaleDateString('en-IN') : 'N/A';
     const businessName = profile?.businessName || 'Our Company';
     const outstanding = amountDue(bill) - (bill.paidAmount || 0);
-    // v1.10.23 — don't send a payment reminder for overpaid or already-paid
+    // v1.10.23 - don't send a payment reminder for overpaid or already-paid
     // bills. The old message read "Hi X, kindly arrange the payment of -₹1"
     // which is obviously wrong.
     if (outstanding <= 0.005) {
-      toast('This invoice has no outstanding balance — no reminder to send.', 'info');
+      toast('This invoice has no outstanding balance - no reminder to send.', 'info');
       return;
     }
     const outstandingStr = formatCurrency(outstanding, bill.currency);
     const totalStr = formatCurrency(bill.totalAmount || 0, bill.currency);
-    // v1.10.12 — Status-aware message. Prior code said "due on X" even
+    // v1.10.12 - Status-aware message. Prior code said "due on X" even
     // for partial invoices, which read oddly ("paid Rs. 5000 was due
     // on...") to clients. Now the wording matches the actual state.
     const isPartial = (bill.paidAmount || 0) > 0.01 && outstanding > 0.01;
@@ -1131,7 +1131,7 @@ export default function Dashboard({ onNew, onEdit, onPrint, onDuplicate, onConve
     return savedClient?.phone || '';
   };
 
-  // v1.10.4 — audit M14. Both were rebuilt every render even though
+  // v1.10.4 - audit M14. Both were rebuilt every render even though
   // they only change when `bills` changes.
   const overdueBills = useMemo(() => bills.filter(b => b.status === 'overdue'), [bills]);
   const overdueByCurrency = useMemo(() => {
@@ -1177,15 +1177,15 @@ export default function Dashboard({ onNew, onEdit, onPrint, onDuplicate, onConve
         title="Invoices"
         subtitle="Manage invoices, payments and document actions"
         meta={`${bills.length} invoice${bills.length === 1 ? '' : 's'}`}>
-        <HelpButton title="Invoices — how to use" doc="invoice-register">
+        <HelpButton title="Invoices - how to use" doc="invoice-register">
           <ul style={{ paddingLeft: '1.1rem', margin: 0 }}>
-            <li><strong>New Invoice</strong> — start a fresh tax invoice / proforma / credit note / bill of supply / delivery challan.</li>
-            <li><strong>Filter row</strong> — search by client name or invoice number; filter by financial year, type, status and date range. <strong>Columns</strong> picks what the list shows.</li>
-            <li><strong>Row actions</strong> — 👁 View shows the invoice as it prints without opening the editor; Edit, ₹ Payment (records a payment and prints a receipt) and Convert sit beside it. The <strong>⋯</strong> menu has Duplicate, Print, WhatsApp, reminder, Email and Cancel. Cancelling keeps the invoice number but takes it out of totals and GST returns; undo it from the status dropdown.</li>
-            <li><strong>WhatsApp share — mobile vs. desktop:</strong> on Android / iPhone the PDF attaches automatically via the OS share sheet (works with WhatsApp, Signal, Telegram, anywhere). On desktop, browsers block sending files to WhatsApp Web for security — the client chat opens and the PDF downloads. Drag the downloaded file into WhatsApp Web.</li>
-            <li><strong>Bulk actions</strong> — tick rows to mark them paid / unpaid / overdue, export them, combine them into one PDF, or cancel them. <strong>Quick print</strong> combines the filtered list into one PDF.</li>
-            <li><strong>Overdue banner</strong> — click it to jump to overdue invoices with one tap.</li>
-            <li><strong>Low-stock alert</strong> — appears when any product is at or below your threshold (Settings → Stock alert).</li>
+            <li><strong>New Invoice</strong> - start a fresh tax invoice / proforma / credit note / bill of supply / delivery challan.</li>
+            <li><strong>Filter row</strong> - search by client name or invoice number; filter by financial year, type, status and date range. <strong>Columns</strong> picks what the list shows.</li>
+            <li><strong>Row actions</strong> - 👁 View shows the invoice as it prints without opening the editor; Edit, ₹ Payment (records a payment and prints a receipt) and Convert sit beside it. The <strong>⋯</strong> menu has Duplicate, Print, WhatsApp, reminder, Email and Cancel. Cancelling keeps the invoice number but takes it out of totals and GST returns; undo it from the status dropdown.</li>
+            <li><strong>WhatsApp share - mobile vs. desktop:</strong> on Android / iPhone the PDF attaches automatically via the OS share sheet (works with WhatsApp, Signal, Telegram, anywhere). On desktop, browsers block sending files to WhatsApp Web for security - the client chat opens and the PDF downloads. Drag the downloaded file into WhatsApp Web.</li>
+            <li><strong>Bulk actions</strong> - tick rows to mark them paid / unpaid / overdue, export them, combine them into one PDF, or cancel them. <strong>Quick print</strong> combines the filtered list into one PDF.</li>
+            <li><strong>Overdue banner</strong> - click it to jump to overdue invoices with one tap.</li>
+            <li><strong>Low-stock alert</strong> - appears when any product is at or below your threshold (Settings → Stock alert).</li>
           </ul>
         </HelpButton>
         <LockButton />
@@ -1250,7 +1250,7 @@ export default function Dashboard({ onNew, onEdit, onPrint, onDuplicate, onConve
               {overdueBills.length} overdue invoice{overdueBills.length > 1 ? 's' : ''}
             </span>
             <span style={{ color: '#991b1b', marginLeft: 8, fontSize: '0.85rem' }}>
-              — {overdueStr} outstanding
+              - {overdueStr} outstanding
             </span>
           </div>
           <button className="btn btn-secondary" style={{ fontSize: '0.75rem', padding: '0.3rem 0.75rem', whiteSpace: 'nowrap' }}
@@ -1281,7 +1281,7 @@ export default function Dashboard({ onNew, onEdit, onPrint, onDuplicate, onConve
                         <span className="font-medium">{bill.clientName}</span>
                         <span className="text-muted" style={{ marginLeft: 8, fontSize: '0.8rem' }}>{bill.invoiceNumber}</span>
                         {(() => {
-                          // v1.10.23 — signed outstanding label. Show
+                          // v1.10.23 - signed outstanding label. Show
                           // "Overpaid ₹1" in blue on the reminder card
                           // instead of "-₹1" in red for overpayments.
                           const outCur = bill.currency || bill.data?.invoiceOptions?.currency;
@@ -1323,7 +1323,7 @@ export default function Dashboard({ onNew, onEdit, onPrint, onDuplicate, onConve
                 {formatCurrency(v.total, cur)}
               </div>
             ))}
-            {Object.keys(stats.byCurrency).length === 0 && <h2 className="stat-value">—</h2>}
+            {Object.keys(stats.byCurrency).length === 0 && <h2 className="stat-value">-</h2>}
           </div>
         </div>
         <div className="stat-card">
@@ -1335,7 +1335,7 @@ export default function Dashboard({ onNew, onEdit, onPrint, onDuplicate, onConve
                 {formatCurrency(v.tax, cur)}
               </div>
             ))}
-            {Object.keys(stats.byCurrency).length === 0 && <h2 className="stat-value stat-value-green">—</h2>}
+            {Object.keys(stats.byCurrency).length === 0 && <h2 className="stat-value stat-value-green">-</h2>}
           </div>
         </div>
         <div className="stat-card">
@@ -1347,7 +1347,7 @@ export default function Dashboard({ onNew, onEdit, onPrint, onDuplicate, onConve
                 {formatCurrency(v.unpaid, cur)}
               </div>
             ))}
-            {Object.keys(stats.byCurrency).length === 0 && <h2 className="stat-value stat-value-amber">—</h2>}
+            {Object.keys(stats.byCurrency).length === 0 && <h2 className="stat-value stat-value-amber">-</h2>}
           </div>
         </div>
         <div className="stat-card">
@@ -1396,7 +1396,7 @@ export default function Dashboard({ onNew, onEdit, onPrint, onDuplicate, onConve
           </button>
         </div>
 
-        {/* v1.9.4 — column picker popover */}
+        {/* v1.9.4 - column picker popover */}
         {showColumnPicker && (
           <div style={{
             padding: '0.75rem 1rem', margin: '0.5rem 0',
@@ -1423,7 +1423,7 @@ export default function Dashboard({ onNew, onEdit, onPrint, onDuplicate, onConve
           </div>
         )}
 
-        {/* v1.9.1 — Quick bulk-print filters. One-click "print everything
+        {/* v1.9.1 - Quick bulk-print filters. One-click "print everything
              matching X" without needing to manually tick rows. Useful for
              month-end filing, wholesale reminders, CA handoffs. */}
         <div style={{
@@ -1458,7 +1458,7 @@ export default function Dashboard({ onNew, onEdit, onPrint, onDuplicate, onConve
           </button>
         </div>
 
-        {/* Bulk-action toolbar — only renders when at least one row is ticked. */}
+        {/* Bulk-action toolbar - only renders when at least one row is ticked. */}
         {selectedIds.size > 0 && (
           <div style={{
             display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap',
@@ -1476,8 +1476,8 @@ export default function Dashboard({ onNew, onEdit, onPrint, onDuplicate, onConve
             <button type="button" className="btn btn-secondary" disabled={bulkBusy} onClick={bulkExportJSON}
               style={{ fontSize: '0.75rem', padding: '0.3rem 0.6rem' }}><FileText size={13} /> Export JSON</button>
             <button type="button" className="btn btn-secondary" disabled={bulkBusy} onClick={() => bulkExportPDF()}
-              style={{ fontSize: '0.75rem', padding: '0.3rem 0.6rem' }} title="Combine selected invoices into one multi-page PDF — CAs love this for filing archives"><Download size={13} /> Bulk PDF</button>
-            {/* v1.10.7 — Cancel button for the in-flight bulk export. The
+              style={{ fontSize: '0.75rem', padding: '0.3rem 0.6rem' }} title="Combine selected invoices into one multi-page PDF - CAs love this for filing archives"><Download size={13} /> Bulk PDF</button>
+            {/* v1.10.7 - Cancel button for the in-flight bulk export. The
                  underlying abort flag was wired in v1.10.3; this is the
                  UI surface promised by that changelog. Setting the flag
                  stops the export loop after the current invoice, so
@@ -1486,7 +1486,7 @@ export default function Dashboard({ onNew, onEdit, onPrint, onDuplicate, onConve
               <button type="button" className="btn btn-secondary"
                 onClick={() => { window.__fgsbBulkAbort = true; }}
                 style={{ fontSize: '0.75rem', padding: '0.3rem 0.6rem', color: 'var(--warn-text)', borderColor: 'var(--warn-border)' }}
-                title="Stop the bulk export after the current invoice — partial results still get saved."><X size={13} /> Cancel</button>
+                title="Stop the bulk export after the current invoice - partial results still get saved."><X size={13} /> Cancel</button>
             )}
             <button type="button" className="btn btn-secondary" disabled={bulkBusy} onClick={bulkCancel}
               style={{ fontSize: '0.75rem', padding: '0.3rem 0.6rem', color: 'var(--danger)', borderColor: 'var(--danger)' }}>
@@ -1563,9 +1563,9 @@ export default function Dashboard({ onNew, onEdit, onPrint, onDuplicate, onConve
                         {billCurrency !== 'INR' && !visibleColumns.currency && <span className="currency-chip">{billCurrency}</span>}
                       </td>}
                       {visibleColumns.currency && <td className="text-muted">{billCurrency}</td>}
-                      {visibleColumns.dueDate && <td className="text-muted">{bill.data?.details?.dueDate ? new Date(bill.data.details.dueDate).toLocaleDateString('en-IN') : <span className="cell-empty">—</span>}</td>}
+                      {visibleColumns.dueDate && <td className="text-muted">{bill.data?.details?.dueDate ? new Date(bill.data.details.dueDate).toLocaleDateString('en-IN') : <span className="cell-empty">-</span>}</td>}
                       {visibleColumns.printed && <td className="text-muted" style={{ textAlign: 'center' }}>{Number(bill.printedCount) || 0}×</td>}
-                      <td className="text-muted col-center">{(bill.paidAmount || 0) > 0 ? formatCurrency(bill.paidAmount, billCurrency) : <span className="cell-empty">—</span>}</td>
+                      <td className="text-muted col-center">{(bill.paidAmount || 0) > 0 ? formatCurrency(bill.paidAmount, billCurrency) : <span className="cell-empty">-</span>}</td>
                       {visibleColumns.status && <td className="col-center">
                         {/* v1.10.77 (#86) - a cancelled document is read-only: its status
                             menu is locked, with Undo to bring it back. */}
@@ -1619,14 +1619,14 @@ export default function Dashboard({ onNew, onEdit, onPrint, onDuplicate, onConve
                             { label: 'Duplicate', icon: Copy, onClick: () => onDuplicate(bill) },
                             { label: 'Print', icon: Printer, onClick: () => onPrint(bill), hidden: readOnly },
                             { label: 'WhatsApp', icon: MessageCircle, tone: 'green', onClick: () => shareWhatsApp(bill), hidden: readOnly,
-                              title: 'Share via WhatsApp — PDF attaches on mobile Chrome/Safari. On desktop the PDF downloads and the client chat opens; attach the downloaded file yourself.' },
-                            // v1.10.12 — reminder for unpaid, partial and overdue bills.
+                              title: 'Share via WhatsApp - PDF attaches on mobile Chrome/Safari. On desktop the PDF downloads and the client chat opens; attach the downloaded file yourself.' },
+                            // v1.10.12 - reminder for unpaid, partial and overdue bills.
                             { label: status === 'partial' ? 'Reminder (partial pending)' : 'Send reminder', icon: Send, onClick: () => sendReminder({ ...bill, clientPhone: getClientPhone(bill) }),
                               hidden: readOnly || isCancelledBill(bill) || !(isOverdue || status === 'overdue' || status === 'unpaid' || status === 'partial') || !(amountDue(bill) - (bill.paidAmount || 0) > 0.01) },
                             { label: 'Email PDF with Resend', icon: Mail, onClick: () => emailPdf(bill), hidden: readOnly },
                             { label: 'Open email app', icon: Mail, onClick: () => shareEmail(bill), hidden: readOnly },
                             { label: 'Cancel invoice', icon: Ban, tone: 'danger', onClick: () => handleCancelInvoice(bill), hidden: readOnly,
-                              title: 'Cancel invoice — keeps the number; Undo from the Status column' },
+                              title: 'Cancel invoice - keeps the number; Undo from the Status column' },
                           ]} />
                         </div>
                       </td>}
@@ -1668,7 +1668,7 @@ export default function Dashboard({ onNew, onEdit, onPrint, onDuplicate, onConve
               Invoice: <strong>{paymentModal.invoiceNumber}</strong> | Total: <strong>{formatCurrency(paymentModal.totalAmount, paymentModal.currency)}</strong>
               {(paymentModal.paidAmount || 0) > 0 && <> | Paid: <strong>{formatCurrency(paymentModal.paidAmount, paymentModal.currency)}</strong></>}
               {' '}| {(() => {
-                // v1.10.23 — signed remaining so overpayments surface here too.
+                // v1.10.23 - signed remaining so overpayments surface here too.
                 const rem = amountDue(paymentModal) - (paymentModal.paidAmount || 0);
                 if (rem < -0.005) {
                   return <>Overpaid: <strong style={{ color: '#0369a1' }}>{formatCurrency(Math.abs(rem), paymentModal.currency)}</strong></>;
@@ -1706,12 +1706,12 @@ export default function Dashboard({ onNew, onEdit, onPrint, onDuplicate, onConve
               <div style={{ marginTop: '1rem' }}>
                 <label className="form-label">Payment History</label>
                 <div className="payment-history">
-                  {/* v1.10.9 — each row now has View Receipt / Edit Note /
+                  {/* v1.10.9 - each row now has View Receipt / Edit Note /
                       Delete actions. Prior code showed values only with no
                       way to reprint or fix a typo. */}
                   {paymentModal.payments.map((p, i) => (
                     <div key={p.id || i} className="payment-row" style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                      <span style={{ minWidth: 90 }}>{p.date ? new Date(p.date).toLocaleDateString('en-IN') : '—'}</span>
+                      <span style={{ minWidth: 90 }}>{p.date ? new Date(p.date).toLocaleDateString('en-IN') : '-'}</span>
                       <span className="font-bold" style={{ minWidth: 100 }}>{formatCurrency(p.amount, paymentModal.currency)}</span>
                       <span className="text-muted" style={{ minWidth: 90 }}>{paymentModeName(p.mode)}</span>
                       {p.note && <span className="text-muted" style={{ flex: 1 }}>· {p.note}</span>}
@@ -1739,7 +1739,7 @@ export default function Dashboard({ onNew, onEdit, onPrint, onDuplicate, onConve
         </div>
       )}
 
-      {/* v1.10.13 — Payment Edit modal. Lets the user fix a wrong amount
+      {/* v1.10.13 - Payment Edit modal. Lets the user fix a wrong amount
            without having to delete + re-record. Recomputes bill status
            on save; keeps the Receipts store in sync. */}
       {editPaymentModal && (
@@ -1792,7 +1792,7 @@ export default function Dashboard({ onNew, onEdit, onPrint, onDuplicate, onConve
         </div>
       )}
 
-      {/* v1.10.9 — Payment Receipt modal. */}
+      {/* v1.10.9 - Payment Receipt modal. */}
       {receiptTarget && (
         <ReceiptModal target={receiptTarget} onClose={() => setReceiptTarget(null)} />
       )}

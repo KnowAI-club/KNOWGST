@@ -18,10 +18,10 @@ const QUARTERS = [
   { id: 'Q4', label: 'Q4 (Jan–Mar)', months: [0, 1, 2] },
 ];
 
-// v1.10.6 — audit L4: local copy removed, imported from utils above.
+// v1.10.6 - audit L4: local copy removed, imported from utils above.
 
 function downloadCSV(filename, headers, rows) {
-  // v1.10.66 (#63) — toCsvLine stops a cell such as a client name starting
+  // v1.10.66 (#63) - toCsvLine stops a cell such as a client name starting
   // with "=" from running as a spreadsheet formula when the file is opened.
   const lines = [toCsvLine(headers)];
   rows.forEach(row => lines.push(toCsvLine(row)));
@@ -136,7 +136,7 @@ function buildReconciliation(twoBData, purchases, periodPurchases = purchases) {
     });
   });
 
-  // Anything in our books that didn't match a 2B entry — supplier hasn't filed yet
+  // Anything in our books that didn't match a 2B entry - supplier hasn't filed yet
   // v1.10.74 - only purchases of the selected period can be "Books only"; a
   // 2B statement covers one period, so older bills were all flagged missing.
   // Matching above still looks at every purchase, for bills booked late.
@@ -160,14 +160,14 @@ function buildReconciliation(twoBData, purchases, periodPurchases = purchases) {
   return rows;
 }
 
-// Inter-state status of a bill — follows place of supply when set explicitly,
+// Inter-state status of a bill - follows place of supply when set explicitly,
 // SEZ supplies always interstate, else compares seller and client state.
 //
-// v1.10.66 (#61) — the invoice's own saved decision comes first. Every bill
+// v1.10.66 (#61) - the invoice's own saved decision comes first. Every bill
 // keeps the totals the tax engine produced, `isInterstate` included, and a
 // return has to report the tax the way the invoice actually charged it.
 // Re-deriving it here from state NAMES disagreed with the engine where the
-// engine works from codes — a client known only by GSTIN, or a client abroad —
+// engine works from codes - a client known only by GSTIN, or a client abroad -
 // and filed IGST for an invoice that charged CGST + SGST. The name comparison
 // below remains only for bills saved before the flag existed.
 function billIsInterstate(bill) {
@@ -203,27 +203,27 @@ IMPORTANT: Use your authorized signatory credentials. Only the primary authorize
 NOTE: GSTR-1 must be filed BEFORE GSTR-3B. Due date: 11th of next month (monthly filers) or 13th of month after quarter (QRMP).`
   },
   {
-    title: 'Table 4A — B2B Invoices (Registered Clients)',
-    details: `1. Click "4A, 4B, 4C, 6B, 6C — B2B Invoices" tile.
+    title: 'Table 4A - B2B Invoices (Registered Clients)',
+    details: `1. Click "4A, 4B, 4C, 6B, 6C - B2B Invoices" tile.
 2. Click "+ ADD INVOICE" button.
 3. For EACH B2B invoice from your GSTR-1 tab above, enter:
-   • Receiver GSTIN — Enter the 15-digit GSTIN (e.g., 03AABCU9603R1ZN). Portal auto-validates.
-   • Invoice Number — Must match EXACTLY as on your invoice (e.g., INV/2025-26/0001).
-   • Invoice Date — DD/MM/YYYY format. Must fall within the return period.
-   • Invoice Value — Total invoice amount INCLUDING tax (the "Total" column in B2B table above).
-   • Place of Supply — Select the state. For intra-state, this is YOUR state. For inter-state, this is the BUYER's state.
-   • Reverse Charge — Select "N" (No) for normal supplies. Select "Y" only if the buyer pays GST under reverse charge (Section 9(3)/9(4)).
-   • Invoice Type — "Regular" for normal invoices, "SEZ supplies with payment" / "SEZ supplies without payment" for SEZ.
+   • Receiver GSTIN - Enter the 15-digit GSTIN (e.g., 03AABCU9603R1ZN). Portal auto-validates.
+   • Invoice Number - Must match EXACTLY as on your invoice (e.g., INV/2025-26/0001).
+   • Invoice Date - DD/MM/YYYY format. Must fall within the return period.
+   • Invoice Value - Total invoice amount INCLUDING tax (the "Total" column in B2B table above).
+   • Place of Supply - Select the state. For intra-state, this is YOUR state. For inter-state, this is the BUYER's state.
+   • Reverse Charge - Select "N" (No) for normal supplies. Select "Y" only if the buyer pays GST under reverse charge (Section 9(3)/9(4)).
+   • Invoice Type - "Regular" for normal invoices, "SEZ supplies with payment" / "SEZ supplies without payment" for SEZ.
    • Click "ADD" under tax details → Enter Rate (e.g., 18%), Taxable Value, IGST or CGST+SGST amounts.
 4. Click "SAVE" after each invoice.
 5. Repeat for ALL B2B invoices.
 TIP: Use the "GSTR-1 JSON" export from this app and upload via offline tool to skip manual entry.
-COMMON ERROR: "Invoice number already exists" — each invoice number must be unique within the period.`
+COMMON ERROR: "Invoice number already exists" - each invoice number must be unique within the period.`
   },
   {
-    title: 'Table 5 — B2C Large (Inter-state > ₹1 Lakh)',
+    title: 'Table 5 - B2C Large (Inter-state > ₹1 Lakh)',
     details: `This table is ONLY for inter-state invoices to UNREGISTERED persons (no GSTIN) where invoice value EXCEEDS ₹1,00,000 (₹2,50,000 for invoices before 1 Aug 2024).
-1. Click "5A, 5B — B2C (Large) Invoices" tile.
+1. Click "5A, 5B - B2C (Large) Invoices" tile.
 2. Click "+ ADD INVOICE".
 3. Enter: Place of Supply (buyer's state), Invoice Number, Invoice Date, Invoice Value, Taxable Value, IGST Amount, Cess (if any).
 4. Only IGST applies here (never CGST/SGST) since these are inter-state.
@@ -231,44 +231,44 @@ COMMON ERROR: "Invoice number already exists" — each invoice number must be un
 NOTE: If you have no inter-state B2C invoices above ₹1 lakh, skip this table entirely.`
   },
   {
-    title: 'Table 7 — B2C Small (All Other B2C)',
+    title: 'Table 7 - B2C Small (All Other B2C)',
     details: `This covers ALL remaining B2C invoices: intra-state B2C of any value + inter-state B2C up to ₹1 lakh.
-1. Click "7 — B2C (Others)" tile.
+1. Click "7 - B2C (Others)" tile.
 2. Data is entered in AGGREGATE (not individual invoices). Group by: Supply Type (Intra/Inter), Place of Supply, and Tax Rate.
 3. For each combination, enter: Type (Intra-State/Inter-State), Place of Supply, Rate (e.g., 18%), Taxable Value, CGST/SGST or IGST.
-4. Use the B2C table in your GSTR-1 tab above — it's already aggregated by rate.
+4. Use the B2C table in your GSTR-1 tab above - it's already aggregated by rate.
 5. Click "SAVE".
 IMPORTANT: Intra-state B2C → enter CGST + SGST. Inter-state B2C → enter IGST only.`
   },
   {
-    title: 'Table 9B — Credit/Debit Notes',
+    title: 'Table 9B - Credit/Debit Notes',
     details: `Only if you issued Credit Notes or Debit Notes during this period.
-1. Click "9B — Credit/Debit Notes (Registered)" for notes to GSTIN holders.
+1. Click "9B - Credit/Debit Notes (Registered)" for notes to GSTIN holders.
 2. Enter: Receiver GSTIN, Note Number, Note Date, Note Type (Credit/Debit), Note Value, Place of Supply, Taxable Value, Tax Amounts.
-3. For unregistered persons: Click "9B — Credit/Debit Notes (Unregistered)" and enter without GSTIN.
+3. For unregistered persons: Click "9B - Credit/Debit Notes (Unregistered)" and enter without GSTIN.
 4. Credit Notes reduce your liability. Debit Notes increase it.
 RULE: Credit note must reference the original invoice. Must be issued before September 30 following the end of the financial year of the original invoice or before filing annual return, whichever is earlier (Section 34 of CGST Act).`
   },
   {
-    title: 'Table 12 — HSN-wise Summary of Outward Supplies',
+    title: 'Table 12 - HSN-wise Summary of Outward Supplies',
     details: `Mandatory reporting based on your turnover:
-• Turnover up to ₹1.5 Crore — HSN summary NOT mandatory (but recommended)
-• Turnover ₹1.5 Cr to ₹5 Cr — 4-digit HSN code mandatory
-• Turnover above ₹5 Crore — 6-digit HSN code mandatory
-1. Click "12 — HSN-wise Summary of outward supplies".
-2. For each HSN/SAC code, enter: HSN Code, Description, UQC (Unit — NOS/KGS/MTR etc.), Total Quantity, Taxable Value, IGST, CGST, SGST, Cess.
+• Turnover up to ₹1.5 Crore - HSN summary NOT mandatory (but recommended)
+• Turnover ₹1.5 Cr to ₹5 Cr - 4-digit HSN code mandatory
+• Turnover above ₹5 Crore - 6-digit HSN code mandatory
+1. Click "12 - HSN-wise Summary of outward supplies".
+2. For each HSN/SAC code, enter: HSN Code, Description, UQC (Unit - NOS/KGS/MTR etc.), Total Quantity, Taxable Value, IGST, CGST, SGST, Cess.
 3. Use the HSN Summary from your GSTR-1 tab above.
 4. Click "SAVE".
-COMMON ERROR: "Invalid HSN code" — ensure HSN codes match the official HSN Master list. Services use SAC codes (starting with 99).`
+COMMON ERROR: "Invalid HSN code" - ensure HSN codes match the official HSN Master list. Services use SAC codes (starting with 99).`
   },
   {
-    title: 'Table 13 — Documents Issued During the Period',
-    details: `1. Click "13 — Documents Issued during the tax period".
+    title: 'Table 13 - Documents Issued During the Period',
+    details: `1. Click "13 - Documents Issued during the tax period".
 2. Enter the serial number range for each document type:
-   • Invoices for outward supply — From: INV/2025-26/0001, To: INV/2025-26/0015, Total: 15, Cancelled: 0
-   • Credit Notes — From/To range, Total issued, Cancelled count
-   • Debit Notes — same
-   • Delivery Challans — same
+   • Invoices for outward supply - From: INV/2025-26/0001, To: INV/2025-26/0015, Total: 15, Cancelled: 0
+   • Credit Notes - From/To range, Total issued, Cancelled count
+   • Debit Notes - same
+   • Delivery Challans - same
 3. Net Issued = Total - Cancelled (auto-calculated).
 4. Use the Document Summary from your GSTR-1 tab above.
 5. Click "SAVE".`
@@ -285,8 +285,8 @@ COMMON ERROR: "Invalid HSN code" — ensure HSN codes match the official HSN Mas
 ⚠️ WARNING: After clicking SUBMIT, data is FROZEN. You CANNOT edit any table after submission. Only proceed if you're sure.
 4. After submission, click "FILE GSTR-1" button (appears after submit).
 5. Select filing method:
-   • DSC (Digital Signature Certificate) — for companies and LLPs (mandatory)
-   • EVC (Electronic Verification Code) — OTP sent to registered mobile/email. Available for proprietors, partnerships, HUFs.
+   • DSC (Digital Signature Certificate) - for companies and LLPs (mandatory)
+   • EVC (Electronic Verification Code) - OTP sent to registered mobile/email. Available for proprietors, partnerships, HUFs.
 6. Enter OTP or sign with DSC → Click "FILE".
 7. You'll see ARN (Acknowledgement Reference Number). Save this for your records.
 DONE! GSTR-1 is filed. Now proceed to GSTR-3B.`
@@ -304,9 +304,9 @@ const GSTR3B_STEPS = [
 NOTE: File GSTR-3B AFTER GSTR-1 is filed. From July 2025, Table 3 is auto-populated from your GSTR-1 data. Due date: 20th of next month (monthly) or 22nd/24th after quarter (QRMP, based on your state).`
   },
   {
-    title: 'Table 3.1 — Outward Supplies & Tax Liability',
+    title: 'Table 3.1 - Outward Supplies & Tax Liability',
     details: `This table shows your OUTPUT TAX liability. From July 2025, it's auto-populated from GSTR-1.
-1. Click "3.1 — Tax on outward and reverse charge inward supplies".
+1. Click "3.1 - Tax on outward and reverse charge inward supplies".
 2. Verify/Enter these rows:
    (a) Outward taxable supplies (other than zero-rated, nil-rated, exempted):
        • Taxable Value = Your total taxable value from GSTR-1 Summary
@@ -321,9 +321,9 @@ NOTE: File GSTR-3B AFTER GSTR-1 is filed. From July 2025, Table 3 is auto-popula
 IMPORTANT: Values here MUST match your GSTR-1. Any mismatch will be flagged by the system and may trigger a notice under Section 61.`
   },
   {
-    title: 'Table 3.2 — Inter-state Supplies to Unregistered Persons',
+    title: 'Table 3.2 - Inter-state Supplies to Unregistered Persons',
     details: `Only required if you made INTER-STATE supplies to UNREGISTERED persons or composition dealers.
-1. Click "3.2 — Inter-State supplies".
+1. Click "3.2 - Inter-State supplies".
 2. For supplies to unregistered persons:
    • Select Place of Supply (buyer's state)
    • Enter Taxable Value and IGST Amount
@@ -333,39 +333,39 @@ IMPORTANT: Values here MUST match your GSTR-1. Any mismatch will be flagged by t
 NOTE: This data must reconcile with your GSTR-1 B2C Large (Table 5) data. If you have no inter-state B2C supplies, leave blank.`
   },
   {
-    title: 'Table 4 — Input Tax Credit (ITC)',
+    title: 'Table 4 - Input Tax Credit (ITC)',
     details: `This is where you CLAIM your ITC to reduce tax liability.
-1. Click "4 — Eligible ITC".
-2. Section (A) — ITC Available:
-   (1) Import of goods — ITC from Bill of Entry (customs)
-   (2) Import of services — ITC from invoices for imported services
-   (3) Inward supplies liable to reverse charge — ITC on RCM supplies you paid tax on
-   (4) Inward supplies from ISD — ITC distributed by Input Service Distributor
-   (5) All other ITC — THIS IS YOUR MAIN ITC. Enter IGST, CGST, SGST from eligible purchase invoices.
+1. Click "4 - Eligible ITC".
+2. Section (A) - ITC Available:
+   (1) Import of goods - ITC from Bill of Entry (customs)
+   (2) Import of services - ITC from invoices for imported services
+   (3) Inward supplies liable to reverse charge - ITC on RCM supplies you paid tax on
+   (4) Inward supplies from ISD - ITC distributed by Input Service Distributor
+   (5) All other ITC - THIS IS YOUR MAIN ITC. Enter IGST, CGST, SGST from eligible purchase invoices.
        Use the ITC values from your GSTR-3B tab above (from Expense Tracker).
-3. Section (B) — ITC Reversed: Enter if you need to reverse ITC (Rule 42/43 — common credit reversal, exempt supplies ratio).
+3. Section (B) - ITC Reversed: Enter if you need to reverse ITC (Rule 42/43 - common credit reversal, exempt supplies ratio).
 4. Net ITC = (A) minus (B).
 5. Click "CONFIRM".
 CRITICAL RULES:
 • ITC is only valid if supplier has filed THEIR GSTR-1 (check GSTR-2B auto-populated statement)
-• ITC must be claimed within the time limit — Section 16(4): Due date of September return or annual return filing date
-• ITC cannot exceed GSTR-2B values + 5% tolerance (Rule 36(4) — now removed, but system still validates against GSTR-2B)
+• ITC must be claimed within the time limit - Section 16(4): Due date of September return or annual return filing date
+• ITC cannot exceed GSTR-2B values + 5% tolerance (Rule 36(4) - now removed, but system still validates against GSTR-2B)
 • Retain all invoices and proof of payment for ITC claims`
   },
   {
-    title: 'Table 5 — Exempt, Nil-Rated and Non-GST Inward Supplies',
-    details: `1. Click "5 — Values of exempt, nil-rated and non-GST inward supplies".
+    title: 'Table 5 - Exempt, Nil-Rated and Non-GST Inward Supplies',
+    details: `1. Click "5 - Values of exempt, nil-rated and non-GST inward supplies".
 2. Enter values for:
    • Inter-State inward supplies (exempt/nil/non-GST)
    • Intra-State inward supplies (exempt/nil/non-GST)
 3. Examples: Purchase of milk, fresh vegetables, unprocessed food grains, educational services, healthcare services.
 4. Click "CONFIRM".
-NOTE: This is informational only — no tax impact. But incorrect reporting can trigger scrutiny.`
+NOTE: This is informational only - no tax impact. But incorrect reporting can trigger scrutiny.`
   },
   {
-    title: 'Table 6 — Tax Payment (Calculate Net Payable)',
+    title: 'Table 6 - Tax Payment (Calculate Net Payable)',
     details: `This auto-calculates based on Tables 3 and 4.
-1. Click "6.1 — Payment of Tax".
+1. Click "6.1 - Payment of Tax".
 2. Review the auto-calculated amounts:
    • Tax Payable = Output Tax (Table 3.1) for each head (IGST, CGST, SGST)
    • ITC Claimed = From Table 4, auto-set against each tax head
@@ -401,7 +401,7 @@ NOTE: This is informational only — no tax impact. But incorrect reporting can 
 DONE! Both GSTR-1 and GSTR-3B are filed for this period.
 
 LATE FILING CONSEQUENCES:
-• Late fee: ₹50/day (₹25 CGST + ₹25 SGST) — capped at ₹5,000 per return for taxpayers with turnover, ₹500 for nil returns (CGST Amendment Act 2023, FY 2023-24 onwards)
+• Late fee: ₹50/day (₹25 CGST + ₹25 SGST) - capped at ₹5,000 per return for taxpayers with turnover, ₹500 for nil returns (CGST Amendment Act 2023, FY 2023-24 onwards)
 • Interest: 18% p.a. on outstanding tax from due date (Section 50)
 • Cannot file next month's return until current month is filed
 • E-way bill generation blocked after 2 months of non-filing`
@@ -442,16 +442,16 @@ const NIL_GSTR3B_STEPS = [
   },
   {
     title: 'Verify All Values are Zero',
-    details: `1. Table 3.1 — All outward supply values should be ₹0.
-2. Table 4 — No ITC to claim (all zeros).
-3. Table 5 — Exempt supplies should be ₹0 (unless you have exempt inward supplies).
-4. Table 6 — Tax payable should be ₹0 across IGST, CGST, SGST.`
+    details: `1. Table 3.1 - All outward supply values should be ₹0.
+2. Table 4 - No ITC to claim (all zeros).
+3. Table 5 - Exempt supplies should be ₹0 (unless you have exempt inward supplies).
+4. Table 6 - Tax payable should be ₹0 across IGST, CGST, SGST.`
   },
   {
     title: 'Submit & File NIL GSTR-3B',
     details: `1. Click "SUBMIT" at the bottom.
 2. Since no tax is payable, no payment step is needed.
-3. Click "FILE GSTR-3B (NIL)" — this special button appears when all values are zero.
+3. Click "FILE GSTR-3B (NIL)" - this special button appears when all values are zero.
 4. Tick the declaration: "I verify that to the best of my knowledge..."
 5. Select EVC/DSC → Enter OTP → File.
 6. Save ARN number.
@@ -522,7 +522,7 @@ export default function GSTReturns() {
       }
       setGstr2bData(root);
       const supplierCount = (root.docdata?.b2b || root.b2b || []).length;
-      toast(`Imported GSTR-2B for ${root.gstin || '?'} — ${supplierCount} suppliers`, 'success');
+      toast(`Imported GSTR-2B for ${root.gstin || '?'} - ${supplierCount} suppliers`, 'success');
     } catch (err) {
       console.error(err);
       toast('Failed to parse GSTR-2B JSON', 'error');
@@ -549,17 +549,17 @@ export default function GSTReturns() {
   const loadData = async () => {
     try {
       const [b, e, p] = await Promise.all([getAllBills(), getAllExpenses(), getProfile()]);
-      // v1.10.64 (#55) — a GST return must cover ONE GSTIN. Showing another
+      // v1.10.64 (#55) - a GST return must cover ONE GSTIN. Showing another
       // business's invoices here would misstate the return being filed.
-      // v1.10.67 (#66 item 12) — a cancelled invoice is not reported.
+      // v1.10.67 (#66 item 12) - a cancelled invoice is not reported.
       setBills((b || []).filter(bill => belongsToProfile(bill, p) && !isCancelledBill(bill)));
       setCancelledBills((b || []).filter(bill => belongsToProfile(bill, p) && isCancelledBill(bill)));
-      // v1.10.66 (#64) — and only its own expenses and purchases. Left
+      // v1.10.66 (#64) - and only its own expenses and purchases. Left
       // unfiltered, GSTR-3B Table 4 claimed input tax credit on purchases made
       // by a different GSTIN.
       setExpenses((e || []).filter(r => belongsToProfile(r, p))); setProfile(p || {});
       // Purchases endpoint may not exist on older server versions
-      try { const pur = await getAllPurchases(); setPurchases((pur || []).filter(r => belongsToProfile(r, p))); } catch { /* ignore — older servers don't have this endpoint */ }
+      try { const pur = await getAllPurchases(); setPurchases((pur || []).filter(r => belongsToProfile(r, p))); } catch { /* ignore - older servers don't have this endpoint */ }
     } catch { toast('Failed to load data', 'error'); }
   };
 
@@ -597,12 +597,12 @@ export default function GSTReturns() {
     }
   };
 
-  // v1.10.4 — audit H13. Prior code rebuilt these arrays every render
+  // v1.10.4 - audit H13. Prior code rebuilt these arrays every render
   // (clicking any of ~10 tab pills with 500 bills × 5 items ran
   // ~20k operations per interaction). Now memoized on the same
   // input deps used by filterByPeriod. The downstream computations
   // (b2bRows, hsnMap, warnings, etc.) still run per render but consume
-  // stable arrays — subsequent memoizations can layer on later without
+  // stable arrays - subsequent memoizations can layer on later without
   // touching this file's export helpers.
   const filteredBills = useMemo(() => bills.filter(bill => {
     const type = bill.invoiceType || 'tax-invoice';
@@ -627,11 +627,11 @@ export default function GSTReturns() {
   // v1.10.74 - the HSN summary (Table 12) is net of credit notes: a credit
   // note's quantity, value and tax reduce its HSN row instead of adding to it.
   const hsnSign = (bill) => ((bill.invoiceType || 'tax-invoice') === 'credit-note' ? -1 : 1);
-  // v1.10.66 (#61) — exports. The tax engine now charges a client outside India
+  // v1.10.66 (#61) - exports. The tax engine now charges a client outside India
   // IGST, so such an invoice can no longer sit in B2C with your own state as
   // place of supply: the portal rejects an inter-state row for the home state.
-  // Exports belong in GSTR-1 Table 6A — which needs shipping-bill and port
-  // details this app does not record — and in GSTR-3B 3.1(b). They are kept
+  // Exports belong in GSTR-1 Table 6A - which needs shipping-bill and port
+  // details this app does not record - and in GSTR-3B 3.1(b). They are kept
   // out of B2B / B2C and 3.1(a), counted in 3.1(b), and flagged so they are
   // entered in Table 6A on the portal. They stay in regularBills, so the HSN
   // and document summaries still include them. An older invoice whose saved
@@ -656,17 +656,17 @@ export default function GSTReturns() {
     return !(isInter && (b.totalAmount || 0) > b2clThreshold(b.invoiceDate));
   });
 
-  // v1.10.31 — Helper: is this bill intra-UT (business + client in same Union
+  // v1.10.31 - Helper: is this bill intra-UT (business + client in same Union
   // Territory without legislature)? Value comes from computeInvoiceTotals'
   // `totals.isIntraUT` when available; falls back to state-code inspection
   // for legacy bills computed before that flag existed.
   const billIsIntraUT = (bill) => {
     if (bill?.data?.totals?.isIntraUT) return true;
-    return false; // Legacy bills default to false — will treat as SGST which is safe
+    return false; // Legacy bills default to false - will treat as SGST which is safe
   };
 
   // ========== B2B Rows ==========
-  // v1.10.31 — GST-C2 fix: also read totals.utgst (was ignored → intra-UT
+  // v1.10.31 - GST-C2 fix: also read totals.utgst (was ignored → intra-UT
   // bills lost 50% of tax in the CSV export). And GST-C3: expose cess so
   // GSTR-3B and every summary row includes it.
   const b2bRows = b2bRegular.map(bill => {
@@ -739,7 +739,7 @@ export default function GSTReturns() {
   })();
 
   // ========== HSN Summary ==========
-  // v1.10.31 — GST-H3 fix: key by hsn+rate+uqc so items with the same HSN
+  // v1.10.31 - GST-H3 fix: key by hsn+rate+uqc so items with the same HSN
   // but different UQCs (KGS vs NOS vs PCS) don't get their quantities
   // summed nonsensically. Also GST-C3 + C2: include cess + UTGST in totals.
   const hsnMap = {};
@@ -768,7 +768,7 @@ export default function GSTReturns() {
     .sort((a, b) => (a.hsn || '').localeCompare(b.hsn || ''));
 
   // ========== Totals ==========
-  // v1.10.31 — GST-C3: sumRows now carries cess. GST-H2: credit notes
+  // v1.10.31 - GST-C3: sumRows now carries cess. GST-H2: credit notes
   // netted from grandTotals so GSTR-3B outward supply table reflects
   // the actual liability (was over-stated by full CN amount).
   const sumRows = (rows) => rows.reduce((acc, r) => ({
@@ -783,7 +783,7 @@ export default function GSTReturns() {
       igst: acc.igst + d.igst, cess: acc.cess + (d.cess || 0), total: acc.total + d.total,
     };
   }, { taxable: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, total: 0 });
-  // v1.10.31 — GST-H2: subtract credit note totals from outward supply.
+  // v1.10.31 - GST-H2: subtract credit note totals from outward supply.
   const cnTotals = (creditNotes || []).reduce((acc, b) => {
     const t = b.data?.totals || {};
     const isInter = billIsInterstate(b);
@@ -802,12 +802,12 @@ export default function GSTReturns() {
     sgst: Math.max(0, b2bTotals.sgst + b2cTotals.sgst - cnTotals.sgst),
     igst: Math.max(0, b2bTotals.igst + b2cTotals.igst - cnTotals.igst),
     cess: Math.max(0, b2bTotals.cess + b2cTotals.cess - cnTotals.cess),
-    total: b2bTotals.total + b2cTotals.total - cnTotals.total, // signed — CN nets down
+    total: b2bTotals.total + b2cTotals.total - cnTotals.total, // signed - CN nets down
     cnTotals, // exposed for UI reconciliation display
   };
 
   // ========== GSTR-3B ==========
-  // v1.10.66 (#61) — exports are zero-rated supplies, GSTR-3B 3.1(b). IGST paid
+  // v1.10.66 (#61) - exports are zero-rated supplies, GSTR-3B 3.1(b). IGST paid
   // on an export is still tax payable, so it joins the output tax below even
   // though the export itself is reported outside 3.1(a).
   const exportTotals = exportBills.reduce((acc, b) => {
@@ -815,11 +815,11 @@ export default function GSTReturns() {
     return { taxable: acc.taxable + getTaxableAmount(t), igst: acc.igst + (t.igst || 0), cess: acc.cess + (t.cess || 0) };
   }, { taxable: 0, igst: 0, cess: 0 });
   const outputTax = { cgst: grandTotals.cgst, sgst: grandTotals.sgst, igst: grandTotals.igst + exportTotals.igst };
-  // ITC from expenses — P1 #15 fix: route to IGST when the expense is
+  // ITC from expenses - P1 #15 fix: route to IGST when the expense is
   // interstate (vendor charged IGST, e.g. AWS / Google / Adobe from an
   // out-of-state office). Was unconditionally splitting 50/50 into
   // CGST/SGST → mis-routed ITC in GSTR-3B Table 4(A). Legacy expense
-  // records without the field default to intrastate (safest — preserves
+  // records without the field default to intrastate (safest - preserves
   // pre-v1.6.8 behaviour so no book values shift silently).
   const itcFromExpensesOnly = filteredExpenses.reduce((acc, e) => {
     const gst = e.gstAmount || 0;
@@ -831,7 +831,7 @@ export default function GSTReturns() {
   }, { cgst: 0, sgst: 0, igst: 0 });
   // ITC from purchase bills
   const filteredPurchases = purchases.filter(p => filterByPeriod(p.date));
-  // ITC from purchases — route to IGST when the purchase is interstate (supplier charged IGST),
+  // ITC from purchases - route to IGST when the purchase is interstate (supplier charged IGST),
   // otherwise split CGST/SGST. Without this, an interstate purchase incorrectly added its tax
   // to CGST+SGST in the GSTR-3B Table 4(A).
   const itcFromPurchases = filteredPurchases.reduce((acc, p) => {
@@ -890,7 +890,7 @@ export default function GSTReturns() {
     // 1 letter PAN entity, 1 digit, 1 letter (Z by default), 1 alphanumeric checksum.
     // The last char can be a letter or digit, so the final group is [A-Z\d], not \d.
     if (client?.gstin && !/^\d{2}[A-Z]{5}\d{4}[A-Z]\d[A-Z][A-Z\d]$/.test(client.gstin)) {
-      warnings.push({ type: 'error', msg: `Invoice ${bill.invoiceNumber}: Invalid client GSTIN format — ${client.gstin}` });
+      warnings.push({ type: 'error', msg: `Invoice ${bill.invoiceNumber}: Invalid client GSTIN format - ${client.gstin}` });
     }
     (items || []).forEach(item => {
       if (!item.hsn || item.hsn === 'N/A') {
@@ -898,7 +898,7 @@ export default function GSTReturns() {
       }
     });
     if (client?.gstin && !client?.state) {
-      warnings.push({ type: 'warning', msg: `Invoice ${bill.invoiceNumber}: Client ${client.name} has GSTIN but no State — Place of Supply may be wrong` });
+      warnings.push({ type: 'warning', msg: `Invoice ${bill.invoiceNumber}: Client ${client.name} has GSTIN but no State - Place of Supply may be wrong` });
     }
     // v1.10.79 (#95) - an inter-state sale needs the buyer's state as place of
     // supply; the portal refuses an inter-state row whose state is your own.
@@ -912,11 +912,11 @@ export default function GSTReturns() {
   if (!profile.gstin) {
     warnings.push({ type: 'error', msg: 'Your business GSTIN is not set. Go to Settings → Company Details to add it.' });
   }
-  // v1.10.66 (#61) — exports are left out of the GSTR-1 file (see isExportBill).
+  // v1.10.66 (#61) - exports are left out of the GSTR-1 file (see isExportBill).
   // Put first, so the three-message limit on the banner can never hide it.
   if (exportBills.length > 0) {
     const listed = exportBills.slice(0, 3).map(b => b.invoiceNumber).join(', ') + (exportBills.length > 3 ? ', …' : '');
-    warnings.unshift({ type: 'error', msg: `${exportBills.length} export invoice(s) (${listed}) are not in the GSTR-1 file. Add them in Table 6A on the GST portal with the shipping bill details — their value is in GSTR-3B 3.1(b).` });
+    warnings.unshift({ type: 'error', msg: `${exportBills.length} export invoice(s) (${listed}) are not in the GSTR-1 file. Add them in Table 6A on the GST portal with the shipping bill details - their value is in GSTR-3B 3.1(b).` });
   }
 
   // ========== Filing Period Key ==========
@@ -943,7 +943,7 @@ export default function GSTReturns() {
   };
   const periodFiling = filingStatus[periodKey] || {};
 
-  // v1.10.18 — reported: "in every option give option to change or edit
+  // v1.10.18 - reported: "in every option give option to change or edit
   // because by mistake if click happens user can change that". Now the R1
   // and 3B status pills at the top toggle on click (Pending → Filed → Pending)
   // so a mistaken Mark Filed can be reverted without hunting through
@@ -984,7 +984,7 @@ export default function GSTReturns() {
         const pos = getStateCode(details?.placeOfSupply || client?.state || '');
         return [client.gstin, client.name || bill.clientName || '', bill.invoiceNumber || '', formatDateGST(bill.invoiceDate), (totals?.total || 0).toFixed(2), placeOfSupplyLabel(pos), 'N', 'Regular', isInter ? 'Inter State' : 'Intra State', getTaxableAmount(totals).toFixed(2), isInter ? 0 : (totals?.cgst || 0).toFixed(2), isInter ? 0 : ((totals?.sgst || 0) + (totals?.utgst || 0)).toFixed(2), isInter ? (totals?.igst || 0).toFixed(2) : 0];
       }));
-    toast('B2B CSV downloaded — matches GSTR-1 Table 4A format', 'success');
+    toast('B2B CSV downloaded - matches GSTR-1 Table 4A format', 'success');
   };
 
   const exportB2C = () => {
@@ -1015,7 +1015,7 @@ export default function GSTReturns() {
 
   const exportHSN = () => {
     if (hsnRows.length === 0) { toast('No HSN data', 'warning'); return; }
-    // v1.10.31 — GST-H3: key by hsn+rate+uqc so mixed-UQC items don't
+    // v1.10.31 - GST-H3: key by hsn+rate+uqc so mixed-UQC items don't
     // aggregate nonsensically. GST-C3: cess included. GST-C2: UTGST folded.
     const hsnDetailed = {};
     filteredBills.forEach(bill => {
@@ -1039,9 +1039,9 @@ export default function GSTReturns() {
         hsnDetailed[key].totalValue += sign * (split.taxable + split.cgst + split.sgst + split.utgst + split.igst + split.cess);
       });
     });
-    // v1.10.31 — Column order + header labels now match the GSTR-1
+    // v1.10.31 - Column order + header labels now match the GSTR-1
     // offline utility's Table 12 CSV template (v3.1.6+). The prior order
-    // put "Total Value" LAST and used "Rate %" — the portal importer
+    // put "Total Value" LAST and used "Rate %" - the portal importer
     // rejects those with "Invalid file format". Correct order (portal):
     //   HSN, Description, UQC, Total Quantity, Total Value, Rate,
     //   Taxable Value, Integrated Tax Amount, Central Tax Amount,
@@ -1063,7 +1063,7 @@ export default function GSTReturns() {
         r.cess.toFixed(2),
       ])
     );
-    toast('HSN CSV downloaded — GSTR-1 Table 12 format', 'success');
+    toast('HSN CSV downloaded - GSTR-1 Table 12 format', 'success');
   };
 
   const exportCDNR = () => {
@@ -1110,13 +1110,13 @@ export default function GSTReturns() {
     const gstin = profile.gstin || '';
     const ret_period = getReturnPeriod();
 
-    // Outward supplies — currently we only emit Table 3.1(a). Zero-rated / nil / exempt
+    // Outward supplies - currently we only emit Table 3.1(a). Zero-rated / nil / exempt
     // require invoice-level categorization which is on the v1.5 roadmap; for now those
     // rows are zero-filled rather than omitted (the portal expects the structure even
     // if values are 0).
     const sup_details = {
       osup_det: {
-        // v1.10.31 — GST-C3: cess populated (was hardcoded 0 → GSTR-1 emitted
+        // v1.10.31 - GST-C3: cess populated (was hardcoded 0 → GSTR-1 emitted
         // cess but GSTR-3B did not → Section 61 mismatch notice for
         // tobacco / coal / aerated / motor-vehicle sellers).
         txval: round2(grandTotals.taxable),
@@ -1125,10 +1125,10 @@ export default function GSTReturns() {
         samt: round2(grandTotals.sgst),
         csamt: round2(grandTotals.cess),
       },
-      // v1.10.66 (#61) — exports, kept out of osup_det above.
+      // v1.10.66 (#61) - exports, kept out of osup_det above.
       osup_zero: { txval: round2(exportTotals.taxable), iamt: round2(exportTotals.igst), csamt: round2(exportTotals.cess) },
       osup_nil_exmp: { txval: 0 },
-      // v1.10.31 — GST-M10: RCM inward supplies populated from purchases
+      // v1.10.31 - GST-M10: RCM inward supplies populated from purchases
       // flagged as reverse-charge (was hardcoded 0 → self-remit RCM liability
       // never reported → interest u/s 50).
       isup_rev: (() => {
@@ -1177,7 +1177,7 @@ export default function GSTReturns() {
       ],
     };
 
-    // v1.10.43 — GSTR-3B root schema fields required by the offline
+    // v1.10.43 - GSTR-3B root schema fields required by the offline
     // utility. Same fix pattern as GSTR-1 above: version + hash gate
     // the entire file, and were previously missing → portal rejected
     // with "Error in JSON structure validation" before any per-section
@@ -1193,10 +1193,10 @@ export default function GSTReturns() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a'); a.href = url; a.download = `GSTR3B_${gstin || 'export'}_${ret_period}.json`; a.click();
     URL.revokeObjectURL(url);
-    toast('GSTR-3B JSON exported — upload to GST portal offline tool', 'success');
+    toast('GSTR-3B JSON exported - upload to GST portal offline tool', 'success');
   };
 
-  // v1.10.43 — GSTR portal validation pre-flight. Reported: users
+  // v1.10.43 - GSTR portal validation pre-flight. Reported: users
   // uploading our JSON to gst.gov.in were hitting "Error in JSON
   // structure validation" and per-invoice RET191xxx codes with no
   // in-app warning. Root causes traced against the offline utility
@@ -1205,7 +1205,7 @@ export default function GSTReturns() {
   //     (portal rejects the whole file before per-row checks)
   //   - Invoice number rules (RET191115): ≤16 chars, only [A-Za-z0-9-/]
   //   - Non-standard tax rate (RET191175): allowed {0, 0.25, 3, 5, 12,
-  //     18, 28} only — the app permits customTaxRates for internal use
+  //     18, 28} only - the app permits customTaxRates for internal use
   //     but portal rejects them
   //   - HSN summary rules (Jan-2025 Table 12 mandatory):
   //       * items with no HSN cannot appear in hsn.data (was 'N/A' →
@@ -1223,7 +1223,7 @@ export default function GSTReturns() {
     const aatoAbove5Cr = !!profile.aatoAbove5Cr;
     const minHsnDigits = aatoAbove5Cr ? 6 : 4;
 
-    // Invoice number rules (RET191115) — portal rejects the whole file
+    // Invoice number rules (RET191115) - portal rejects the whole file
     // if any inum is >16 chars or has disallowed chars. Collect the
     // offenders so the user can fix them in the source invoice.
     const badInums = bills.filter(b => !INUM_REGEX.test(b.invoiceNumber || ''));
@@ -1249,7 +1249,7 @@ export default function GSTReturns() {
     }
 
     // HSN min-digit gate (Table 12 mandatory since Jan-2025). We only
-    // WARN here — we still filter the offenders out of hsn.data below
+    // WARN here - we still filter the offenders out of hsn.data below
     // so the file uploads. This lets users move forward while nudging
     // them to fix the source products.
     let missingHsnItemCount = 0;
@@ -1262,7 +1262,7 @@ export default function GSTReturns() {
       });
     });
     if (missingHsnItemCount > 0) {
-      warnings.push(`${missingHsnItemCount} item(s) have no HSN — dropped from HSN summary. GSTR-1 Table 12 requires an HSN per item.`);
+      warnings.push(`${missingHsnItemCount} item(s) have no HSN - dropped from HSN summary. GSTR-1 Table 12 requires an HSN per item.`);
     }
     if (shortHsnItemCount > 0) {
       warnings.push(`${shortHsnItemCount} item(s) have HSN shorter than ${minHsnDigits} digits (required for ${aatoAbove5Cr ? '>' : '≤'}₹5 Cr AATO). Portal may reject.`);
@@ -1275,13 +1275,13 @@ export default function GSTReturns() {
   const exportGSTR1JSON = () => {
     if (filteredBills.length === 0) { toast('No invoices to export', 'warning'); return; }
 
-    // v1.10.43 — Pre-flight validation. Abort with a clear message if
+    // v1.10.43 - Pre-flight validation. Abort with a clear message if
     // any BLOCKING rule is broken (bad invoice number, non-standard
     // rate). Show warnings but proceed for merely lossy issues
     // (missing HSN → dropped from summary).
     const { blocked, warnings } = validateGSTR1(filteredBills);
     if (blocked.length > 0) {
-      toast(`GSTR-1 export blocked — fix these first: ${blocked.join(' · ')}`, 'error', 12000);
+      toast(`GSTR-1 export blocked - fix these first: ${blocked.join(' · ')}`, 'error', 12000);
       return;
     }
 
@@ -1301,7 +1301,7 @@ export default function GSTReturns() {
       (items || []).forEach(item => {
         const rate = item.taxPercent || 0;
         if (!rateMap[rate]) rateMap[rate] = { txval: 0, iamt: 0, camt: 0, samt: 0, csamt: 0 };
-        // v1.10.31 — GST-C2/H7: pass isIntraUT so UTGST folds into SGST bucket.
+        // v1.10.31 - GST-C2/H7: pass isIntraUT so UTGST folds into SGST bucket.
         const split = computeItemTaxSplit(item, isInter, !!bill.data?.taxInclusive, isIntraUT);
         rateMap[rate].txval += split.taxable;
         rateMap[rate].iamt += split.igst;
@@ -1311,16 +1311,16 @@ export default function GSTReturns() {
       });
       const rchrg = isRcm ? 'Y' : 'N';
       const isSEZ = !!client?.isSEZ;
-      // v1.10.31 — GST-M3 + L5: `isLUT` now uses explicit flag first, term-
+      // v1.10.31 - GST-M3 + L5: `isLUT` now uses explicit flag first, term-
       // scanning fallback for legacy bills (was false-positive on "no LUT
-      // applicable" text). Also GST-M9: SEZ + RCM combination — GSTN rejects
+      // applicable" text). Also GST-M9: SEZ + RCM combination - GSTN rejects
       // SEWP/SEWOP with rchrg='Y'. Coerce inv_typ to 'R' if rchrg='Y'.
       const isLUT = !!bill.data?.invoiceOptions?.isLUT
         || /\bLUT\b|Letter of Undertaking/i.test(bill.data?.customTerms || '');
       const invType = isRcm
         ? 'R'
         : (isSEZ ? (isLUT ? 'SEWOP' : 'SEWP') : 'R');
-      // v1.10.31 — GST-C1: `val` per-invoice for RCM must reconcile with
+      // v1.10.31 - GST-C1: `val` per-invoice for RCM must reconcile with
       // per-rate iamt/camt/samt/csamt. When RCM, computeInvoiceTotals excludes
       // tax from `total`, but the per-rate map STILL emits the notional tax.
       // Portal validation requires `val ≈ txval + iamt + camt + samt + csamt`.
@@ -1348,8 +1348,8 @@ export default function GSTReturns() {
         b2csMap[key].txval += split.taxable;
         b2csMap[key].iamt += split.igst;
         b2csMap[key].camt += split.cgst;
-        b2csMap[key].samt += split.sgst + split.utgst; // v1.10.31 — UTGST folded
-        b2csMap[key].csamt += split.cess; // v1.10.31 — cess from split
+        b2csMap[key].samt += split.sgst + split.utgst; // v1.10.31 - UTGST folded
+        b2csMap[key].csamt += split.cess; // v1.10.31 - cess from split
       });
     });
     const b2csArr = Object.values(b2csMap).map(d => ({ ...d, txval: round2(d.txval), iamt: round2(d.iamt), camt: round2(d.camt), samt: round2(d.samt), csamt: round2(d.csamt) }));
@@ -1385,7 +1385,7 @@ export default function GSTReturns() {
         rateMap[rate].txval += split.taxable; rateMap[rate].iamt += split.igst; rateMap[rate].camt += split.cgst; rateMap[rate].samt += split.sgst + split.utgst;
         rateMap[rate].csamt += split.cess;
       });
-      // Same rchrg / inv_typ derivation as B2B — credit notes carry the same
+      // Same rchrg / inv_typ derivation as B2B - credit notes carry the same
       // classification as the original supply (P1 #11, #12, #13).
       const rchrg = bill.data?.invoiceOptions?.reverseCharge ? 'Y' : 'N';
       const isSEZ = !!client?.isSEZ;
@@ -1402,7 +1402,7 @@ export default function GSTReturns() {
       const isInter = billIsInterstate(bill);
       const isIntraUT = billIsIntraUT(bill);
       (items || []).forEach(item => {
-        // v1.10.43 — HSN Table 12 rule: portal rejects `hsn_sc: 'N/A'`
+        // v1.10.43 - HSN Table 12 rule: portal rejects `hsn_sc: 'N/A'`
         // or empty. Silently DROP items with no HSN so the file uploads;
         // the pre-flight warning already told the user how many were
         // dropped and to fix the source products.
@@ -1431,10 +1431,10 @@ export default function GSTReturns() {
       docs: list.map((d, i) => ({ num: i + 1, from: d.from, to: d.to, totnum: d.total, cancel: d.cancelled, net_issue: d.total - d.cancelled })),
     }));
 
-    // v1.10.43 — Aggregate turnover fields required by portal.
+    // v1.10.43 - Aggregate turnover fields required by portal.
     // `gt`     = aggregate turnover of the PREVIOUS FY (typically
     //            entered on the portal, but the JSON must carry the
-    //            field even if 0 — omission trips schema validation).
+    //            field even if 0 - omission trips schema validation).
     // `cur_gt` = turnover in the CURRENT FY up to the previous month.
     // Both accept `0` and can be overridden inline on the portal
     // during filing, so we ship them zero-filled to satisfy the
@@ -1445,7 +1445,7 @@ export default function GSTReturns() {
     const cur_gt = Number(profile?.currentFYTurnover) || 0;
 
     const gstr1 = {
-      // v1.10.43 — Root schema fields the offline utility validates
+      // v1.10.43 - Root schema fields the offline utility validates
       // BEFORE any per-row check. Omission was our #1 cause of "Error
       // in JSON structure validation" (RET191106) reports.
       //   version: current GSTR-1 offline utility (v3.x series).
@@ -1477,7 +1477,7 @@ export default function GSTReturns() {
     if (postWarnings.length > 0) {
       toast(`GSTR-1 JSON exported. ⚠ ${postWarnings.join(' · ')}`, 'warning', 10000);
     } else {
-      toast('GSTR-1 JSON exported — upload to GST portal offline tool', 'success');
+      toast('GSTR-1 JSON exported - upload to GST portal offline tool', 'success');
     }
   };
 
@@ -1488,14 +1488,14 @@ export default function GSTReturns() {
   return (
     <div className="dashboard-container">
       <PageHeader title="GST Returns" subtitle="Review tax summaries, reconcile purchases and prepare your returns.">
-        <HelpButton title="GST Returns — how to use" doc="gst-returns">
+        <HelpButton title="GST Returns - how to use" doc="gst-returns">
           <ul style={{ paddingLeft: '1.1rem', margin: 0 }}>
-            <li><strong>Pick a period</strong> — Monthly / Quarterly (QRMP) / Full Year, then the specific month + year.</li>
-            <li><strong>R1 Filed / 3B Pending pills</strong> — click to toggle Filed ↔ Pending in case of misclick. Colour changes reflect the current state.</li>
+            <li><strong>Pick a period</strong> - Monthly / Quarterly (QRMP) / Full Year, then the specific month + year.</li>
+            <li><strong>R1 Filed / 3B Pending pills</strong> - click to toggle Filed ↔ Pending in case of misclick. Colour changes reflect the current state.</li>
             <li><strong>GSTR-1</strong> tab shows B2B / B2C / HSN Summary / Docs Issued as the portal expects. "JSON Export" gives you the file to upload at gst.gov.in.</li>
-            <li><strong>GSTR-3B</strong> — the portal fills it from your GSTR-1 (from July 2025). Check the portal's figures against this tab before filing.</li>
-            <li><strong>GSTR-2B</strong> — upload the JSON you download from the portal; app matches ITC against your Purchase Bills to flag mismatches.</li>
-            <li><strong>Mark Filed</strong> — after filing on the portal, click Mark Filed to keep the app's status in sync.</li>
+            <li><strong>GSTR-3B</strong> - the portal fills it from your GSTR-1 (from July 2025). Check the portal's figures against this tab before filing.</li>
+            <li><strong>GSTR-2B</strong> - upload the JSON you download from the portal; app matches ITC against your Purchase Bills to flag mismatches.</li>
+            <li><strong>Mark Filed</strong> - after filing on the portal, click Mark Filed to keep the app's status in sync.</li>
           </ul>
         </HelpButton>
       </PageHeader>
@@ -1529,7 +1529,7 @@ export default function GSTReturns() {
               </select>
             </>
           )}
-          {/* Filing status — v1.10.18: clickable to toggle. Reported: "in
+          {/* Filing status - v1.10.18: clickable to toggle. Reported: "in
               every option give option to change or edit because by mistake
               if click happens user can change that". */}
           <button type="button" onClick={() => toggleFiled('gstr1')}
@@ -1548,7 +1548,7 @@ export default function GSTReturns() {
         </a>
       </div>
 
-      {/* Warnings — collapsed by default, only errors show */}
+      {/* Warnings - collapsed by default, only errors show */}
       {warnings.filter(w => w.type === 'error').length > 0 && (
         <div style={{ padding: '0.5rem 0.75rem', marginBottom: '0.75rem', borderRadius: '8px', background: 'var(--danger-light, #fef2f2)', fontSize: '0.8rem', color: '#dc2626' }}>
           <AlertTriangle size={13} style={{ verticalAlign: '-2px', marginRight: '0.35rem' }} />
@@ -1571,7 +1571,7 @@ export default function GSTReturns() {
       {/* NIL Return notice */}
       {isNilReturn && (
         <div style={{ padding: '0.5rem 0.75rem', marginBottom: '0.75rem', borderRadius: '8px', background: 'var(--warn-bg)', color: 'var(--warn-text)', fontSize: '0.8rem' }}>
-          No invoices or expenses found — file a NIL return on the GST portal. NIL returns are mandatory.
+          No invoices or expenses found - file a NIL return on the GST portal. NIL returns are mandatory.
         </div>
       )}
 
@@ -1622,10 +1622,10 @@ export default function GSTReturns() {
             )}
           </div>
 
-          {/* B2B — Table 4A */}
+          {/* B2B - Table 4A */}
           <div className="glass-panel mb-4">
             <div className="table-header">
-              <h3>B2B Sales — Table 4A</h3>
+              <h3>B2B Sales - Table 4A</h3>
               <span className="text-muted" style={{ fontSize: '0.82rem' }}>{b2bRows.length} invoice{b2bRows.length !== 1 ? 's' : ''}</span>
             </div>
             {b2bRows.length === 0 ? (
@@ -1640,7 +1640,7 @@ export default function GSTReturns() {
                     <th style={{ textAlign: 'right' }}>Total</th>
                   </tr></thead>
                   <tbody>
-                    {/* v1.10.6 — audit L13: was key={i}; use invoiceNo which is
+                    {/* v1.10.6 - audit L13: was key={i}; use invoiceNo which is
                         stable across sorts. */}
                     {b2bRows.map((r, i) => (
                       <tr key={r.invoiceNo || `b2b-${i}`}>
@@ -1671,18 +1671,18 @@ export default function GSTReturns() {
             )}
           </div>
 
-          {/* Credit/Debit Notes — Table 9B */}
+          {/* Credit/Debit Notes - Table 9B */}
           {creditNotes.length > 0 && (
             <div className="glass-panel mb-4">
               <div className="table-header">
-                <h3>Credit/Debit Notes — Table 9B</h3>
+                <h3>Credit/Debit Notes - Table 9B</h3>
                 <span className="text-muted" style={{ fontSize: '0.85rem' }}>{creditNotes.length} note{creditNotes.length !== 1 ? 's' : ''}</span>
               </div>
               <div className="table-scroll">
                 <table className="data-table">
                   <thead><tr><th>GSTIN</th><th>Client</th><th>Note No</th><th>Date</th><th style={{ textAlign: 'right' }}>Taxable</th><th style={{ textAlign: 'right' }}>Tax</th><th style={{ textAlign: 'right' }}>Total</th></tr></thead>
                   <tbody>
-                    {/* v1.10.6 — audit L13: was key={i}; use bill.id which is stable. */}
+                    {/* v1.10.6 - audit L13: was key={i}; use bill.id which is stable. */}
                     {creditNotes.map((bill, i) => {
                       const { client, totals } = bill.data;
                       return (
@@ -1703,10 +1703,10 @@ export default function GSTReturns() {
             </div>
           )}
 
-          {/* B2C — Table 7 (only show if data exists) */}
+          {/* B2C - Table 7 (only show if data exists) */}
           <div className="glass-panel mb-4">
             <div className="table-header">
-              <h3>B2C Sales — Table 7</h3>
+              <h3>B2C Sales - Table 7</h3>
               <span className="text-muted" style={{ fontSize: '0.82rem' }}>
                 {b2cBills.length} invoice{b2cBills.length !== 1 ? 's' : ''}
                 {b2cLarge.length > 0 && <> ({b2cLarge.length} B2C Large)</>}
@@ -1761,10 +1761,10 @@ export default function GSTReturns() {
             )}
           </div>
 
-          {/* HSN Summary — Table 12 */}
+          {/* HSN Summary - Table 12 */}
           <div className="glass-panel mb-4">
             <div className="table-header">
-              <h3>HSN Summary — Table 12</h3>
+              <h3>HSN Summary - Table 12</h3>
               <span className="text-muted" style={{ fontSize: '0.82rem' }}>{hsnRows.length} code{hsnRows.length !== 1 ? 's' : ''}</span>
             </div>
             {hsnRows.length === 0 ? (
@@ -1774,7 +1774,7 @@ export default function GSTReturns() {
                 <table className="data-table">
                   <thead><tr><th>HSN</th><th>Description</th><th style={{ textAlign: 'right' }}>Qty</th><th style={{ textAlign: 'right' }}>Taxable</th><th style={{ textAlign: 'right' }}>CGST</th><th style={{ textAlign: 'right' }}>SGST</th><th style={{ textAlign: 'right' }}>IGST</th><th style={{ textAlign: 'right' }}>Total Tax</th></tr></thead>
                   <tbody>
-                    {/* v1.10.6 — audit L13: HSN code is unique per row. */}
+                    {/* v1.10.6 - audit L13: HSN code is unique per row. */}
                     {hsnRows.map((r, i) => (
                       <tr key={r.hsn || `hsn-${i}`}>
                         <td><span className="invoice-badge">{r.hsn}</span></td>
@@ -1802,9 +1802,9 @@ export default function GSTReturns() {
             )}
           </div>
 
-          {/* Document Summary — Table 13 */}
+          {/* Document Summary - Table 13 */}
           <div className="glass-panel mb-4">
-            <div className="table-header"><h3>Document Summary — Table 13</h3></div>
+            <div className="table-header"><h3>Document Summary - Table 13</h3></div>
             {Object.keys(docSummary).length === 0 ? (
               <p style={{ padding: '1rem 1.25rem', margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)' }}>No documents issued.</p>
             ) : (
@@ -1863,9 +1863,9 @@ export default function GSTReturns() {
             )}
           </div>
 
-          {/* Table 3.1 — Output Tax */}
+          {/* Table 3.1 - Output Tax */}
           <div className="glass-panel mb-4">
-            <div className="table-header"><h3>Table 3.1 — Outward Supplies & Tax</h3></div>
+            <div className="table-header"><h3>Table 3.1 - Outward Supplies & Tax</h3></div>
             <div className="table-scroll">
               <table className="data-table" style={{ minWidth: '600px' }}>
                 <thead><tr><th>Nature of Supplies</th><th style={{ textAlign: 'right' }}>Taxable Value</th><th style={{ textAlign: 'right' }}>IGST</th><th style={{ textAlign: 'right' }}>CGST</th><th style={{ textAlign: 'right' }}>SGST</th></tr></thead>
@@ -1878,7 +1878,7 @@ export default function GSTReturns() {
             </div>
           </div>
 
-          {/* Table 3.2 — Inter-state Supplies */}
+          {/* Table 3.2 - Inter-state Supplies */}
           {(() => {
             const interStateB2C = {};
             b2cBills.forEach(bill => {
@@ -1900,7 +1900,7 @@ export default function GSTReturns() {
             if (rows.length === 0) return null;
             return (
               <div className="glass-panel mb-4">
-                <div className="table-header"><h3>Table 3.2 — Inter-state Supplies to Unregistered Persons</h3></div>
+                <div className="table-header"><h3>Table 3.2 - Inter-state Supplies to Unregistered Persons</h3></div>
                 <div className="table-scroll">
                   <table className="data-table" style={{ minWidth: '400px' }}>
                     <thead><tr><th>Place of Supply</th><th style={{ textAlign: 'right' }}>Taxable Value</th><th style={{ textAlign: 'right' }}>IGST</th></tr></thead>
@@ -1918,14 +1918,14 @@ export default function GSTReturns() {
             );
           })()}
 
-          {/* Table 4 — ITC */}
+          {/* Table 4 - ITC */}
           <div className="glass-panel mb-4">
-            <div className="table-header"><h3>Table 4 — Eligible ITC (from Expenses & Purchases)</h3></div>
+            <div className="table-header"><h3>Table 4 - Eligible ITC (from Expenses & Purchases)</h3></div>
             <div className="table-scroll">
               <table className="data-table" style={{ minWidth: '500px' }}>
                 <thead><tr><th>Details</th><th style={{ textAlign: 'right' }}>IGST</th><th style={{ textAlign: 'right' }}>CGST</th><th style={{ textAlign: 'right' }}>SGST</th></tr></thead>
                 <tbody>
-                  <tr><td className="font-medium">(A) ITC Available — All other ITC</td><td style={{ textAlign: 'right' }}>{formatCurrency(itcFromExpenses.igst)}</td><td style={{ textAlign: 'right' }}>{formatCurrency(itcFromExpenses.cgst)}</td><td style={{ textAlign: 'right' }}>{formatCurrency(itcFromExpenses.sgst)}</td></tr>
+                  <tr><td className="font-medium">(A) ITC Available - All other ITC</td><td style={{ textAlign: 'right' }}>{formatCurrency(itcFromExpenses.igst)}</td><td style={{ textAlign: 'right' }}>{formatCurrency(itcFromExpenses.cgst)}</td><td style={{ textAlign: 'right' }}>{formatCurrency(itcFromExpenses.sgst)}</td></tr>
                   <tr className="font-bold"><td>Net ITC Available</td><td style={{ textAlign: 'right' }}>{formatCurrency(itcFromExpenses.igst)}</td><td style={{ textAlign: 'right' }}>{formatCurrency(itcFromExpenses.cgst)}</td><td style={{ textAlign: 'right' }}>{formatCurrency(itcFromExpenses.sgst)}</td></tr>
                 </tbody>
               </table>
@@ -1935,9 +1935,9 @@ export default function GSTReturns() {
             </p>
           </div>
 
-          {/* Table 6 — Tax Payment */}
+          {/* Table 6 - Tax Payment */}
           <div className="glass-panel mb-4">
-            <div className="table-header"><h3>Table 6 — Tax Payment Summary</h3></div>
+            <div className="table-header"><h3>Table 6 - Tax Payment Summary</h3></div>
             <div className="table-scroll">
               <table className="data-table" style={{ minWidth: '600px' }}>
                 <thead><tr><th>Description</th><th style={{ textAlign: 'right' }}>IGST</th><th style={{ textAlign: 'right' }}>CGST</th><th style={{ textAlign: 'right' }}>SGST</th><th style={{ textAlign: 'right' }}>Total</th></tr></thead>
@@ -2002,7 +2002,7 @@ export default function GSTReturns() {
           toast('Reconciliation CSV downloaded', 'success');
         };
 
-        // Use the global .status-pill utility — color flows via the --pill-color CSS var,
+        // Use the global .status-pill utility - color flows via the --pill-color CSS var,
         // background is auto-derived with a 14% mix so dark/light look identical.
         const STATUS_BADGES = {
           matched:         { label: '✓ Matched',         color: 'var(--success)' },
@@ -2101,19 +2101,19 @@ export default function GSTReturns() {
                         const badge = STATUS_BADGES[r.status];
                         const diff = r.twoBVal - r.bookVal;
                         return (
-                          // v1.10.6 — audit L13: use invoice + GSTIN combo (stable across filters).
+                          // v1.10.6 - audit L13: use invoice + GSTIN combo (stable across filters).
                           <tr key={`${r.gstin || 'x'}-${r.invoice || i}`}>
                             <td><span className="status-pill" style={{ '--pill-color': badge.color }}>{badge.label}</span></td>
                             <td>
-                              <div style={{ fontWeight: 500 }}>{r.supplier || '—'}</div>
+                              <div style={{ fontWeight: 500 }}>{r.supplier || '-'}</div>
                               <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>{r.ctin}</div>
                             </td>
                             <td style={{ fontFamily: 'monospace', fontSize: '0.78rem' }}>{r.invoiceNumber}</td>
-                            <td style={{ fontSize: '0.78rem' }}>{r.date || '—'}</td>
-                            <td style={{ textAlign: 'right' }}>{r.twoBVal > 0 ? formatCurrency(r.twoBVal) : '—'}</td>
-                            <td style={{ textAlign: 'right' }}>{r.bookVal > 0 ? formatCurrency(r.bookVal) : '—'}</td>
+                            <td style={{ fontSize: '0.78rem' }}>{r.date || '-'}</td>
+                            <td style={{ textAlign: 'right' }}>{r.twoBVal > 0 ? formatCurrency(r.twoBVal) : '-'}</td>
+                            <td style={{ textAlign: 'right' }}>{r.bookVal > 0 ? formatCurrency(r.bookVal) : '-'}</td>
                             <td style={{ textAlign: 'right', color: Math.abs(diff) > 1 ? '#dc2626' : 'var(--text-muted)', fontWeight: Math.abs(diff) > 1 ? 600 : 400 }}>
-                              {diff !== 0 ? (diff > 0 ? '+' : '') + formatCurrency(diff) : '—'}
+                              {diff !== 0 ? (diff > 0 ? '+' : '') + formatCurrency(diff) : '-'}
                             </td>
                             <td style={{ fontSize: '0.78rem', color: r.itcAvailable ? '#059669' : '#94a3b8' }}>{r.itcAvailable ? '✓' : '✗'}</td>
                           </tr>
@@ -2146,7 +2146,7 @@ export default function GSTReturns() {
           const taxable = t.taxableAmount ?? ((t.subtotal || 0) - (t.totalDiscount || 0));
           if (t.tdsAmount > 0) {
             tdsRows.push({
-              clientName: client.name || bill.clientName || '—',
+              clientName: client.name || bill.clientName || '-',
               clientGstin: client.gstin || '',
               clientPan: client.pan || '',
               section: opt.tdsSection || '194Q',
@@ -2160,7 +2160,7 @@ export default function GSTReturns() {
           }
           if (t.tcsAmount > 0) {
             tcsRows.push({
-              clientName: client.name || bill.clientName || '—',
+              clientName: client.name || bill.clientName || '-',
               clientGstin: client.gstin || '',
               clientPan: client.pan || '',
               section: opt.tcsSection || '206C(1H)',
@@ -2212,8 +2212,8 @@ export default function GSTReturns() {
           <>
             <div className="glass-panel" style={{ padding: '0.85rem 1rem', marginBottom: '0.75rem', borderLeft: '3px solid var(--primary)' }}>
               <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>
-                <strong>What this is:</strong> Aggregates TDS (tax deducted by your clients on payments to you — Section 194C/194J/194Q etc.)
-                and TCS (tax collected by you from clients — CGST section 52, 206C(1), or 206C(1H) on invoices before April 2025) across the selected period.
+                <strong>What this is:</strong> Aggregates TDS (tax deducted by your clients on payments to you - Section 194C/194J/194Q etc.)
+                and TCS (tax collected by you from clients - CGST section 52, 206C(1), or 206C(1H) on invoices before April 2025) across the selected period.
                 Use the CSV exports as input for <strong>Form 26Q</strong> (TDS) and <strong>Form 27EQ</strong> (TCS) quarterly returns,
                 or hand the file to your CA. Filed at <a href="https://www.tin-nsdl.com" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)' }}>tin-nsdl.com</a>.
               </p>
@@ -2355,25 +2355,25 @@ export default function GSTReturns() {
 
                 {guideTab === 'regular' && (
                   <>
-                    <StepList steps={GSTR1_STEPS} title="GSTR-1 — Sales Return (File This First)" />
+                    <StepList steps={GSTR1_STEPS} title="GSTR-1 - Sales Return (File This First)" />
 
                     <div className="glass-panel p-4 mb-4" style={{ background: '#f0fdf4' }}>
                       <h4 style={{ color: '#059669', marginBottom: '0.5rem', fontSize: '0.9rem' }}>GSTR-1 Pro Tips</h4>
                       <ul style={{ fontSize: '0.82rem', color: '#047857', lineHeight: 1.8, paddingLeft: '1.25rem' }}>
                         <li><strong>Fastest method:</strong> Export GSTR-1 JSON from the GSTR-1 tab above → Go to GST portal → GSTR-1 → Prepare Offline → Download Offline Tool → Import JSON → Upload. Saves 90% of time.</li>
-                        <li>If turnover {'<'} ₹5 Cr, opt for QRMP scheme — file quarterly instead of monthly. Apply via Services → User Services → Opt-in for QRMP.</li>
+                        <li>If turnover {'<'} ₹5 Cr, opt for QRMP scheme - file quarterly instead of monthly. Apply via Services → User Services → Opt-in for QRMP.</li>
                         <li>Amendments to previous period invoices: Use Table 9A (not 4A). You can amend within the September return of the following FY.</li>
                         <li>Export invoices (zero-rated): Report in Table 6A with shipping bill details.</li>
-                        <li>Advances received: Report in Table 11A (tax on advance received) — adjust when invoice is issued (Table 11B).</li>
+                        <li>Advances received: Report in Table 11A (tax on advance received) - adjust when invoice is issued (Table 11B).</li>
                       </ul>
                     </div>
 
-                    <StepList steps={GSTR3B_STEPS} title="GSTR-3B — Summary Return + Tax Payment (File After GSTR-1)" />
+                    <StepList steps={GSTR3B_STEPS} title="GSTR-3B - Summary Return + Tax Payment (File After GSTR-1)" />
 
                     <div className="glass-panel p-4 mb-4" style={{ background: 'var(--info-bg)' }}>
                       <h4 style={{ color: 'var(--primary)', marginBottom: '0.5rem', fontSize: '0.9rem' }}>GSTR-3B Pro Tips</h4>
                       <ul style={{ fontSize: '0.82rem', color: 'var(--info-text)', lineHeight: 1.8, paddingLeft: '1.25rem' }}>
-                        <li><strong>From July 2025:</strong> Table 3 auto-populates from GSTR-1 — just VERIFY, don't re-enter values.</li>
+                        <li><strong>From July 2025:</strong> Table 3 auto-populates from GSTR-1 - just VERIFY, don't re-enter values.</li>
                         <li><strong>ITC matching:</strong> Always check GSTR-2B statement BEFORE claiming ITC. Go to Returns → GSTR-2B → Download. Only claim ITC that appears in GSTR-2B.</li>
                         <li><strong>ITC utilization order (Section 49):</strong> IGST credit first (against IGST → CGST → SGST), then CGST (against CGST → IGST), then SGST (against SGST → IGST).</li>
                         <li><strong>Payment:</strong> Use Electronic Credit Ledger (ITC) first. Pay remaining via Electronic Cash Ledger. Create challan via Services → Payments → Create Challan.</li>
@@ -2393,21 +2393,21 @@ export default function GSTReturns() {
                         <li>You have <strong>NO input tax credit</strong> to claim</li>
                         <li>You have <strong>NO tax liability</strong> (including reverse charge)</li>
                         <li>You have <strong>NO inward supplies</strong> liable to reverse charge</li>
-                        <li>If ANY of the above has a value, you MUST file a regular return — not NIL</li>
+                        <li>If ANY of the above has a value, you MUST file a regular return - not NIL</li>
                       </ul>
                       <p style={{ fontSize: '0.85rem', color: '#92400e', marginTop: '0.5rem', fontWeight: 600 }}>
                         MANDATORY: You must file NIL returns every month/quarter even with zero activity. Non-filing for 6 continuous months can result in suo-motu GSTIN cancellation under Section 29(2)(c).
                       </p>
                     </div>
 
-                    <StepList steps={NIL_GSTR1_STEPS} title="NIL GSTR-1 — File First (Even with Zero Sales)" />
-                    <StepList steps={NIL_GSTR3B_STEPS} title="NIL GSTR-3B — File After NIL GSTR-1" />
+                    <StepList steps={NIL_GSTR1_STEPS} title="NIL GSTR-1 - File First (Even with Zero Sales)" />
+                    <StepList steps={NIL_GSTR3B_STEPS} title="NIL GSTR-3B - File After NIL GSTR-1" />
 
                     <div className="glass-panel p-4" style={{ background: '#f0fdf4' }}>
                       <h4 style={{ color: '#059669', marginBottom: '0.5rem', fontSize: '0.9rem' }}>NIL Return Quick Summary</h4>
                       <ul style={{ fontSize: '0.82rem', color: '#047857', lineHeight: 1.8, paddingLeft: '1.25rem' }}>
-                        <li>NIL GSTR-1 and NIL GSTR-3B are <strong>separate returns</strong> — file both</li>
-                        <li>NIL filing takes 2-3 minutes per return — just login, verify zeros, submit, file</li>
+                        <li>NIL GSTR-1 and NIL GSTR-3B are <strong>separate returns</strong> - file both</li>
+                        <li>NIL filing takes 2-3 minutes per return - just login, verify zeros, submit, file</li>
                         <li>Late fee for NIL: ₹20/day (₹10 CGST + ₹10 SGST), capped at ₹500 per return</li>
                         <li>You can file NIL returns via SMS: Send <code>NIL space GSTIN space Return Period</code> to 14409. Verify with OTP.</li>
                         <li>QRMP users filing quarterly: NIL return covers the entire quarter</li>
@@ -2423,16 +2423,16 @@ export default function GSTReturns() {
                       <div className="table-header"><h3>Common GST Portal Errors & How to Fix Them</h3></div>
                       <div style={{ padding: '1rem 1.25rem' }}>
                         {[
-                          { error: '"Invalid GSTIN" when adding B2B invoice', fix: 'Verify the client GSTIN on the portal: Services → User Services → Search Taxpayer. The GSTIN must be active. Cancelled/surrendered GSTINs are rejected. Also check for typos — GSTIN is 15 characters: 2 digits (state) + 10 chars (PAN) + 1 entity code + 1 check digit.' },
+                          { error: '"Invalid GSTIN" when adding B2B invoice', fix: 'Verify the client GSTIN on the portal: Services → User Services → Search Taxpayer. The GSTIN must be active. Cancelled/surrendered GSTINs are rejected. Also check for typos - GSTIN is 15 characters: 2 digits (state) + 10 chars (PAN) + 1 entity code + 1 check digit.' },
                           { error: '"Invoice number already exists for this recipient"', fix: 'Each invoice number must be unique per GSTIN per period. If you\'re re-filing after amendment, use Table 9A for amendments, not Table 4A. If duplicate, check if invoice was already reported in a previous period.' },
                           { error: '"Place of Supply mismatch" or wrong tax type', fix: 'If supply is INTER-STATE (different states), only IGST applies. If INTRA-STATE (same state), only CGST+SGST. POS must match the buyer\'s state for inter-state. Common mistake: Delhi business billing Delhi client but selecting different POS.' },
-                          { error: '"Invoice date is not within the return period"', fix: 'Invoice date must fall within the filing period. E.g., for March 2026 return, dates must be 01/03/2026 to 31/03/2026. If you missed an invoice, report in the current period — it\'s allowed but must be before September of next FY.' },
+                          { error: '"Invoice date is not within the return period"', fix: 'Invoice date must fall within the filing period. E.g., for March 2026 return, dates must be 01/03/2026 to 31/03/2026. If you missed an invoice, report in the current period - it\'s allowed but must be before September of next FY.' },
                           { error: '"HSN code is invalid" in Table 12', fix: 'Use valid HSN codes from the official HSN Master (downloadable from cbic.gov.in). Services use SAC codes starting with 99. Common: 998314 (IT services), 9954 (construction), 9983 (professional services). The portal validates against the master list.' },
-                          { error: '"GSTR-3B cannot be filed — GSTR-1 not filed"', fix: 'You MUST file GSTR-1 before GSTR-3B for the same period. Go back and file GSTR-1 first. This is a hard block — no workaround.' },
+                          { error: '"GSTR-3B cannot be filed - GSTR-1 not filed"', fix: 'You MUST file GSTR-1 before GSTR-3B for the same period. Go back and file GSTR-1 first. This is a hard block - no workaround.' },
                           { error: '"ITC claimed exceeds GSTR-2B available ITC"', fix: 'You cannot claim more ITC than what\'s in your auto-populated GSTR-2B statement. Check Returns → GSTR-2B to see eligible ITC. If a supplier hasn\'t filed their GSTR-1, their invoice won\'t appear in your GSTR-2B and you can\'t claim that ITC yet.' },
                           { error: '"Previous period return not filed"', fix: 'GST returns must be filed sequentially. You cannot file March return if February is pending. File all pending returns in order starting from the earliest unfiled period.' },
                           { error: '"Taxable value and tax amount mismatch"', fix: 'The portal validates that tax = taxable value × rate. E.g., if taxable value is ₹10,000 at 18%, IGST must be ₹1,800 (or CGST ₹900 + SGST ₹900). Rounding differences up to ₹1 are allowed.' },
-                          { error: '"EVC generation failed" or "OTP not received"', fix: 'Try after 5 minutes. Check registered mobile number is correct (Profile → Update). For companies, EVC is not available — use DSC only. If DSC fails, check USB token is inserted and emsigner utility is running.' },
+                          { error: '"EVC generation failed" or "OTP not received"', fix: 'Try after 5 minutes. Check registered mobile number is correct (Profile → Update). For companies, EVC is not available - use DSC only. If DSC fails, check USB token is inserted and emsigner utility is running.' },
                           { error: '"Challan amount does not match liability"', fix: 'Create challan AFTER submitting GSTR-3B, not before. The challan amount must match the "Tax payable in cash" column. If you overpaid, excess stays in Electronic Cash Ledger for future use or refund.' },
                         ].map((item, i) => (
                           <div key={i} style={{ marginBottom: '1rem', paddingBottom: '1rem', borderBottom: i < 10 ? '1px solid var(--border)' : 'none' }}>
@@ -2446,8 +2446,8 @@ export default function GSTReturns() {
                     <div className="glass-panel p-4" style={{ background: '#f8fafc' }}>
                       <h4 style={{ marginBottom: '0.5rem', fontSize: '0.9rem' }}>Key GST Rules to Remember</h4>
                       <ul style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.8, paddingLeft: '1.25rem' }}>
-                        <li><strong>Section 16(4):</strong> ITC for any invoice must be claimed by the due date of September return of the following FY, or the date of filing annual return — whichever is earlier.</li>
-                        <li><strong>Section 34:</strong> Credit notes must be issued before September 30 following the end of FY of the original invoice or annual return filing — whichever is earlier.</li>
+                        <li><strong>Section 16(4):</strong> ITC for any invoice must be claimed by the due date of September return of the following FY, or the date of filing annual return - whichever is earlier.</li>
+                        <li><strong>Section 34:</strong> Credit notes must be issued before September 30 following the end of FY of the original invoice or annual return filing - whichever is earlier.</li>
                         <li><strong>Section 31:</strong> Tax invoice must be issued at or before the time of supply. For services, within 30 days of supply.</li>
                         <li><strong>Section 49:</strong> ITC utilization order is mandatory: IGST first (against IGST→CGST→SGST), then CGST (→CGST→IGST), then SGST (→SGST→IGST). Cross-utilization of CGST↔SGST is NOT allowed.</li>
                         <li><strong>Rule 36(4):</strong> ITC can only be claimed for invoices that appear in GSTR-2B. No provisional ITC beyond GSTR-2B.</li>

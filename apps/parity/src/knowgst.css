@@ -261,3 +261,142 @@ html[data-theme=dark] .form-input{background:var(--card-bg);color:var(--text);bo
 .receipt-email-capture .receipt-box{padding:32px;font:14px/1.5 Inter,Arial,sans-serif}.receipt-email-capture .receipt-header{padding-bottom:20px;border-bottom:1px solid #d8dcd6;margin-bottom:20px}.receipt-email-capture .receipt-title{font-size:22px;letter-spacing:.04em}.receipt-email-capture .receipt-row{display:flex;justify-content:space-between;gap:24px;padding:10px 0;border-bottom:1px solid #eceee9}.receipt-email-capture .receipt-value{text-align:right;max-width:70%;overflow-wrap:anywhere}.receipt-email-capture .receipt-amount{font-size:28px;font-weight:700;text-align:right;margin-top:20px}.receipt-email-capture .receipt-words{text-align:right}.receipt-email-capture .receipt-footer{display:flex;justify-content:space-between;margin-top:60px}.receipt-email-capture .receipt-sig-line{width:180px;border-bottom:1px solid #666;margin-bottom:8px}
 .integration-settings a,.email-document-dialog a{color:var(--text-primary);font-size:13px;text-decoration:underline;text-decoration-color:var(--border);text-underline-offset:3px}
 .integration-settings a:hover,.email-document-dialog a:hover{text-decoration-color:currentColor}
+
+/* ===== Unified dropdowns (all pages) =====
+   One look for every native <select>: same height, chevron, padding, text
+   truncation and dark-mode popup list. Status pills and multi/size lists keep
+   their own native appearance; printed invoice templates are untouched. */
+@media screen {
+  .app-layout select:not(.status-select):not([multiple]):not([size]) {
+    -webkit-appearance:none; appearance:none; box-sizing:border-box;
+    min-width:0; max-width:100%; min-height:var(--control-height,38px);
+    padding:7px 32px 7px 10px; font:inherit; font-size:13px; line-height:20px;
+    color:var(--text); background-color:var(--card-bg);
+    border:1px solid var(--border); border-radius:6px; cursor:pointer;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 16 16' fill='%2362695b'%3E%3Cpath d='M8 11L3 6h10l-5 5z'/%3E%3C/svg%3E");
+    background-repeat:no-repeat; background-position:right 10px center; background-size:12px 12px;
+    text-overflow:ellipsis; white-space:nowrap; overflow:hidden;
+  }
+  [data-theme=dark] .app-layout select:not(.status-select):not([multiple]):not([size]) {
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 16 16' fill='%23bdc7b1'%3E%3Cpath d='M8 11L3 6h10l-5 5z'/%3E%3C/svg%3E");
+    color-scheme:dark;
+  }
+  /* Selects that sit in a row beside other controls shouldn't stretch the row. */
+  .app-layout select.filter-select { min-width:130px; }
+  /* Inside compact line-item / table cells keep the tighter size. */
+  .app-layout .line-item-field select.form-input,
+  .app-layout td select { min-height:32px; padding:4px 28px 4px 8px; font-size:12px; background-position:right 8px center; }
+  .app-layout select:hover:not(:disabled) { border-color:var(--text-muted); }
+  .app-layout select:focus-visible { border-color:var(--primary); }
+  .app-layout select option, .app-layout select optgroup { background:var(--card-bg); color:var(--text); font-size:13px; white-space:normal; }
+  /* Form grids/labels: a select fills its column instead of overflowing it. */
+  .app-layout label > select, .app-layout .form-group > select, .app-layout .ai-fields select { width:100%; }
+
+  /* Autocomplete / suggestion popups follow the theme and never overflow. */
+  .app-layout :is(.product-suggestions,.client-suggestions,.client-picker) {
+    background:var(--card-bg); border:1px solid var(--border); border-radius:8px;
+    box-shadow:0 8px 24px rgba(0,0,0,.14); max-width:100%; box-sizing:border-box; z-index:60;
+  }
+  .app-layout :is(.product-suggestion-item,.client-suggestion-item) { color:var(--text); background:var(--card-bg); min-width:0; gap:8px; }
+  .app-layout :is(.product-suggestion-item,.client-suggestion-item):hover,
+  .app-layout :is(.product-suggestion-item,.client-suggestion-item):focus-visible { background:var(--primary-light); }
+  .app-layout :is(.product-suggestion-name,.client-suggestion-main) { min-width:0; overflow:hidden; text-overflow:ellipsis; }
+  .app-layout .product-suggestion-meta { flex-shrink:0; white-space:nowrap; }
+  .app-layout .profile-switcher-menu { max-height:60vh; overflow-y:auto; }
+}
+
+/* Header actions: labelled controls (Month, Currency) stack a label over the
+   input, so buttons must align to the input row, not the stack's centre. */
+@media screen {
+  .workspace-heading-actions,.workspace-heading-actions > .flex { align-items:flex-end; }
+  .workspace-heading-actions > .btn,.workspace-heading-actions > .flex > .btn { min-height:var(--control-height,36px); height:var(--control-height,36px); padding-top:0; padding-bottom:0; }
+  .workspace-heading-actions > .btn[aria-label] { min-width:var(--control-height,36px); padding-left:10px; padding-right:10px; }
+}
+
+/* Type / mode chips: the selected chip's hover colour was --primary on a
+   --primary background, hiding its label. Keep contrast in every state. */
+@media screen {
+  .app-layout .type-chip { background:var(--card-bg); color:var(--text-secondary); border-color:var(--border); }
+  .app-layout .type-chip:hover:not(:disabled) { background:var(--bg-secondary); border-color:var(--text-muted); color:var(--text); }
+  .app-layout .type-chip.type-chip-active,
+  .app-layout .type-chip.type-chip-active:hover:not(:disabled) { background:var(--primary); border-color:var(--primary); color:var(--on-primary); box-shadow:none; }
+  .app-layout .type-chip:disabled { opacity:.5; cursor:not-allowed; }
+}
+
+/* Invoice toolbar: one row. Buttons compact so Back, status and every action
+   fit side by side; if the window is still too narrow the action group scrolls
+   sideways instead of wrapping to a second line. */
+@media screen and (min-width:901px) {
+  .main-content .generator-toolbar { flex-wrap:nowrap; align-items:center; gap:12px; }
+  .generator-toolbar > .flex { flex-wrap:nowrap; gap:6px; align-items:center; }
+  .generator-toolbar > .flex:first-child { flex:0 0 auto; }
+  .generator-toolbar > .flex:last-child { flex:1 1 0; min-width:0; justify-content:flex-end; overflow-x:auto; scrollbar-width:thin; }
+  .generator-toolbar .btn { flex:0 0 auto; white-space:nowrap; min-height:34px; height:34px; padding:0 10px; font-size:12.5px; gap:6px; }
+  .generator-toolbar .btn svg { width:15px; height:15px; }
+}
+
+/* Filter bars: search, selects, dates and action buttons stay on one row.
+   The search box absorbs the spare width and shrinks first. */
+@media screen and (min-width:901px) {
+  .main-content .filters-bar { flex-wrap:nowrap; align-items:center; gap:10px; }
+  .main-content .filters-bar > .search-box { flex:1 1 180px; min-width:140px; }
+  .main-content .filters-bar > :not(.search-box) { flex:0 1 auto; min-width:0; }
+  .main-content .filters-bar > :is(.filter-select,.filter-date) { min-width:0; width:auto; max-width:170px; }
+  .main-content .filters-bar > .filter-date { max-width:150px; }
+  .main-content .filters-bar > .btn,
+  .main-content .filters-bar .btn { flex:0 0 auto; white-space:nowrap; }
+  .main-content .filters-bar > :is(.search-box,.search-input) { flex-basis:auto; }
+}
+
+/* Status pill (invoice / client / purchase tables): same chevron treatment as
+   every dropdown, so the arrow no longer collides with the label. The status
+   colours still come from the inline background / colour / border. */
+@media screen {
+  .app-layout select.status-select {
+    -webkit-appearance:none; appearance:none; box-sizing:border-box;
+    min-width:104px; width:auto; max-width:100%; min-height:28px; height:28px;
+    padding:0 26px 0 12px; border-radius:999px; font-size:12px; font-weight:600; line-height:26px;
+    text-overflow:ellipsis; white-space:nowrap; overflow:hidden; cursor:pointer; text-align-last:left;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 16 16' fill='%2362695b'%3E%3Cpath d='M8 11L3 6h10l-5 5z'/%3E%3C/svg%3E") !important;
+    background-repeat:no-repeat !important; background-position:right 10px center !important; background-size:10px 10px !important;
+  }
+  .app-layout select.status-select:hover { transform:none; filter:brightness(.97); }
+  .app-layout select.status-select:focus-visible { box-shadow:0 0 0 3px rgba(var(--primary-rgb),.25); }
+  [data-theme=dark] .app-layout select.status-select { background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 16 16' fill='%23bdc7b1'%3E%3Cpath d='M8 11L3 6h10l-5 5z'/%3E%3C/svg%3E") !important; }
+}
+
+/* Search boxes: icon on the left, clear button inside on the right, both
+   centred on the input itself; one focus ring instead of two. */
+@media screen {
+  .app-layout .search-box { position:relative; display:flex; align-items:center; width:100%; }
+  .app-layout .search-box > .search-input { flex:1 1 auto; width:100%; min-height:var(--control-height,36px); padding:0 38px 0 36px; font-size:13px; }
+  .app-layout .search-box > .search-icon { position:absolute; left:12px; top:50%; transform:translateY(-50%); width:15px; height:15px; margin:0; pointer-events:none; color:var(--text-muted); }
+  .app-layout .search-box > .icon-btn { position:absolute; right:6px; top:50%; transform:translateY(-50%); width:24px; height:24px; min-height:0; padding:0; display:inline-flex; align-items:center; justify-content:center; background:transparent; border:0; }
+  .app-layout .search-box > .icon-btn:hover { background:var(--bg-secondary); transform:translateY(-50%); }
+  .app-layout .search-input:focus,
+  .app-layout .search-input:focus-visible { outline:none !important; border-color:var(--primary); box-shadow:0 0 0 3px rgba(var(--primary-rgb),.15); }
+  .app-layout .search-box > .icon-btn:focus-visible { outline:2px solid var(--primary); outline-offset:1px; }
+}
+
+/* Reports (Client Analytics, Product Performance): these tables sit in
+   half-width cards, so they must not inherit the 1100px invoice-register
+   minimum. They fill the card, and long names wrap instead of overflowing. */
+@media screen {
+  .main-content .report-table { min-width:0; width:100%; table-layout:auto; }
+  .main-content .report-table :is(th,td) { padding:10px 12px; }
+  .main-content .report-table td:first-child { white-space:normal; overflow-wrap:anywhere; max-width:240px; }
+  .main-content .glass-panel:has(> .report-table) { overflow-x:auto; }
+}
+
+/* Dashboard text-link buttons ("Manage", "Open invoice register" ...): label
+   and arrow icon stay together on one line and never wrap or shrink. */
+@media screen {
+  .main-content :is(.overview-card-head,.overview-card-foot,.overview-bottom-content > div,.overview-attention) button,
+  .main-content .overview-bottom-content > button,
+  .main-content .overview-shortcuts button { white-space:nowrap; flex:0 0 auto; align-items:center; gap:4px; line-height:16px; }
+  .main-content :is(.overview-card-head,.overview-card-foot,.overview-bottom-content > div) button svg { flex:0 0 auto; }
+  .main-content .overview-card-foot { align-items:center; gap:12px; }
+}
+@media screen {
+  .main-content .overview-bottom-content > :not(button) { flex:1 1 auto; min-width:0; overflow-wrap:anywhere; }
+}
