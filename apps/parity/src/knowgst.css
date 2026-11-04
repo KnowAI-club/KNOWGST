@@ -400,3 +400,11 @@ html[data-theme=dark] .form-input{background:var(--card-bg);color:var(--text);bo
 @media screen {
   .main-content .overview-bottom-content > :not(button) { flex:1 1 auto; min-width:0; overflow-wrap:anywhere; }
 }
+
+/* Dark mode: the number-input spinner arrows (up/down) drew a white box with
+   dark arrows. color-scheme makes the browser draw them in the dark palette. */
+[data-theme=dark] input[type=number] { color-scheme: dark; }
+
+/* Several components read var(--card), which no theme defined, so those
+   surfaces were transparent (or white). Alias it to the card colour. */
+:root, [data-theme=dark] { --card: var(--card-bg); }

@@ -1386,8 +1386,10 @@ export default function Dashboard({ onNew, onEdit, onPrint, onDuplicate, onConve
             {/* v1.10.74 - rows can be Cancelled, so the filter needs it too */}
             <option value="cancelled">Cancelled</option>
           </select>
-          <input type="date" className="filter-date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} title="From" />
-          <input type="date" className="filter-date" value={dateTo} onChange={e => setDateTo(e.target.value)} title="To" />
+          <input type="date" className="filter-date" value={dateFrom} max={dateTo && dateTo < localToday() ? dateTo : localToday()}
+            onChange={e => setDateFrom(e.target.value > localToday() ? localToday() : e.target.value)} title="From" />
+          <input type="date" className="filter-date" value={dateTo} min={dateFrom || undefined} max={localToday()}
+            onChange={e => setDateTo(e.target.value > localToday() ? localToday() : e.target.value)} title="To" />
           {hasFilters && <button className="icon-btn icon-btn-red" onClick={clearFilters} title="Clear" aria-label="Clear filters"><X size={15} /></button>}
           <button type="button" className="btn btn-secondary" onClick={() => setShowColumnPicker(v => !v)}
             title="Choose which columns to show" aria-label="Column picker"

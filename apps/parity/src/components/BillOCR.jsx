@@ -13,6 +13,7 @@ import {
   Plus,
 } from "lucide-react";
 import { toast } from "./Toast";
+import { validateGstin } from "../utils/addressValidation";
 import { getAllProducts, getProfile } from "../store";
 
 export default function BillOCR({ onClose, onExtracted }) {
@@ -201,6 +202,10 @@ export default function BillOCR({ onClose, onExtracted }) {
 
   const applyToForm = async () => {
     if (!parsed || requestLock.current) return;
+    if (!validateGstin(parsed.supplierGstin).ok) {
+      toast(validateGstin(parsed.supplierGstin).message, "warning");
+      return;
+    }
     const applying = parsed,
       version = generation.current;
     requestLock.current = true;
@@ -465,8 +470,13 @@ export default function BillOCR({ onClose, onExtracted }) {
               <FieldPreview
                 label="GSTIN"
                 value={parsed.supplierGstin}
-                onChange={(v) => setParsed((p) => ({ ...p, supplierGstin: v }))}
+                onChange={(v) => setParsed((p) => ({ ...p, supplierGstin: v.toUpperCase() }))}
               />
+              {!validateGstin(parsed.supplierGstin).ok && (
+                <small style={{ color: "#dc2626", fontSize: "0.7rem", display: "block", marginBottom: 6 }}>
+                  {validateGstin(parsed.supplierGstin).message}
+                </small>
+              )}
               <FieldPreview
                 label="Invoice No."
                 value={parsed.invoiceNumber}

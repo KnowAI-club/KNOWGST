@@ -253,12 +253,15 @@ export default function ReportsView({initialTab}) {
                   <div className="form-group" style={{ margin: 0 }}>
                     <label className="form-label">Month</label>
                     <select className="form-input" value={monthFilter} onChange={e => setMonthFilter(e.target.value)}>
-                      {MONTHS.map((m, i) => <option key={i} value={i}>{m}</option>)}
+                      {MONTHS.map((m, i) => <option key={i} value={i} disabled={parseInt(yearFilter) === currentYear && i > new Date().getMonth()}>{m}</option>)}
                     </select>
                   </div>
                   <div className="form-group" style={{ margin: 0 }}>
                     <label className="form-label">Year</label>
-                    <select className="form-input" value={yearFilter} onChange={e => setYearFilter(e.target.value)}>
+                    <select className="form-input" value={yearFilter} onChange={e => {
+                      setYearFilter(e.target.value);
+                      if (parseInt(e.target.value) === currentYear && parseInt(monthFilter) > new Date().getMonth()) setMonthFilter(String(new Date().getMonth()));
+                    }}>
                       {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
                     </select>
                   </div>

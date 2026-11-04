@@ -5,6 +5,7 @@ import { getAllRecurring, saveRecurring, deleteRecurring, getAllClients, getProf
 import { formatCurrency, INVOICE_TYPES, belongsToProfile, isUnassignedToBusiness, templateTotals, localToday, toLocalIsoDate, parseLocalDate } from '../utils';
 import UnassignedBanner from './UnassignedBanner';
 import { toast } from './Toast';
+import { validateGstin, validatePin, validateCity } from '../utils/addressValidation';
 import { confirmAction } from './ConfirmModal';
 import HelpButton from './HelpButton';
 
@@ -157,6 +158,8 @@ export default function RecurringInvoices() {
   };
 
   const handleSave = async () => {
+    if ((form.clientCountry || 'India') === 'India' && !validateGstin(form.clientGstin).ok) { toast(validateGstin(form.clientGstin).message, 'warning'); return; }
+    if (!validatePin(form.clientCountry, form.clientPin).ok) { toast(validatePin(form.clientCountry, form.clientPin).message, 'warning'); return; }
     if (!form.clientName.trim()) { toast('Client name required', 'warning'); return; }
     if (!form.items.some(i => i.name && i.rate)) { toast('Add at least one item with description and rate', 'warning'); return; }
     try {
@@ -283,7 +286,9 @@ export default function RecurringInvoices() {
               </div>
               <div className="form-group">
                 <label className="form-label">Client GSTIN</label>
-                <input type="text" className="form-input" value={form.clientGstin} onChange={e => updateField('clientGstin', e.target.value)} maxLength={15} />
+                <input type="text" className="form-input" value={form.clientGstin} onChange={e => updateField('clientGstin', e.target.value.toUpperCase())} maxLength={15}
+                  style={(form.clientCountry || 'India') === 'India' && !validateGstin(form.clientGstin).ok ? { borderColor: '#dc2626' } : undefined} />
+                {(form.clientCountry || 'India') === 'India' && !validateGstin(form.clientGstin).ok && <small style={{ color: '#dc2626', fontSize: '0.7rem', display: 'block', marginTop: '0.2rem' }}>{validateGstin(form.clientGstin).message}</small>}
               </div>
               <div className="form-group">
                 <label className="form-label">Frequency</label>

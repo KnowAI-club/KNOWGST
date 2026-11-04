@@ -108,7 +108,7 @@ export default function SetupWizard({ onClose }) {
                   style={{
                     padding: '0.85rem',
                     background: selectedBiz === key ? 'var(--primary)' : 'var(--card)',
-                    color: selectedBiz === key ? '#fff' : 'var(--text)',
+                    color: selectedBiz === key ? 'var(--on-primary, #fff)' : 'var(--text)',
                     border: `2px solid ${selectedBiz === key ? 'var(--primary)' : 'var(--border)'}`,
                     borderRadius: 8,
                     cursor: 'pointer',
@@ -161,7 +161,7 @@ export default function SetupWizard({ onClose }) {
                   style={{
                     padding: '0.7rem',
                     background: paperSize === key ? 'var(--primary)' : 'var(--card)',
-                    color: paperSize === key ? '#fff' : 'var(--text)',
+                    color: paperSize === key ? 'var(--on-primary, #fff)' : 'var(--text)',
                     border: `2px solid ${paperSize === key ? 'var(--primary)' : 'var(--border)'}`,
                     borderRadius: 6,
                     cursor: 'pointer',
@@ -183,7 +183,7 @@ export default function SetupWizard({ onClose }) {
                   style={{
                     padding: '0.55rem',
                     background: language === key ? 'var(--primary)' : 'var(--card)',
-                    color: language === key ? '#fff' : 'var(--text)',
+                    color: language === key ? 'var(--on-primary, #fff)' : 'var(--text)',
                     border: `1px solid ${language === key ? 'var(--primary)' : 'var(--border)'}`,
                     borderRadius: 5,
                     cursor: 'pointer',

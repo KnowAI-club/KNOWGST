@@ -1513,18 +1513,26 @@ export default function GSTReturns() {
           ) : filterMode === 'quarter' ? (
             <>
               <select className="form-input" value={quarterFilter} onChange={e => setQuarterFilter(e.target.value)} style={{ width: 'auto' }}>
-                {QUARTERS.map(q => <option key={q.id} value={q.id}>{q.label}</option>)}
+                {QUARTERS.map(q => <option key={q.id} value={q.id} disabled={parseInt(yearFilter) === currentYear && Math.min(...q.months) > new Date().getMonth()}>{q.label}</option>)}
               </select>
-              <select className="form-input" value={yearFilter} onChange={e => setYearFilter(e.target.value)} style={{ width: 'auto', minWidth: '80px' }}>
+              <select className="form-input" value={yearFilter} onChange={e => {
+                setYearFilter(e.target.value);
+                const qNow = QUARTERS.find(q => q.months.includes(new Date().getMonth()));
+                const sel = QUARTERS.find(q => q.id === quarterFilter);
+                if (parseInt(e.target.value) === currentYear && sel && Math.min(...sel.months) > new Date().getMonth() && qNow) setQuarterFilter(qNow.id);
+              }} style={{ width: 'auto', minWidth: '80px' }}>
                 {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
               </select>
             </>
           ) : (
             <>
               <select className="form-input" value={monthFilter} onChange={e => setMonthFilter(e.target.value)} style={{ width: 'auto' }}>
-                {MONTHS.map((m, i) => <option key={i} value={i}>{m}</option>)}
+                {MONTHS.map((m, i) => <option key={i} value={i} disabled={parseInt(yearFilter) === currentYear && i > new Date().getMonth()}>{m}</option>)}
               </select>
-              <select className="form-input" value={yearFilter} onChange={e => setYearFilter(e.target.value)} style={{ width: 'auto', minWidth: '80px' }}>
+              <select className="form-input" value={yearFilter} onChange={e => {
+                setYearFilter(e.target.value);
+                if (parseInt(e.target.value) === currentYear && parseInt(monthFilter) > new Date().getMonth()) setMonthFilter(String(new Date().getMonth()));
+              }} style={{ width: 'auto', minWidth: '80px' }}>
                 {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
               </select>
             </>
@@ -2443,8 +2451,8 @@ export default function GSTReturns() {
                       </div>
                     </div>
 
-                    <div className="glass-panel p-4" style={{ background: '#f8fafc' }}>
-                      <h4 style={{ marginBottom: '0.5rem', fontSize: '0.9rem' }}>Key GST Rules to Remember</h4>
+                    <div className="glass-panel p-4" style={{ background: 'var(--bg-secondary)' }}>
+                      <h4 style={{ marginBottom: '0.5rem', fontSize: '0.9rem', color: 'var(--text)' }}>Key GST Rules to Remember</h4>
                       <ul style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.8, paddingLeft: '1.25rem' }}>
                         <li><strong>Section 16(4):</strong> ITC for any invoice must be claimed by the due date of September return of the following FY, or the date of filing annual return - whichever is earlier.</li>
                         <li><strong>Section 34:</strong> Credit notes must be issued before September 30 following the end of FY of the original invoice or annual return filing - whichever is earlier.</li>

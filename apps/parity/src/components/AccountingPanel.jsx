@@ -51,7 +51,7 @@ export default function AccountingPanel({initialTab}) {
     }
   return (
     <section className="glass-panel p-4">
-      <div className="table-header">
+      <div className="table-header" style={{ marginBottom: 20 }}>
         <div>
           <h3>Accounts & history</h3>
           <p className="text-muted">

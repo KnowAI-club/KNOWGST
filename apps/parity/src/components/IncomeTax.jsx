@@ -519,7 +519,7 @@ function AdvanceTaxTab({ advanceInputs, setAdvanceInputs, schedule, totalTax, re
         </div>
 
         {!schedule.applies && (
-          <div style={{ padding: '0.75rem', background: 'var(--success-bg, #ecfdf5)', borderRadius: 6, fontSize: '0.85rem' }}>
+          <div style={{ padding: '0.75rem', background: 'var(--info-bg, #ecfdf5)', color: 'var(--info-text, #065f46)', border: '1px solid var(--info-border, #bbf7d0)', borderRadius: 6, fontSize: '0.85rem' }}>
             <Check size={14} style={{ display: 'inline', marginRight: 4 }} />
             {schedule.note}
           </div>

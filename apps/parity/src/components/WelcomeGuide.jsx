@@ -3,6 +3,7 @@ import { Building2, FileText, BarChart3, Shield, ChevronRight, ChevronLeft, Chec
 import { saveProfile, setRegionMode } from '../store';
 import { getStatesForCountry, getCountryConfig, detectCountryFromBrowser, createEmptyAccount } from '../utils';
 import { toast } from './Toast';
+import { validateGstin, validatePhone, validateEmail } from '../utils/addressValidation';
 
 const STEPS = [
   { id: 'welcome', title: 'Welcome', icon: FileText },
@@ -52,6 +53,14 @@ export default function WelcomeGuide({ onComplete }) {
   };
 
   const handleFinish = async () => {
+    if (profile.country === 'India' && !validateGstin(profile.gstin).ok) {
+      toast(validateGstin(profile.gstin).message, 'warning');
+      return;
+    }
+    if (!validatePhone(profile.phone).ok || !validateEmail(profile.email).ok) {
+      toast('Fix the phone number or email before continuing.', 'warning');
+      return;
+    }
     setSaving(true);
     try {
       setRegionMode(region);
@@ -201,7 +210,9 @@ export default function WelcomeGuide({ onComplete }) {
                   <div className="form-group">
                     <label className="form-label">{cc.taxIdLabel}</label>
                     <input type="text" name="gstin" className="form-input" value={profile.gstin} onChange={handleChange}
-                      placeholder={cc.taxIdPlaceholder} maxLength={20} style={{ textTransform: 'uppercase' }} />
+                      placeholder={cc.taxIdPlaceholder} maxLength={profile.country === 'India' ? 15 : 20}
+                      style={{ textTransform: 'uppercase', ...(profile.country === 'India' && !validateGstin(profile.gstin).ok ? { borderColor: '#dc2626' } : {}) }} />
+                    {profile.country === 'India' && !validateGstin(profile.gstin).ok && <small style={{ color: '#dc2626', fontSize: '0.7rem', display: 'block', marginTop: '0.2rem' }}>{validateGstin(profile.gstin).message}</small>}
                     <span className="field-hint">Leave blank if not registered for tax</span>
                   </div>
                 </div>
@@ -214,15 +225,19 @@ export default function WelcomeGuide({ onComplete }) {
                   </div>
                   <div className="form-group">
                     <label className="form-label">Phone</label>
-                    <input type="text" name="phone" className="form-input" value={profile.phone} onChange={handleChange}
+                    <input type="tel" name="phone" className="form-input" maxLength={20} value={profile.phone} onChange={handleChange}
+                      style={validatePhone(profile.phone).ok ? undefined : { borderColor: '#dc2626' }}
                       placeholder="+91 98765 43210" />
+                    {!validatePhone(profile.phone).ok && <small style={{ color: '#dc2626', fontSize: '0.7rem', display: 'block', marginTop: '0.2rem' }}>{validatePhone(profile.phone).message}</small>}
                   </div>
                 </div>
 
                 <div className="form-group">
                   <label className="form-label">Email</label>
                   <input type="email" name="email" className="form-input" value={profile.email} onChange={handleChange}
+                    style={validateEmail(profile.email).ok ? undefined : { borderColor: '#dc2626' }}
                     placeholder="billing@yourbusiness.com" />
+                  {!validateEmail(profile.email).ok && <small style={{ color: '#dc2626', fontSize: '0.7rem', display: 'block', marginTop: '0.2rem' }}>{validateEmail(profile.email).message}</small>}
                 </div>
               </div>
             </div>

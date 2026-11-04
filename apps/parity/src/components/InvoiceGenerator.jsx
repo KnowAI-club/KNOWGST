@@ -20,6 +20,7 @@ import HelpButton from './HelpButton';
 import { getClientCredit, planCreditApplication } from '../utils/clientCredit';
 import ClientModal from './ClientModal';
 import { toast } from './Toast';
+import { validatePin, validateCity, validateInvoiceNumber, validateInvoiceDate, validateDueDate, getAddressErrors, hasAddressErrors, getCitiesForCountry } from '../utils/addressValidation';
 
 // Rich text editor component that works with contentEditable properly
 function RichEditor({ value, onChange, placeholder, toolbar = false }) {
@@ -54,7 +55,7 @@ function RichEditor({ value, onChange, placeholder, toolbar = false }) {
     document.execCommand(cmd, false, val);
     if (ref.current) onChange(ref.current.innerHTML);
   };
-  const btnStyle = { padding: '0.2rem 0.5rem', fontSize: '0.78rem', borderRadius: '4px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', cursor: 'pointer', minWidth: '28px' };
+  const btnStyle = { padding: '0.2rem 0.5rem', fontSize: '0.78rem', borderRadius: '4px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text)', cursor: 'pointer', minWidth: '28px' };
 
   return (
     <>
@@ -968,7 +969,8 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
     autoSaveTimer.current = setTimeout(async () => {
       try {
         setAutoSaveStatus('saving');
-        await saveInvoiceToDB(true);
+        const autoSaved = await saveInvoiceToDB(true);
+        if (autoSaved === null) { setAutoSaveStatus('idle'); return; }
         setAutoSaveStatus('saved');
         isDirty.current = false; // successful save clears dirty
         setTimeout(() => setAutoSaveStatus(s => s === 'saved' ? 'idle' : s), 2000);
@@ -1277,6 +1279,18 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
   // or internet. The state decides place of supply: get it wrong and the
   // invoice charges CGST + SGST where it owes IGST, or the other way round.
   const [gstinHint, setGstinHint] = useState(null);
+  // Unchanged values on an already-saved document are not re-judged: an old
+  // invoice keeps its number and date even if today's rules would refuse them.
+  const savedDoc = editingBill && !editingBill._isDuplicate && !editingBill._convertToType ? editingBill : null;
+  const detailErrors = {
+    invoiceNumber: (!savedDoc && !String(details.invoiceNumber || '').trim()) || (savedDoc && savedDoc.invoiceNumber === details.invoiceNumber) ? '' : validateInvoiceNumber(details.invoiceNumber, profile?.country).message,
+    invoiceDate: savedDoc && savedDoc.invoiceDate === details.invoiceDate ? '' : validateInvoiceDate(details.invoiceDate, profile?.country, localToday()).message,
+    dueDate: validateDueDate(details.dueDate, details.invoiceDate).message,
+    shippingCity: details.shipToSameAsBilling === false ? validateCity(client.country || profile?.country || 'India', details.shippingCity).message : '',
+    shippingPin: details.shipToSameAsBilling === false ? validatePin(client.country || profile?.country || 'India', details.shippingPin).message : '',
+  };
+  const clientAddrErrors = getAddressErrors(client.country || profile?.country, client);
+  const addrErrStyle = { color: '#dc2626', fontSize: '0.7rem', display: 'block', marginTop: '0.2rem' };
   const handleClientGstinBlur = () => {
     const decoded = decodeGstin(client.gstin);
     if (!decoded) { setGstinHint(null); return; }
@@ -1631,6 +1645,14 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
   }, []);
 
   const saveInvoiceToDBNow = async (skipStockDeduction = false, extraPatch = {}) => {
+    {
+      const addrErr = { ...detailErrors, ...getAddressErrors(client.country || profile?.country, client) };
+      if (hasAddressErrors(addrErr)) {
+        // Auto-save (skipStockDeduction === true) stays quiet - the red field messages already show the problem.
+        if (skipStockDeduction !== true) toast(Object.values(addrErr).find(Boolean), 'warning');
+        return null;
+      }
+    }
     if (readOnlyDoc) {
       toast(editingBill.convertedTo
         ? `Already converted to ${editingBill.convertedTo}, so it is not changed. Use Duplicate to make a new one.`
@@ -4150,13 +4172,20 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
               </div>
               <div className="form-group">
                 <label className="form-label">City</label>
-                <input type="text" className="form-input" value={client.city}
+                <input type="text" className="form-input" list="invoice-city-options" value={client.city}
+                  style={clientAddrErrors.city ? { borderColor: '#dc2626' } : undefined}
                   onChange={(e) => setClient({ ...client, city: e.target.value })} placeholder="e.g. Mumbai" />
+                <datalist id="invoice-city-options">{getCitiesForCountry(client.country || profile?.country || 'India').map(c => <option key={c} value={c} />)}</datalist>
+                {clientAddrErrors.city && <small style={addrErrStyle}>{clientAddrErrors.city}</small>}
               </div>
               <div className="form-group">
                 {(() => { const cc = getCountryConfig(client.country || profile?.country); return <label className="form-label">{cc.postalLabel}</label>; })()}
                 <input type="text" className="form-input" value={client.pin}
+                  inputMode={(client.country || profile?.country || 'India') === 'India' ? 'numeric' : undefined}
+                  maxLength={(client.country || profile?.country || 'India') === 'India' ? 6 : undefined}
+                  style={clientAddrErrors.pin ? { borderColor: '#dc2626' } : undefined}
                   onChange={(e) => setClient({ ...client, pin: e.target.value })} placeholder="Postal / PIN code" />
+                {clientAddrErrors.pin && <small style={addrErrStyle}>{clientAddrErrors.pin}</small>}
               </div>
               {invoiceOptions.showState && (() => {
                 const cc = getCountryConfig(client.country || profile?.country);
@@ -4184,7 +4213,9 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
                     <input type="text" className="form-input" value={client.gstin}
                       // v1.10.74 - drop the old hint on edit; it is re-checked on blur.
                       onChange={(e) => { setClient({ ...client, gstin: e.target.value.toUpperCase() }); setGstinHint(null); }}
-                      onBlur={handleClientGstinBlur} placeholder="Optional" maxLength={20} />
+                      onBlur={handleClientGstinBlur} placeholder="Optional" maxLength={(client.country || profile?.country || 'India') === 'India' ? 15 : 20}
+                      style={clientAddrErrors.gstin ? { borderColor: '#dc2626' } : undefined} />
+                    {clientAddrErrors.gstin && <small style={addrErrStyle}>{clientAddrErrors.gstin}</small>}
                     {gstinHint && (
                       <small style={{ color: gstinHint.tone === 'warn' ? '#d97706' : '#16a34a', fontSize: '0.7rem', display: 'block', marginTop: '0.2rem' }}>
                         {gstinHint.tone === 'warn' ? '⚠' : '✓'} {gstinHint.message}
@@ -4203,17 +4234,26 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
               <div className="form-group">
                 <label className="form-label">Invoice Number</label>
                 <input type="text" className="form-input" value={details.invoiceNumber}
+                  maxLength={(profile?.country || 'India') === 'India' ? 16 : 30}
+                  style={detailErrors.invoiceNumber ? { borderColor: '#dc2626' } : undefined}
                   onChange={(e) => setDetails({ ...details, invoiceNumber: e.target.value })} />
+                {detailErrors.invoiceNumber && <small style={addrErrStyle}>{detailErrors.invoiceNumber}</small>}
               </div>
               <div className="form-group">
                 <label className="form-label">Invoice Date</label>
                 <input type="date" className="form-input" value={details.invoiceDate}
+                  min={(profile?.country || 'India') === 'India' ? '2017-07-01' : '2000-01-01'} max={localToday()}
+                  style={detailErrors.invoiceDate ? { borderColor: '#dc2626' } : undefined}
                   onChange={(e) => setDetails({ ...details, invoiceDate: e.target.value })} />
+                {detailErrors.invoiceDate && <small style={addrErrStyle}>{detailErrors.invoiceDate}</small>}
               </div>
               <div className="form-group">
                 <label className="form-label">Due Date</label>
                 <input type="date" className="form-input" value={details.dueDate}
+                  min={details.invoiceDate || undefined}
+                  style={detailErrors.dueDate ? { borderColor: '#dc2626' } : undefined}
                   onChange={(e) => setDetails({ ...details, dueDate: e.target.value })} />
+                {detailErrors.dueDate && <small style={addrErrStyle}>{detailErrors.dueDate}</small>}
               </div>
               {invoiceOptions.showPlaceOfSupply && (() => {
                 const posOpts = getStatesForCountry(profile?.country);
@@ -4261,14 +4301,18 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
                     </div>
                     <div className="form-group">
                       <label className="form-label" style={{ fontSize: '0.78rem' }}>Shipping City</label>
-                      <input type="text" className="form-input" value={details.shippingCity || ''}
+                      <input type="text" className="form-input" list="invoice-city-options" value={details.shippingCity || ''}
+                        style={detailErrors.shippingCity ? { borderColor: '#dc2626' } : undefined}
                         onChange={e => setDetails({ ...details, shippingCity: e.target.value })} />
+                      {detailErrors.shippingCity && <small style={addrErrStyle}>{detailErrors.shippingCity}</small>}
                     </div>
                     <div className="form-group">
                       <label className="form-label" style={{ fontSize: '0.78rem' }}>Shipping PIN</label>
                       <input type="text" className="form-input" value={details.shippingPin || ''}
                         onChange={e => setDetails({ ...details, shippingPin: e.target.value })}
-                        placeholder="6-digit PIN" maxLength={6} />
+                        style={detailErrors.shippingPin ? { borderColor: '#dc2626' } : undefined}
+                        placeholder="6-digit PIN" maxLength={6} inputMode="numeric" />
+                      {detailErrors.shippingPin && <small style={addrErrStyle}>{detailErrors.shippingPin}</small>}
                     </div>
                     <div className="form-group full-width">
                       <label className="form-label" style={{ fontSize: '0.78rem' }}>Shipping State</label>
@@ -4433,7 +4477,7 @@ export default function InvoiceGenerator({ onBack, profile: profileProp, editing
                         background: active
                           ? 'linear-gradient(135deg, var(--primary), var(--primary-darker))'
                           : 'var(--bg-secondary)',
-                        color: active ? '#fff' : 'var(--text)',
+                        color: active ? 'var(--on-primary, #fff)' : 'var(--text)',
                         border: active ? '1px solid transparent' : '1px solid var(--border)',
                         cursor: 'pointer', transition: 'all 0.15s',
                       }}>

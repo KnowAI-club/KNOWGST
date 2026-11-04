@@ -433,8 +433,9 @@ export default function AiWorkspace({ activeProfile, onNavigate }) {
                   <input
                     type="month"
                     disabled={busy}
+                    max={localToday().slice(0, 7)}
                     value={month}
-                    onChange={(e) => option(setMonth, e.target.value)}
+                    onChange={(e) => option(setMonth, e.target.value > localToday().slice(0, 7) ? localToday().slice(0, 7) : e.target.value)}
                   />
                 </label>
                 <label>

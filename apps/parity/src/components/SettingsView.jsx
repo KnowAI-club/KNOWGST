@@ -3,6 +3,7 @@ import PageHeader from './PageHeader';
 import { useState, useEffect, useRef } from 'react';
 import { getProfile, saveProfile, exportAllData, importData, inspectBackup, getTermsTemplates, saveTermsTemplate, deleteTermsTemplate, getAllProfiles, saveBusinessProfile, deleteBusinessProfile, getRegionMode, setRegionMode, getEnabledModules, setEnabledModules, getStockAlertSettings, saveStockAlertSettings, renameNumberSeries, getInvoiceDisplayOptions, saveInvoiceDisplayOptions } from '../store';
 import { ensureToken, findOrCreateFolder, uploadJSON } from '../services/googleDrive';
+import { validatePhone, validateEmail, getAddressErrors, hasAddressErrors, getCitiesForCountry } from '../utils/addressValidation';
 import { getCountryConfig, getStatesForCountry, validateTaxId, getCountriesForRegion, FEATURE_GROUPS, isModuleEnabled, getPaymentAccounts, createEmptyAccount, maskAccountNumber, reorderAccounts, setDefaultAccount, isValidUpiId, findSameBusiness, businessKeyOf } from '../utils';
 // v1.10.36 - lucide's `Image` icon was imported as `Image`, which
 // SHADOWED the browser's `HTMLImageElement` constructor. Reported:
@@ -436,6 +437,10 @@ export default function SettingsView({ onSaved }) {
 
   const handleSave = async (e) => {
     e.preventDefault();
+    if (hasAddressErrors({ ...getAddressErrors(profile.country, profile), phone: validatePhone(profile.phone).message, email: validateEmail(profile.email).message })) {
+      toast('Fix the highlighted City, PIN code, GSTIN, email or phone before saving.', 'warning');
+      return;
+    }
     try {
       setSaving(true);
       await saveProfile(profile);
@@ -841,7 +846,7 @@ export default function SettingsView({ onSaved }) {
                   background: active
                     ? 'linear-gradient(135deg, var(--primary), var(--primary-darker))'
                     : 'var(--bg-secondary)',
-                  color: active ? '#fff' : 'var(--text)',
+                  color: active ? 'var(--on-primary, #fff)' : 'var(--text)',
                   textDecoration: 'none',
                   border: active ? '1px solid transparent' : '1px solid var(--border)',
                   transition: 'all 0.18s ease',
@@ -954,7 +959,7 @@ export default function SettingsView({ onSaved }) {
                       background: active
                         ? 'linear-gradient(135deg, var(--primary), var(--primary-darker))'
                         : 'var(--bg-secondary)',
-                      color: active ? '#fff' : 'var(--text)',
+                      color: active ? 'var(--on-primary, #fff)' : 'var(--text)',
                       border: active ? '1px solid transparent' : '1px solid var(--border)',
                       fontSize: '0.85rem', fontWeight: 700,
                       cursor: 'pointer',
@@ -1072,6 +1077,8 @@ export default function SettingsView({ onSaved }) {
         <h3 className="section-title">Company Details</h3>
         {(() => {
           const cc = getCountryConfig(profile.country);
+          const addrErrors = { ...getAddressErrors(profile.country, profile), phone: validatePhone(profile.phone).message, email: validateEmail(profile.email).message };
+          const errStyle = { color: '#dc2626', fontSize: '0.7rem', display: 'block', marginTop: '0.2rem' };
           return (
             <div className="grid grid-cols-2 gap-4">
               <div className="form-group full-width">
@@ -1094,11 +1101,20 @@ export default function SettingsView({ onSaved }) {
               </div>
               <div className="form-group">
                 <label className="form-label">City</label>
-                <input type="text" name="city" className="form-input" value={profile.city || ''} onChange={handleChange} placeholder="e.g. Mumbai" />
+                <input type="text" name="city" className="form-input" list="profile-city-options" value={profile.city || ''}
+                  style={addrErrors.city ? { borderColor: '#dc2626' } : undefined}
+                  onChange={handleChange} placeholder="e.g. Mumbai" />
+                <datalist id="profile-city-options">{getCitiesForCountry(profile.country || 'India').map(c => <option key={c} value={c} />)}</datalist>
+                {addrErrors.city && <small style={errStyle}>{addrErrors.city}</small>}
               </div>
               <div className="form-group">
                 <label className="form-label">{cc.postalLabel}</label>
-                <input type="text" name="pin" className="form-input" value={profile.pin || ''} onChange={handleChange} placeholder={cc.postalLabel} />
+                <input type="text" name="pin" className="form-input" value={profile.pin || ''}
+                  inputMode={(profile.country || 'India') === 'India' ? 'numeric' : undefined}
+                  maxLength={(profile.country || 'India') === 'India' ? 6 : undefined}
+                  style={addrErrors.pin ? { borderColor: '#dc2626' } : undefined}
+                  onChange={handleChange} placeholder={cc.postalLabel} />
+                {addrErrors.pin && <small style={errStyle}>{addrErrors.pin}</small>}
               </div>
               <div className="form-group">
                 <label className="form-label">{cc.stateLabel}</label>
@@ -1117,20 +1133,23 @@ export default function SettingsView({ onSaved }) {
               <div className="form-group">
                 <label className="form-label">{cc.taxIdLabel}</label>
                 <input type="text" name="gstin" className="form-input"
-                  style={taxIdWarning ? { borderColor: '#f59e0b' } : undefined}
+                  style={addrErrors.gstin ? { borderColor: '#dc2626' } : taxIdWarning ? { borderColor: '#f59e0b' } : undefined}
                   value={profile.gstin}
                   onChange={(e) => { handleChange(e); if (taxIdWarning) setTaxIdWarning(''); }}
                   onBlur={handleTaxIdBlur}
-                  placeholder={cc.taxIdPlaceholder} maxLength={20} />
-                {taxIdWarning && <small style={{ color: '#d97706', fontSize: '0.7rem', display: 'block', marginTop: '0.2rem' }}>⚠ {taxIdWarning}</small>}
+                  placeholder={cc.taxIdPlaceholder} maxLength={(profile.country || 'India') === 'India' ? 15 : 20} />
+                {addrErrors.gstin && <small style={errStyle}>{addrErrors.gstin}</small>}
+                {!addrErrors.gstin && taxIdWarning && <small style={{ color: '#d97706', fontSize: '0.7rem', display: 'block', marginTop: '0.2rem' }}>⚠ {taxIdWarning}</small>}
               </div>
               <div className="form-group">
                 <label className="form-label">Email</label>
-                <input type="email" name="email" className="form-input" value={profile.email} onChange={handleChange} />
+                <input type="email" name="email" className="form-input" value={profile.email} style={addrErrors.email ? { borderColor: '#dc2626' } : undefined} onChange={handleChange} />
+                {addrErrors.email && <small style={errStyle}>{addrErrors.email}</small>}
               </div>
               <div className="form-group">
                 <label className="form-label">Phone</label>
-                <input type="text" name="phone" className="form-input" value={profile.phone} onChange={handleChange} />
+                <input type="tel" name="phone" className="form-input" maxLength={20} value={profile.phone} style={addrErrors.phone ? { borderColor: '#dc2626' } : undefined} onChange={handleChange} />
+                {addrErrors.phone && <small style={errStyle}>{addrErrors.phone}</small>}
               </div>
               {/* v1.10.43 - GST-specific fields: AATO band + turnover
                   numbers. Drive the GSTR-1 export's HSN digit-length

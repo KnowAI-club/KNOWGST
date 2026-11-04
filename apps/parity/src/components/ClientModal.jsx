@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { getCountryConfig, getStatesForCountry, validateTaxId, detectCountryFromBrowser, getCountriesForRegion, PAPER_SIZES, decodeGstin } from '../utils';
 import { getRegionMode } from '../store';
+import { validatePhone, validateEmail, getAddressErrors, hasAddressErrors, getCitiesForCountry } from '../utils/addressValidation';
 
 export default function ClientModal({ show, onClose, onSave, client, isEditing, defaultCountry }) {
   // Country defaults: explicit prop (active business profile) → browser locale → 'India'.
@@ -40,6 +41,8 @@ export default function ClientModal({ show, onClose, onSave, client, isEditing, 
   if (!show) return null;
 
   const cc = getCountryConfig(form.country);
+  const addrErrors = { ...getAddressErrors(form.country, form), phone: validatePhone(form.phone).message, email: validateEmail(form.email).message };
+  const errStyle = { color: '#dc2626', fontSize: '0.7rem', display: 'block', marginTop: '0.2rem' };
   const stateOptions = getStatesForCountry(form.country);
 
   // v1.10.68 (#68, idea from @deppen12) - a GSTIN already says which state the
@@ -66,6 +69,7 @@ export default function ClientModal({ show, onClose, onSave, client, isEditing, 
 
   const handleSave = () => {
     if (!form.name.trim()) return;
+    if (hasAddressErrors(addrErrors)) return;
     onSave(form);
   };
 
@@ -100,11 +104,19 @@ export default function ClientModal({ show, onClose, onSave, client, isEditing, 
           </div>
           <div className="form-group">
             <label className="form-label">City</label>
-            <input type="text" className="form-input" value={form.city} onChange={e => setForm(prev => ({ ...prev, city: e.target.value }))} placeholder="e.g. Mumbai" />
+            <input type="text" className="form-input" list="client-city-options" value={form.city}
+              style={addrErrors.city ? { borderColor: '#dc2626' } : undefined}
+              onChange={e => setForm(prev => ({ ...prev, city: e.target.value }))} placeholder="e.g. Mumbai" />
+            <datalist id="client-city-options">{getCitiesForCountry(form.country).map(c => <option key={c} value={c} />)}</datalist>
+            {addrErrors.city && <small style={errStyle}>{addrErrors.city}</small>}
           </div>
           <div className="form-group">
             <label className="form-label">{cc.postalLabel}</label>
-            <input type="text" className="form-input" value={form.pin} onChange={e => setForm(prev => ({ ...prev, pin: e.target.value }))} placeholder={cc.postalLabel} />
+            <input type="text" className="form-input" inputMode={form.country === 'India' ? 'numeric' : undefined}
+              maxLength={form.country === 'India' ? 6 : undefined}
+              style={addrErrors.pin ? { borderColor: '#dc2626' } : undefined}
+              value={form.pin} onChange={e => setForm(prev => ({ ...prev, pin: e.target.value }))} placeholder={cc.postalLabel} />
+            {addrErrors.pin && <small style={errStyle}>{addrErrors.pin}</small>}
           </div>
           <div className="form-group">
             <label className="form-label">{cc.stateLabel}</label>
@@ -120,20 +132,23 @@ export default function ClientModal({ show, onClose, onSave, client, isEditing, 
           <div className="form-group">
             <label className="form-label">{cc.taxIdLabel}</label>
             <input type="text" className="form-input"
-              style={taxIdWarning ? { borderColor: '#f59e0b' } : undefined}
+              style={addrErrors.gstin ? { borderColor: '#dc2626' } : taxIdWarning ? { borderColor: '#f59e0b' } : undefined}
               value={form.gstin}
               onChange={e => { setForm(prev => ({ ...prev, gstin: e.target.value.toUpperCase() })); if (taxIdWarning) setTaxIdWarning(''); }}
               onBlur={handleTaxIdBlur}
-              placeholder={cc.taxIdPlaceholder} maxLength={20} />
-            {taxIdWarning && <small style={{ color: '#d97706', fontSize: '0.7rem', display: 'block', marginTop: '0.2rem' }}>⚠ {taxIdWarning}</small>}
+              placeholder={cc.taxIdPlaceholder} maxLength={form.country === 'India' ? 15 : 20} />
+            {addrErrors.gstin && <small style={errStyle}>{addrErrors.gstin}</small>}
+            {!addrErrors.gstin && taxIdWarning && <small style={{ color: '#d97706', fontSize: '0.7rem', display: 'block', marginTop: '0.2rem' }}>⚠ {taxIdWarning}</small>}
           </div>
           <div className="form-group">
             <label className="form-label">Email</label>
-            <input type="email" className="form-input" value={form.email} onChange={e => setForm(prev => ({ ...prev, email: e.target.value }))} placeholder="client@example.com" />
+            <input type="email" className="form-input" value={form.email} style={addrErrors.email ? { borderColor: '#dc2626' } : undefined} onChange={e => setForm(prev => ({ ...prev, email: e.target.value }))} placeholder="client@example.com" />
+            {addrErrors.email && <small style={errStyle}>{addrErrors.email}</small>}
           </div>
           <div className="form-group">
             <label className="form-label">Phone</label>
-            <input type="tel" className="form-input" value={form.phone} onChange={e => setForm(prev => ({ ...prev, phone: e.target.value }))} placeholder="+91 98765 43210" />
+            <input type="tel" className="form-input" maxLength={20} value={form.phone} style={addrErrors.phone ? { borderColor: '#dc2626' } : undefined} onChange={e => setForm(prev => ({ ...prev, phone: e.target.value }))} placeholder="+91 98765 43210" />
+            {addrErrors.phone && <small style={errStyle}>{addrErrors.phone}</small>}
           </div>
           {form.country === 'India' && (
             <div className="form-group" style={{ gridColumn: 'span 2' }}>

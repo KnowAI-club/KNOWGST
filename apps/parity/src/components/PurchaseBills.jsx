@@ -11,6 +11,7 @@ import BulkCsvImport from './BulkCsvImport';
 import UnassignedBanner from './UnassignedBanner';
 import { getPrintSettings } from '../utils/printSettings';
 import { toast } from './Toast';
+import { validateGstin, validatePin, validateCity } from '../utils/addressValidation';
 import { confirmAction, promptAction } from './ConfirmModal';
 
 // v1.10.31 - UI-C3: Same accent-color helper as ClientsView so the
@@ -375,6 +376,7 @@ export default function PurchaseBills({ initialAiDraft, onDraftConsumed }) {
   };
 
   const handleSave = async () => {
+    if (!validateGstin(form.supplierGstin).ok) { toast(validateGstin(form.supplierGstin).message, 'warning'); return; }
     if (!form.supplierName.trim()) { toast('Supplier name is required', 'warning'); return; }
     if (!form.invoiceNumber.trim()) { toast('Invoice number is required', 'warning'); return; }
     // v1.10.58 - reported (#47 item 2, @sangwanmail-eng): "Purchase also
@@ -564,7 +566,8 @@ export default function PurchaseBills({ initialAiDraft, onDraftConsumed }) {
   // v1.10.76 (#82) - a full supplier GSTIN sets "Inter-state" from the two
   // states, the way sales invoices already work it out. The box stays
   // editable for the rare exception.
-  const updateSupplierGstin = (value) => setForm(prev => {
+  const updateSupplierGstin = (rawValue) => setForm(prev => {
+    const value = String(rawValue || '').toUpperCase();
     const interstate = isInterstateSupply(value, ownerProfile);
     return interstate === null ? { ...prev, supplierGstin: value } : { ...prev, supplierGstin: value, interstate };
   });
@@ -895,7 +898,9 @@ export default function PurchaseBills({ initialAiDraft, onDraftConsumed }) {
               <div className="form-group">
                 <label className="form-label">Supplier GSTIN</label>
                 <input type="text" className="form-input" value={form.supplierGstin}
+                  style={validateGstin(form.supplierGstin).ok ? undefined : { borderColor: '#dc2626' }}
                   onChange={e => updateSupplierGstin(e.target.value)} placeholder="15-digit GSTIN" maxLength={15} />
+                {!validateGstin(form.supplierGstin).ok && <small style={{ color: '#dc2626', fontSize: '0.7rem', display: 'block', marginTop: '0.2rem' }}>{validateGstin(form.supplierGstin).message}</small>}
               </div>
               {/* v1.10.29 - Supplier address for the PDF. Optional; full width row. */}
               <div className="form-group" style={{ gridColumn: 'span 2' }}>

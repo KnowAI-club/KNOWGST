@@ -86,9 +86,12 @@ export default function DashboardOverview({
             aria-label="Dashboard month"
             type="month"
             min="1900-01"
+            max={localToday().slice(0, 7)}
             value={month}
             onChange={(e) => {
-              if (e.target.value) setMonth(e.target.value);
+              // A typed month later than the current one is ignored: no future months.
+              const picked = e.target.value;
+              if (picked) setMonth(picked > localToday().slice(0, 7) ? localToday().slice(0, 7) : picked);
             }}
           />
         </label>

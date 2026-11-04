@@ -303,7 +303,8 @@ export default function PrintSettings() {
                   padding: '0.65rem 0.7rem',
                   border: active ? '2px solid var(--primary)' : '1px solid var(--border)',
                   borderRadius: 8,
-                  background: active ? 'var(--primary-light, rgba(30,64,175,0.08))' : 'var(--card)',
+                  background: active ? 'var(--primary-light, rgba(30,64,175,0.08))' : 'var(--card-bg, #fff)',
+                  color: 'var(--text)',
                   cursor: 'pointer', textAlign: 'left',
                   display: 'flex', flexDirection: 'column', gap: '3px',
                   transition: 'all 0.15s',
@@ -1161,7 +1162,7 @@ export default function PrintSettings() {
                 style={{
                   flex: 1, padding: '0.35rem', border: 'none', borderRadius: 4,
                   background: previewMode === key ? 'var(--primary)' : 'transparent',
-                  color: previewMode === key ? '#fff' : 'var(--text)',
+                  color: previewMode === key ? 'var(--on-primary, #fff)' : 'var(--text)',
                   fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer',
                 }}>
                 {label}

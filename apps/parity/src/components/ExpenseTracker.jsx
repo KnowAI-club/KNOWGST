@@ -5,6 +5,7 @@ import { getAllExpenses, saveExpense, deleteExpense, getProfile } from '../store
 import { formatCurrency, getFYOptions, belongsToProfile, isUnassignedToBusiness } from '../utils';
 import UnassignedBanner from './UnassignedBanner';
 import { toast } from './Toast';
+import { validateGstin, validatePin, validateCity } from '../utils/addressValidation';
 import { confirmAction } from './ConfirmModal';
 import HelpButton from './HelpButton';
 import TableExport from './TableExport';
@@ -154,6 +155,7 @@ export default function ExpenseTracker({ initialAiDraft, onDraftConsumed }) {
   };
 
   const handleSave = async () => {
+    if (!validateGstin(form.vendorGstin).ok) { toast(validateGstin(form.vendorGstin).message, 'warning'); return; }
     if (!form.description.trim()) { toast('Description is required', 'warning'); return; }
     if (!form.amount || parseFloat(form.amount) <= 0) { toast('Enter a valid amount', 'warning'); return; }
     // v1.10.74 - GST % must be 0 to 100 (40% is a real rate, so no 28 cap).
@@ -343,7 +345,9 @@ export default function ExpenseTracker({ initialAiDraft, onDraftConsumed }) {
               <div className="form-group">
                 <label className="form-label">Vendor GSTIN</label>
                 <input type="text" className="form-input" value={form.vendorGstin}
-                  onChange={e => updateField('vendorGstin', e.target.value)} placeholder="For ITC claim" maxLength={15} />
+                  style={validateGstin(form.vendorGstin).ok ? undefined : { borderColor: '#dc2626' }}
+                  onChange={e => updateField('vendorGstin', e.target.value.toUpperCase())} placeholder="For ITC claim" maxLength={15} />
+                {!validateGstin(form.vendorGstin).ok && <small style={{ color: '#dc2626', fontSize: '0.7rem', display: 'block', marginTop: '0.2rem' }}>{validateGstin(form.vendorGstin).message}</small>}
               </div>
               <div className="form-group">
                 <label className="form-label">Invoice / Bill No</label>
