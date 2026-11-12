@@ -187,11 +187,15 @@ export const getNextInvoiceNumber = async (prefix = 'INV', { peek = false, expli
   // v1.10.53 - the financial year label is India's April-March FY.
   // v1.10.79 - formatting lives in utils (formatDocNumber), shared with the
   // server's recurring invoices.
-  return formatDocNumber({
+  const args = {
     settings, typePrefix, next,
     explicitPrefix: settings.own ? false : explicitPrefix,
     fyLabel: getFinancialYearLabel(invoiceDate ? parseLocalDate(invoiceDate) : new Date()),
-  });
+  };
+  const number = formatDocNumber(args);
+  // GST Rule 46 allows 16 characters; the default COMP/2026-27/0001 is 17 and
+  // the invoice form refuses it. Use the short year (COMP/26-27/0001) then.
+  return number.length > 16 ? formatDocNumber({ ...args, settings: { ...settings, fyStyle: 'short' } }) : number;
 };
 
 // ---- Bills ----

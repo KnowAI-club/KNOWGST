@@ -347,6 +347,13 @@ html[data-theme=dark] .form-input{background:var(--card-bg);color:var(--text);bo
   .main-content .filters-bar .btn { flex:0 0 auto; white-space:nowrap; }
   .main-content .filters-bar > :is(.search-box,.search-input) { flex-basis:auto; }
 }
+/* Narrow desktops (e.g. 1008px beside the sidebar): one row would squeeze the
+   search box below a readable width, so the filters wrap instead and the
+   search keeps at least 200px. */
+@media screen and (min-width:901px) and (max-width:1100px) {
+  .main-content .filters-bar { flex-wrap:wrap; }
+  .main-content .filters-bar > .search-box { flex:1 1 200px; min-width:200px; }
+}
 
 /* Status pill (invoice / client / purchase tables): same chevron treatment as
    every dropdown, so the arrow no longer collides with the label. The status

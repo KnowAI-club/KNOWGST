@@ -5,8 +5,13 @@ import {
   type Page,
 } from "@playwright/test";
 
-const month = "2026-11",
-  asOf = "2026-11-15";
+// The UI refuses future review dates, so fixtures live in the previous
+// calendar month: every day used below (01-15) is always in the past.
+const today = new Date(),
+  previous = new Date(today.getFullYear(), today.getMonth() - 1, 1),
+  month = `${previous.getFullYear()}-${String(previous.getMonth() + 1).padStart(2, "0")}`,
+  monthEnd = `${month}-${String(new Date(previous.getFullYear(), previous.getMonth() + 1, 0).getDate()).padStart(2, "0")}`,
+  asOf = `${month}-15`;
 async function prepare(request: APIRequestContext, suffix: string) {
   const profile = {
     id: `insights-${suffix}`,
@@ -180,7 +185,7 @@ test("books review, source contributions, collection holds and supplier plans us
     .click();
   await expect(
     region.getByRole("heading", {
-      name: "Balance sheet · 2026-11-30",
+      name: `Balance sheet · ${monthEnd}`,
       exact: true,
     }),
   ).toBeVisible();
@@ -247,7 +252,7 @@ test("books review, source contributions, collection holds and supplier plans us
     .click();
   await supplier
     .getByLabel("Planning due date", { exact: true })
-    .fill("2026-11-10");
+    .fill(`${month}-10`);
   await supplier
     .getByRole("button", { name: "Save planning date", exact: true })
     .click();
@@ -333,7 +338,7 @@ test("review state rejects stale source changes and AI explanation requires an e
       await request.post("/api/expenses", {
         data: {
           id: "insight-changed-source",
-          date: "2026-11-14",
+          date: `${month}-14`,
           amount: 5,
           description: "Additional expense",
         },

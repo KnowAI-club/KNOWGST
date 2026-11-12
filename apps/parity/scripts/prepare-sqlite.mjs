@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import os from "node:os";
+import net from "node:net";
 import { createRequire } from "node:module";
 import { spawnSync } from "node:child_process";
 import { unzipSync } from "fflate";
@@ -26,11 +27,27 @@ const cache = path.resolve("node_modules/.cache/sqlite-3.54.1");
 fs.mkdirSync(cache, { recursive: true });
 const zipFile = path.join(cache, "amalgamation.zip");
 if (!fs.existsSync(zipFile)) {
-  const response = await fetch(
-    "https://www.sqlite.org/2026/sqlite-amalgamation-3540100.zip",
-  );
-  if (!response.ok) throw Error("SQLite source download failed");
-  fs.writeFileSync(zipFile, Buffer.from(await response.arrayBuffer()));
+  // Node's default 250ms per-address connect window is too short on networks
+  // where IPv6 is unreachable and IPv4 is slow, which makes fetch fail with
+  // ETIMEDOUT while curl succeeds. Give each address family more time.
+  net.setDefaultAutoSelectFamilyAttemptTimeout(5000);
+  const url = "https://www.sqlite.org/2026/sqlite-amalgamation-3540100.zip";
+  let response;
+  for (let attempt = 1; ; attempt++) {
+    try {
+      response = await fetch(url, { signal: AbortSignal.timeout(120_000) });
+      if (response.ok) break;
+      throw Error("HTTP " + response.status);
+    } catch (error) {
+      if (attempt >= 3)
+        throw Error("SQLite source download failed: " + url, { cause: error });
+      console.warn(`SQLite download attempt ${attempt} failed, retrying...`);
+      await new Promise((resolve) => setTimeout(resolve, 2000 * attempt));
+    }
+  }
+  const tmpFile = zipFile + ".part";
+  fs.writeFileSync(tmpFile, Buffer.from(await response.arrayBuffer()));
+  fs.renameSync(tmpFile, zipFile);
 }
 if (
   crypto.createHash("sha256").update(fs.readFileSync(zipFile)).digest("hex") !==
