@@ -53,12 +53,12 @@ export const formatCurrency = (amount, currency = 'INR') => {
   }).format(amount || 0);
 };
 
-// v1.10.66 (#63) - CSV cells that start with = + - @ (or a tab / carriage
+// v1.10.66 (#63) — CSV cells that start with = + - @ (or a tab / carriage
 // return) are run as FORMULAS by Excel, LibreOffice and Google Sheets. A client
 // or item named `=HYPERLINK("http://evil.example","Invoice")` turned into a
 // live link inside an exported ledger. Such text is prefixed with an
-// apostrophe so the spreadsheet shows it as plain text. Plain numbers -
-// including negatives such as a credit note's -500.00 - are left alone so the
+// apostrophe so the spreadsheet shows it as plain text. Plain numbers —
+// including negatives such as a credit note's -500.00 — are left alone so the
 // amount columns still add up.
 const CSV_FORMULA_START = /^[=+\-@\t\r]/;
 const CSV_PLAIN_NUMBER = /^-?\d+(\.\d+)?$/;
@@ -70,7 +70,7 @@ export const toCsvCell = (value) => {
 export const toCsvLine = (cells) => cells.map(toCsvCell).join(',');
 
 // Compute the per-item tax breakdown.
-// `taxInclusive=true` means rate already includes tax (MRP-style) - back-calculate the
+// `taxInclusive=true` means rate already includes tax (MRP-style) — back-calculate the
 // taxable value. This matches the bill form's "Prices include tax" toggle.
 //
 // Inputs are defensively coerced: `Number(...)` turns strings (from CSV import) into
@@ -83,7 +83,7 @@ const finiteNonNeg = (n) => {
   return isFinite(x) && x > 0 ? x : 0;
 };
 
-// v1.10.22 → v1.10.25 - Resolve a line's effective discount amount from
+// v1.10.22 → v1.10.25 — Resolve a line's effective discount amount from
 // the (discountType, discountBase) matrix.
 //
 //   discountType  ∈ { 'fixed' (default), 'percent' }
@@ -161,7 +161,7 @@ export const calculateLineItemTax = (item = {}, taxInclusive = false) => {
 };
 
 // ============================================================================
-// v1.10.1 - Pure invoice totals computation.
+// v1.10.1 — Pure invoice totals computation.
 //
 // Prior to this release, the totals math lived inside a giant `useEffect`
 // in InvoiceGenerator.jsx (~120 lines). That made it impossible to
@@ -172,12 +172,12 @@ export const calculateLineItemTax = (item = {}, taxInclusive = false) => {
 //   • Interstate detection short-circuited to intra-state when the
 //     business profile had no state saved (C5). Users on a fresh install
 //     shipped invoices with wrong tax splits.
-//   • RCM + tax-inclusive charged the buyer twice - once for the
+//   • RCM + tax-inclusive charged the buyer twice — once for the
 //     embedded tax in the MRP, once for the RCM remittance (M5).
 //   • TCS 206C(1H) computed on the pre-GST base, not the receipt
 //     including GST as CBDT Circular 17/2020 requires (H6).
 //   • ₹50 lakh annual per-counterparty threshold for TDS/TCS never
-//     enforced - flat-rate applied from rupee one (H7).
+//     enforced — flat-rate applied from rupee one (H7).
 //   • `totalTaxAmount` in saved bills omitted cess (M8).
 //   • Non-numeric `rate` from CSV import produced `NaN` totals (M10).
 //
@@ -204,7 +204,7 @@ export const calculateLineItemTax = (item = {}, taxInclusive = false) => {
 //   isInterstate, isUnionTerritory, taxInclusive }
 // ============================================================================
 
-// Section 194Q / 206C(1H) counterparty annual threshold - currently ₹50L.
+// Section 194Q / 206C(1H) counterparty annual threshold — currently ₹50L.
 // Both sections apply only to receipts above this cumulative amount per
 // buyer / seller in a financial year.
 export const TDS_TCS_THRESHOLD = 5_000_000;
@@ -214,7 +214,7 @@ const sum = (arr) => arr.reduce((s, n) => s + (Number(n) || 0), 0);
 const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
 
 export function computeInvoiceTotals(opts) {
-  // v1.10.33 - Destructure defaults only fire on `undefined`, not `null`.
+  // v1.10.33 — Destructure defaults only fire on `undefined`, not `null`.
   // Callers that pass `profile: null` (e.g. InvoiceGenerator mounted
   // before the /api/profile fetch resolves) bypassed the `= {}` default
   // and blew up on `profile.country` reading null. Explicit `|| {}`
@@ -237,14 +237,14 @@ export function computeInvoiceTotals(opts) {
   const lines = items.map((item) => {
     const qty = finiteNonNeg(item.quantity);
     const rate = finiteNonNeg(item.rate);
-    // v1.10.22 - read discount through resolveLineDiscount so percent-mode
+    // v1.10.22 — read discount through resolveLineDiscount so percent-mode
     // items are computed correctly. Fixed-mode items behave identically.
     const disc = resolveLineDiscount(item, !showGST || taxInclusive);
     const taxPct = finiteNonNeg(item.taxPercent);
     const cessPct = finiteNonNeg(item.cessPercent);
     const gross = qty * rate;
     const afterDisc = Math.max(0, gross - disc);
-    // v1.10.39 - Reported: clicking "Bill of Supply (No GST)" doesn't
+    // v1.10.39 — Reported: clicking "Bill of Supply (No GST)" doesn't
     // remove GST from the total. Root cause: prior code computed
     // `taxable = afterDisc / (1 + taxPct / 100)` when tax-inclusive
     // AND `tax = taxable * taxPct / 100` UNCONDITIONALLY. Only `cess`
@@ -276,7 +276,7 @@ export function computeInvoiceTotals(opts) {
   const posCode = getStateCode(placeOfSupplyRaw || client.gstin);
   const isSEZ = !!client.isSEZ;
 
-  // v1.10.1 - Explicit blank-business-state guard. Prior code let this
+  // v1.10.1 — Explicit blank-business-state guard. Prior code let this
   // silently fall through to intra-state (undefined !== 'X' is true but
   // then compared against clientState.toLowerCase() which for blank
   // gives false → isInterstate=false wrongly). Now surface a warning
@@ -286,8 +286,8 @@ export function computeInvoiceTotals(opts) {
     warnings.push('Your business state is not set. Interstate/intra-state detection cannot be trusted. Set it in Settings → Company Details before issuing GST invoices.');
     needsProfileFix = true;
   }
-  // v1.10.66 (#61) - a client outside India makes this an export, and an
-  // export's place of supply is outside India, so any tax charged is IGST -
+  // v1.10.66 (#61) — a client outside India makes this an export, and an
+  // export's place of supply is outside India, so any tax charged is IGST —
   // never CGST + SGST. The CLIENT'S COUNTRY decides it, not the currency: an
   // Indian client can be billed in USD without the supply leaving the state.
   // An explicit Indian place of supply (goods delivered here for a foreign
@@ -318,11 +318,11 @@ export function computeInvoiceTotals(opts) {
   const igst = isIndia ? (isInterstate ? taxTotal : 0) : taxTotal;
 
   // RCM handling. Under Section 9(3)/9(4), the SUPPLIER doesn't collect
-  // tax - the buyer remits it directly. Invoice total should be
+  // tax — the buyer remits it directly. Invoice total should be
   // taxable value only (or MRP-taxable for inclusive mode).
   const isReverseCharge = !!invoiceOptions.reverseCharge && !!showGST;
 
-  // v1.10.1 - RCM + tax-inclusive fix. Prior code used
+  // v1.10.1 — RCM + tax-inclusive fix. Prior code used
   // `subtotal - totalDiscount` for baseTotal, which for tax-inclusive
   // rates is the MRP (includes tax) → buyer paid MRP to seller AND paid
   // tax to govt under RCM = double tax. Now: back out embedded tax so
@@ -331,12 +331,12 @@ export function computeInvoiceTotals(opts) {
     ? taxableAmount
     : (taxInclusive && showGST ? subtotal - totalDiscount : taxableAmount + taxTotal);
 
-  // v1.10.1 - TDS 194Q / TCS 206C(1H): correct BASE and enforce the
+  // v1.10.1 — TDS 194Q / TCS 206C(1H): correct BASE and enforce the
   // ₹50L threshold.
   //
   // Section 206C(1H) requires TCS on the *receipt including GST* per
   // CBDT Circular 17/2020. Prior code used pre-GST subtotal.
-  // Section 194Q is the buyer-side mirror (deducted by buyer) - the
+  // Section 194Q is the buyer-side mirror (deducted by buyer) — the
   // seller shouldn't collect it, so we treat it as INFORMATION-ONLY on
   // the invoice (doesn't change total).
   //
@@ -387,13 +387,13 @@ export function computeInvoiceTotals(opts) {
   const tdsAmount = invoiceOptions.showTDS && tdsRate > 0
     ? r2(marginalTdsBase * tdsRate / 100) : 0;
 
-  // v1.10.22 - invoice-level (whole-bill) discount. Treated as a cash
+  // v1.10.22 — invoice-level (whole-bill) discount. Treated as a cash
   // discount / trade allowance: subtracted from the post-tax total.
   // Doesn't affect taxable value or the GSTR-1 payload. Users who need
   // pre-tax GST-compliant discount should use per-line discount instead.
   const invDiscValue = finiteNonNeg(invoiceOptions.invoiceDiscountValue);
   const invDiscType = invoiceOptions.invoiceDiscountType === 'percent' ? 'percent' : 'fixed';
-  // v1.10.31 - GST-C4: cess is also subject to RCM under §8(2) of the GST
+  // v1.10.31 — GST-C4: cess is also subject to RCM under §8(2) of the GST
   // Compensation Cess Act. Buyer remits it, so the seller must not collect
   // it on-invoice. Previously left in the total → buyer paid supplier's cess
   // AND remitted own → double payment.
@@ -414,10 +414,10 @@ export function computeInvoiceTotals(opts) {
   // payable total's cgst/sgst/igst.
   const zeroTaxOnTotals = isReverseCharge;
 
-  // v1.10.1 - totalTaxAmount now includes cess AND UTGST. Prior calc
+  // v1.10.1 — totalTaxAmount now includes cess AND UTGST. Prior calc
   // `cgst + sgst + igst` excluded both. Reports over-counted revenue
   // for tobacco/auto/coal sellers.
-  // v1.10.31 - GST-C4: under RCM, cess is also zeroed for reporting.
+  // v1.10.31 — GST-C4: under RCM, cess is also zeroed for reporting.
   const totalTaxAmount = r2(
     (zeroTaxOnTotals ? 0 : cgst) +
     (zeroTaxOnTotals ? 0 : sgst) +
@@ -437,7 +437,7 @@ export function computeInvoiceTotals(opts) {
     cess: cessTotal,
     // Additions on top
     tcsAmount, tdsAmount, roundOff,
-    // v1.10.22 - invoice-level (post-tax) discount amount + type + raw
+    // v1.10.22 — invoice-level (post-tax) discount amount + type + raw
     // value carried through so the preview / PDF can show its own line.
     invoiceDiscountAmount, invoiceDiscountType: invDiscType, invoiceDiscountValue: invDiscValue,
     // Grand
@@ -501,14 +501,14 @@ export const INVOICE_TYPES = {
     prefix: 'QUO',
     title: 'QUOTATION',
     showGST: true,
-    description: 'Priced offer for work or supply - not a tax document. Convert it to a tax invoice when accepted',
+    description: 'Priced offer for work or supply — not a tax document. Convert it to a tax invoice when accepted',
   },
   'proforma': {
     label: 'Proforma / Estimate',
     prefix: 'EST',
     title: 'PROFORMA INVOICE',
     showGST: true,
-    description: 'Quotation or estimate - not a legal tax document',
+    description: 'Quotation or estimate — not a legal tax document',
   },
   'bill-of-supply': {
     label: 'Bill of Supply (No GST)',
@@ -536,7 +536,7 @@ export const INVOICE_TYPES = {
     prefix: 'DC',
     title: 'DELIVERY CHALLAN',
     showGST: false,
-    description: 'For goods transport, job work, or supply on approval - not a tax document',
+    description: 'For goods transport, job work, or supply on approval — not a tax document',
   },
 };
 
@@ -605,7 +605,7 @@ export const safePageBoundaries = (edges, keepWhole) => {
   return [...new Set(edges)].filter((y) => !inside(y)).sort((a, b) => a - b);
 };
 
-// v1.10.67 (#66 item 7, @sangwanmail-eng) - which documents are actual sales.
+// v1.10.67 (#66 item 7, @sangwanmail-eng) — which documents are actual sales.
 // A proforma/estimate is only a quote and a delivery challan moves goods
 // without selling them, so neither is turnover. A credit note reduces it. A
 // cancelled document counts for nothing at all (#66 item 12).
@@ -898,7 +898,7 @@ export const getCountriesForRegion = (regionMode = 'both') => {
   return COUNTRIES;
 };
 
-// GST State Codes (as per GST portal) - used in GSTR-1 JSON export
+// GST State Codes (as per GST portal) — used in GSTR-1 JSON export
 const GST_STATE_CODES = {
   'jammu and kashmir': '01', 'himachal pradesh': '02', 'punjab': '03',
   'chandigarh': '04', 'uttarakhand': '05', 'haryana': '06',
@@ -915,7 +915,7 @@ const GST_STATE_CODES = {
   'telangana': '36', 'ladakh': '38',
 };
 
-// v1.10.68 (#68, idea from @deppen12) - a GSTIN carries its own facts, so the
+// v1.10.68 (#68, idea from @deppen12) — a GSTIN carries its own facts, so the
 // state can be filled in and a typo caught without any API key or internet:
 //   27 ABCDE1234F 2 Z 5
 //   |  |          | | +- checksum over the first 14 characters
@@ -933,7 +933,7 @@ const GSTIN_TAXPAYER_TYPES = { Z: 'Regular', D: 'TDS deductor', C: 'TCS collecto
 
 // Luhn mod 36 over the first 14 characters. Verified against real GSTINs:
 // it rejects a single mistyped or transposed character, which is the whole
-// point - a wrong GSTIN is only discovered when the return is rejected.
+// point — a wrong GSTIN is only discovered when the return is rejected.
 export const gstinChecksumOk = (value) => {
   const gstin = String(value || '').trim().toUpperCase();
   if (!/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][0-9A-Z][A-Z][0-9A-Z]$/.test(gstin)) return false;
@@ -965,7 +965,7 @@ export const decodeGstin = (value) => {
   };
 };
 
-// v1.10.31 - GST-H1: legacy codes normalized.
+// v1.10.31 — GST-H1: legacy codes normalized.
 // AP was reorganised in June 2014; old GSTINs with prefix `28` (before
 // bifurcation) should map to the current code `37` (Andhra Pradesh).
 // Daman & Diu had legacy code `25` before the 2020 merger into DNH+DD (`26`).
@@ -973,7 +973,7 @@ export const decodeGstin = (value) => {
 // Pradesh" produced different codes → interstate/intrastate mis-classification.
 const LEGACY_STATE_CODE_MAP = { '28': '37', '25': '26' };
 
-// v1.10.68 - code -> state name. Built from INDIAN_STATES so the value is
+// v1.10.68 — code -> state name. Built from INDIAN_STATES so the value is
 // spelled exactly like the entry in the State dropdown: a title-cased copy
 // would read "Dadra And Nagar Haveli..." and match no option at all.
 const STATE_NAME_BY_CODE = INDIAN_STATES.reduce((acc, name) => {
@@ -1009,12 +1009,12 @@ export const isInterstateSupply = (supplierGstin, profile) => {
   return theirs !== ours;
 };
 
-// v1.10.1 - Union Territories WITHOUT their own legislature use CGST +
+// v1.10.1 — Union Territories WITHOUT their own legislature use CGST +
 // UTGST instead of CGST + SGST for intra-UT supplies. This is required
 // by Chapter II of the GST Act and enforced by the GSTN portal.
 //
 // UTs WITH legislature (Delhi 07, Puducherry 34, J&K 01 post-2019) are
-// treated as states - CGST + SGST as normal.
+// treated as states — CGST + SGST as normal.
 //
 // The 5 UTs below are the ones that need UTGST. Codes are the 2-digit
 // GST state code (matches getStateCode() output).
@@ -1031,7 +1031,7 @@ export const isUnionTerritoryWithoutLegislature = (stateCode) => {
 };
 
 // Format date as DD-MM-YYYY (GST portal format).
-// Guard against malformed input - `new Date("2026-13-45")` is an Invalid Date
+// Guard against malformed input — `new Date("2026-13-45")` is an Invalid Date
 // whose getDate() returns NaN, producing "NaN-NaN-NaN" in GSTR-1 export rows.
 export const formatDateGST = (dateStr) => {
   if (!dateStr) return '';
@@ -1044,7 +1044,7 @@ export const formatDateGST = (dateStr) => {
 };
 
 // Generate E-Way Bill JSON (NIC portal format).
-// Throws a friendly error if the seller isn't registered in India - E-Way Bill is an Indian
+// Throws a friendly error if the seller isn't registered in India — E-Way Bill is an Indian
 // GST-portal artifact and the JSON schema (state codes, CGST/SGST/IGST split) is meaningless
 // for foreign invoices.
 //
@@ -1052,7 +1052,7 @@ export const formatDateGST = (dateStr) => {
 // NOT inter/intra-state. Seller-issued bills are always 'O'. The intra/inter-state
 // distinction is captured by comparing fromStateCode and toStateCode.
 //
-// v1.10.1 - added `opts.taxInclusive` so the per-line taxable and header
+// v1.10.1 — added `opts.taxInclusive` so the per-line taxable and header
 // totalValue back-calculate correctly when the invoice is MRP-inclusive.
 // Prior code hard-coded `taxable = qty*rate - discount` which reported
 // the MRP (post-tax) value as taxable → the portal's own tax-consistency
@@ -1073,7 +1073,7 @@ export const generateEWayBillJSON = (profile, client, details, items, totals, in
     : !!(fromStateCode && toStateCode && fromStateCode !== toStateCode);
 
   // Pincodes are mandatory (the portal rejects 0). Try profile.pin / client.pin first,
-  // then fall back to extracting digits from address. If still missing, throw - the user
+  // then fall back to extracting digits from address. If still missing, throw — the user
   // must fill the field rather than submit a guaranteed-rejected payload.
   const extractPin = (obj) => {
     const direct = String(obj?.pin || obj?.pincode || '').replace(/\D/g, '');
@@ -1087,9 +1087,9 @@ export const generateEWayBillJSON = (profile, client, details, items, totals, in
   if (!toPincode) throw new Error("Client PIN code is required for the E-Way Bill. Add it in the client's address.");
 
   const itemList = items.map((item, idx) => {
-    // v1.10.1 - back-calculate taxable when the invoice is MRP-inclusive.
-    // v1.10.22 - honour discountType (percent | fixed).
-    // v1.10.31 - GST-C5: cess rate now populated per item (was 0).
+    // v1.10.1 — back-calculate taxable when the invoice is MRP-inclusive.
+    // v1.10.22 — honour discountType (percent | fixed).
+    // v1.10.31 — GST-C5: cess rate now populated per item (was 0).
     const gross = (Number(item.quantity) || 0) * (Number(item.rate) || 0) - resolveLineDiscount(item, taxInclusive);
     const taxRate = Number(item.taxPercent) || 0;
     const cessRate = Number(item.cessPercent) || 0;
@@ -1115,7 +1115,7 @@ export const generateEWayBillJSON = (profile, client, details, items, totals, in
     version: '1.0.1221',
     billLists: [{
       userGstin: profile.gstin || '',
-      supplyType: 'O', // Outward - seller-issued. Always O regardless of intra/inter-state.
+      supplyType: 'O', // Outward — seller-issued. Always O regardless of intra/inter-state.
       subSupplyType: 1, // 1=Supply
       docType: invoiceType === 'delivery-challan' ? 'CHL' : 'INV',
       docNo: details.invoiceNumber || '',
@@ -1130,22 +1130,22 @@ export const generateEWayBillJSON = (profile, client, details, items, totals, in
       toPlace: client.city || client.state || '',
       toPincode: toPincode,
       toStateCode: Number(toStateCode) || 0,
-      // v1.10.1 - When tax-inclusive, subtotal is MRP-inclusive; the
+      // v1.10.1 — When tax-inclusive, subtotal is MRP-inclusive; the
       // pre-tax totalValue must back out the embedded tax. Prefer
       // totals.taxableAmount which computeInvoiceTotals fills correctly
       // for both modes; fall back to the old calc for legacy callers.
       totalValue: Math.round(((totals.taxableAmount != null ? totals.taxableAmount : (totals.subtotal - totals.totalDiscount))) * 100) / 100,
       cgstValue: Math.round((totals.cgst || 0) * 100) / 100,
-      // v1.10.31 - GST-H7: UTGST folded into sgstValue bucket (NIC portal
+      // v1.10.31 — GST-H7: UTGST folded into sgstValue bucket (NIC portal
       // has no separate UTGST field; sum must reconcile with totInvValue).
       sgstValue: Math.round(((totals.sgst || 0) + (totals.utgst || 0)) * 100) / 100,
       igstValue: Math.round((totals.igst || 0) * 100) / 100,
-      // v1.10.31 - GST-C5: cess populated (was hardcoded 0 → NIC portal
+      // v1.10.31 — GST-C5: cess populated (was hardcoded 0 → NIC portal
       // rejected any invoice with cess for total-consistency mismatch).
       cessValue: Math.round((totals.cess || 0) * 100) / 100,
       totInvValue: Math.round(totals.total * 100) / 100,
       transMode: 1, // 1=Road
-      // v1.10.31 - GST-C5: distance must be >= 1 (portal rejects 0). Caller
+      // v1.10.31 — GST-C5: distance must be >= 1 (portal rejects 0). Caller
       // can pass `opts.distance`. If unset we default to 1 (minimum valid).
       transDistance: Math.max(1, Number(opts.distance) || 1),
       transporterName: '',
@@ -1165,10 +1165,10 @@ export const generateEWayBillJSON = (profile, client, details, items, totals, in
 //
 // Cadence (monthly filer; QRMP / quarterly users will see the same dates but
 // only need to act on their schedule):
-//   GSTR-1   - 11th of the following month
-//   GSTR-3B  - 20th of the following month
-//   Form 26Q - 31st of the month following quarter end (Jul / Oct / Jan / Apr)
-//   Form 27EQ - 15th of the month following quarter end
+//   GSTR-1   — 11th of the following month
+//   GSTR-3B  — 20th of the following month
+//   Form 26Q — 31st of the month following quarter end (Jul / Oct / Jan / Apr)
+//   Form 27EQ — 15th of the month following quarter end
 export const getUpcomingFilings = (today = new Date()) => {
   const out = [];
   const t = new Date(today.getFullYear(), today.getMonth(), today.getDate());
@@ -1187,7 +1187,7 @@ export const getUpcomingFilings = (today = new Date()) => {
     const y = nextMonth.getFullYear();
     push(`GSTR-1 (${nextMonth.toLocaleString('en-IN', { month: 'short', year: 'numeric' })})`, new Date(y, m + 1, 11));
     push(`GSTR-3B (${nextMonth.toLocaleString('en-IN', { month: 'short', year: 'numeric' })})`, new Date(y, m + 1, 20));
-    // Quarterly TDS / TCS - applies to the quarter the month falls into.
+    // Quarterly TDS / TCS — applies to the quarter the month falls into.
     const quarterEnd = m % 3 === 2; // Mar / Jun / Sep / Dec
     if (quarterEnd) {
       // The January-March quarter is due later: 26Q on 31 May, 27EQ on 15 May.
@@ -1197,7 +1197,7 @@ export const getUpcomingFilings = (today = new Date()) => {
     }
   }
 
-  // Advance-tax installments - same 60-day lookahead. Users on the presumptive
+  // Advance-tax installments — same 60-day lookahead. Users on the presumptive
   // scheme (single 15-Mar payment) still see all four so they can plan cashflow,
   // but the interest calc only fires against the 15-Mar row.
   // Each date is tried this year and next; push() keeps only the ones 0-60
@@ -1207,15 +1207,15 @@ export const getUpcomingFilings = (today = new Date()) => {
     { label: 'Advance Tax Installment 1 (15% cumulative)', month: 5 },   // 15 Jun
     { label: 'Advance Tax Installment 2 (45% cumulative)', month: 8 },   // 15 Sep
     { label: 'Advance Tax Installment 3 (75% cumulative)', month: 11 },  // 15 Dec
-    { label: 'Advance Tax Installment 4 (100% - final)',    month: 2 },   // 15 Mar
+    { label: 'Advance Tax Installment 4 (100% — final)',    month: 2 },   // 15 Mar
   ];
   for (const y of [t.getFullYear(), t.getFullYear() + 1]) {
     advDates.forEach(a => push(a.label, new Date(y, a.month, 15)));
     // ITR for the year that ended on 31 March: 31 July / 31 October. It used
     // to point at the NEXT year's deadline from April, so the one actually
     // due that July never appeared.
-    push('ITR filing (non-audit) - due', new Date(y, 6, 31));
-    push('ITR filing (audit / §44AB) - due', new Date(y, 9, 31));
+    push('ITR filing (non-audit) — due', new Date(y, 6, 31));
+    push('ITR filing (audit / §44AB) — due', new Date(y, 9, 31));
   }
 
   return out.sort((a, b) => a.daysAway - b.daysAway);
@@ -1225,35 +1225,35 @@ export const getUpcomingFilings = (today = new Date()) => {
 // Paper / print sizes
 // ----------------------------------------------------------------------------
 // Invoices can render at 4 different sizes. A4 is the default (matches the
-// current preview + PDF). A5 is half a sheet - same layout, smaller. Thermal
+// current preview + PDF). A5 is half a sheet — same layout, smaller. Thermal
 // 80mm and 58mm are receipt-printer strips: single-column compact layout,
 // monospace-style typography, no decorative panels.
 //
 // Each entry:
-//   jsPdfFormat  - passed to `new jsPDF({ format })`. For custom sizes it's
+//   jsPdfFormat  — passed to `new jsPDF({ format })`. For custom sizes it's
 //                  an array [widthMm, heightMm]. Thermal uses a large-ish
 //                  fixed height because jsPDF needs to know the page size
 //                  up-front; extra whitespace is fine on roll paper.
-//   cssClass     - applied to the invoice-preview container so styles
+//   cssClass     — applied to the invoice-preview container so styles
 //                  branch on size.
-//   kind         - 'sheet' | 'thermal'. Thermal switches to a completely
+//   kind         — 'sheet' | 'thermal'. Thermal switches to a completely
 //                  compact template.
 // ============================================================================
 // ============================================================================
-// Paper / print sizes - comprehensive list covering thermal receipt rolls
+// Paper / print sizes — comprehensive list covering thermal receipt rolls
 // AND standard office paper sizes. Each entry declares:
 //
-//   widthMm         - CONTENT width (printable area, not physical paper).
+//   widthMm         — CONTENT width (printable area, not physical paper).
 //                     For thermal rolls, this is smaller than the physical
 //                     paper because the print head has margins it can't
 //                     reach (e.g. 58mm roll → 48mm printable).
-//   heightMm        - Content height (portrait). Thermal uses a large
+//   heightMm        — Content height (portrait). Thermal uses a large
 //                     placeholder height since roll paper is continuous.
-//   jsPdfFormat     - Either a jsPDF preset ('a4'/'a5'/'letter'/'legal')
+//   jsPdfFormat     — Either a jsPDF preset ('a4'/'a5'/'letter'/'legal')
 //                     or a custom [widthMm, heightMm] tuple for thermal.
-//   jsPdfOrientation- 'portrait' or 'landscape'.
-//   cssClass        - Added to invoice-preview-container.
-//   kind            - 'sheet' (A4/A5/Letter/Legal) or 'thermal' (roll).
+//   jsPdfOrientation— 'portrait' or 'landscape'.
+//   cssClass        — Added to invoice-preview-container.
+//   kind            — 'sheet' (A4/A5/Letter/Legal) or 'thermal' (roll).
 //
 // v1.8.5: expanded coverage based on user-shared 58mm printer spec sheet
 // (which showed 48mm printable area, not 58mm). Added US Letter, Legal,
@@ -1263,7 +1263,7 @@ export const PAPER_SIZES = {
   // ---- Sheet paper (A4 family, Letter, Legal, B5) ------------------------
   a4: {
     label: 'A4 Portrait (default)',
-    hint: 'Standard business invoice - 210 × 297 mm',
+    hint: 'Standard business invoice — 210 × 297 mm',
     widthMm: 210, heightMm: 297,
     jsPdfFormat: 'a4', jsPdfOrientation: 'portrait',
     cssClass: 'paper-a4',
@@ -1271,7 +1271,7 @@ export const PAPER_SIZES = {
   },
   a4Landscape: {
     label: 'A4 Landscape',
-    hint: 'Sideways A4 - 297 × 210 mm. More columns fit; useful for detailed itemized invoices.',
+    hint: 'Sideways A4 — 297 × 210 mm. More columns fit; useful for detailed itemized invoices.',
     widthMm: 297, heightMm: 210,
     jsPdfFormat: 'a4', jsPdfOrientation: 'landscape',
     cssClass: 'paper-a4-landscape',
@@ -1279,7 +1279,7 @@ export const PAPER_SIZES = {
   },
   a5: {
     label: 'A5 Portrait (compact)',
-    hint: 'Half sheet - 148 × 210 mm. Fits smaller printers.',
+    hint: 'Half sheet — 148 × 210 mm. Fits smaller printers.',
     widthMm: 148, heightMm: 210,
     jsPdfFormat: 'a5', jsPdfOrientation: 'portrait',
     cssClass: 'paper-a5',
@@ -1287,7 +1287,7 @@ export const PAPER_SIZES = {
   },
   a5Landscape: {
     label: 'A5 Landscape (2 per A4 sheet)',
-    hint: 'Sideways A5 - 210 × 148 mm. Print two invoices per A4 sheet.',
+    hint: 'Sideways A5 — 210 × 148 mm. Print two invoices per A4 sheet.',
     widthMm: 210, heightMm: 148,
     jsPdfFormat: 'a5', jsPdfOrientation: 'landscape',
     cssClass: 'paper-a5-landscape',
@@ -1303,7 +1303,7 @@ export const PAPER_SIZES = {
   },
   legal: {
     label: 'US Legal (216 × 356 mm)',
-    hint: 'Longer than Letter - useful for detailed invoices with many line items.',
+    hint: 'Longer than Letter — useful for detailed invoices with many line items.',
     widthMm: 216, heightMm: 356,
     jsPdfFormat: 'legal', jsPdfOrientation: 'portrait',
     cssClass: 'paper-legal',
@@ -1311,7 +1311,7 @@ export const PAPER_SIZES = {
   },
   b5: {
     label: 'B5 (176 × 250 mm)',
-    hint: 'Between A5 and A4 - used in some Asian markets.',
+    hint: 'Between A5 and A4 — used in some Asian markets.',
     widthMm: 176, heightMm: 250,
     jsPdfFormat: 'b5', jsPdfOrientation: 'portrait',
     cssClass: 'paper-b5',
@@ -1373,7 +1373,7 @@ export const PAPER_SIZES = {
 // Resolve a paper-size config, applying custom dimensions if this is the
 // "custom" preset. Callers can pass the invoiceOptions object as the
 // second argument to get width/height overrides applied.
-// v1.10.51 - Does this rich-text HTML contain any actual visible text?
+// v1.10.51 — Does this rich-text HTML contain any actual visible text?
 //
 // Adapted from a fix proposed by @venkateshpabbati in #38. The previous
 // idiom, duplicated in five places, was:
@@ -1381,8 +1381,8 @@ export const PAPER_SIZES = {
 //     html.replace(/<[^>]*>/g, '').trim()
 //
 // which strips tags but leaves HTML ENTITIES encoded. So `<p>&nbsp;</p>`
-// - precisely what a rich-text editor leaves behind when the user clears
-// the field - survives as the literal string "&nbsp;" and reads as
+// — precisely what a rich-text editor leaves behind when the user clears
+// the field — survives as the literal string "&nbsp;" and reads as
 // non-empty. The invoice then printed a "Terms & Conditions" heading with
 // nothing underneath it.
 //
@@ -1391,7 +1391,7 @@ export const PAPER_SIZES = {
 // also robust against tag text the regex mis-handles, e.g.
 // `<div title="a>b">`.
 //
-// Note this is an EMPTINESS CHECK, not a sanitisation boundary - the
+// Note this is an EMPTINESS CHECK, not a sanitisation boundary — the
 // rendering path still runs the HTML through DOMPurify. Parsing with
 // DOMParser is inert: it builds a detached document that never executes
 // scripts or loads resources.
@@ -1401,7 +1401,7 @@ export const htmlHasText = (html) => {
     const doc = new DOMParser().parseFromString(String(html), 'text/html');
     return (doc.body?.textContent || '').trim().length > 0;
   } catch {
-    // Non-browser context (SSR, tests) - fall back to the old behaviour
+    // Non-browser context (SSR, tests) — fall back to the old behaviour
     // rather than reporting every field as empty.
     return String(html).replace(/<[^>]*>/g, '').trim().length > 0;
   }
@@ -1423,21 +1423,21 @@ export const getPaperSize = (key, options = {}) => {
   };
 };
 
-// v1.10.53 - THE single definition of "which financial year is this date in".
+// v1.10.53 — THE single definition of "which financial year is this date in".
 //
 // India's FY runs 1 April → 31 March, so the FY that a date belongs to is
-// NOT its calendar year for January, February and March - those months
+// NOT its calendar year for January, February and March — those months
 // belong to the FY that started the previous April.
 //
 // This existed correctly inside getFYOptions and the ITR helper, but
 // store.js had reimplemented it as a bare `new Date().getFullYear()`,
 // which stamped the WRONG financial year onto every invoice number minted
-// between 1 Jan and 31 Mar - three months a year, on the number that gets
+// between 1 Jan and 31 Mar — three months a year, on the number that gets
 // reported in GSTR-1. Anything that needs the FY of a date calls this.
 //
 //   getFinancialYearStart(new Date('2027-01-15')) === 2026   (FY 2026-27)
 //   getFinancialYearStart(new Date('2027-04-01')) === 2027   (FY 2027-28)
-// v1.10.60 - reported (#50, @sangwanmail-eng): "Terms and conditions show
+// v1.10.60 — reported (#50, @sangwanmail-eng): "Terms and conditions show
 // as paragraph in formatted".
 //
 // The 13 built-in presets all use real <ul>/<li> markup and render as
@@ -1446,7 +1446,7 @@ export const getPaperSize = (key, options = {}) => {
 //
 //   <p>1. Payment due in 15 days. 2. Interest 18% p.a. 3. ...</p>
 //
-// That is genuinely a single paragraph, so no stylesheet can separate it -
+// That is genuinely a single paragraph, so no stylesheet can separate it —
 // the app was faithfully rendering what was written. It still reads as a
 // wall of text on the invoice, which is the complaint.
 //
@@ -1454,14 +1454,14 @@ export const getPaperSize = (key, options = {}) => {
 // conservative: it needs THREE OR MORE markers before it will touch
 // anything, so ordinary prose containing "Section 2. of the Act" or a
 // price like "Rs 2. 50" is left alone. Content already using <li> or <br>
-// is skipped entirely - that is already structured.
+// is skipped entirely — that is already structured.
 export const splitNumberedTerms = (html) => {
   if (!html || typeof html !== 'string') return html;
   // v1.10.77 (#84) - plain text (a Terms template typed in Settings, which
   // has no formatting) keeps its line breaks. HTML ignores them, so separate
   // lines printed as one paragraph.
   if (!/<[a-z!/][^>]*>/i.test(html) && /\n/.test(html)) return html.trim().replace(/\r?\n/g, '<br />');
-  if (/<(li|br)[ />]/i.test(html)) return html;   // already structured - leave it alone
+  if (/<(li|br)[ />]/i.test(html)) return html;   // already structured — leave it alone
   const marker = /(^|[\s>])(\d{1,2})\.\s+/g;
   const count = (html.match(marker) || []).length;
   if (count < 3) return html;                         // not a list
@@ -1489,40 +1489,40 @@ export const findSameBusiness = (list, p, loaded = null) => {
     || (loaded && name && norm(loaded.businessName) === name ? loaded : null);
 };
 
-// v1.10.64 - requested (#55, @sangwanmail-eng): "keep both companies' data
+// v1.10.64 — requested (#55, @sangwanmail-eng): "keep both companies' data
 // stored and displayed separately based on their respective GST numbers. An
 // invoice belonging to one company should not appear under the other."
 //
-// Multi-business profiles already switch the letterhead, but every list -
-// dashboard, GST returns, reports - showed ALL invoices regardless of which
+// Multi-business profiles already switch the letterhead, but every list —
+// dashboard, GST returns, reports — showed ALL invoices regardless of which
 // business was active. Two businesses meant one mixed set of books.
 //
 // Scoping by GSTIN rather than by a profile id is deliberate, and it is what
 // makes this safe to ship:
 //
-//   * Older invoices carry NO profile id - the field was added later. Had we
+//   * Older invoices carry NO profile id — the field was added later. Had we
 //     filtered on it, every historical invoice would have vanished from the
 //     user's books the moment they updated. In accounting software that is
 //     the worst failure available.
 //   * Every invoice, however old, stores the seller's details at save time
 //     under `data.profile`, so the GSTIN is always there to match on.
 //   * It survives a rename. This user has invoices reading "Dice Codes" and
-//     "Anahat Exclusive" under one GSTIN - the same business, renamed. GSTIN
+//     "Anahat Exclusive" under one GSTIN — the same business, renamed. GSTIN
 //     keeps them together; matching on name would have split them in two.
 //
 // A business with no GSTIN yet (not registered, or mid-setup) falls back to
-// its name. And anything we cannot attribute at all is SHOWN, never hidden -
+// its name. And anything we cannot attribute at all is SHOWN, never hidden —
 // if in doubt the user sees their invoice.
 const normaliseGstin = (v) => String(v || '').trim().toUpperCase();
 const normaliseName = (v) => String(v || '').trim().toLowerCase();
 
-// v1.10.65 (#58 item 3) - expenses, purchase bills and recurring templates
+// v1.10.65 (#58 item 3) — expenses, purchase bills and recurring templates
 // have no `data.profile` block: invoices snapshot the seller onto themselves,
 // those records never did. So they also carry a plain `ownerGstin` /
 // `ownerName`, stamped when they are saved.
 //
 // Note the field names. A purchase bill already has `supplierGstin` and an
-// expense has `vendorGstin` - those are the OTHER party. Confusing the two
+// expense has `vendorGstin` — those are the OTHER party. Confusing the two
 // would file your own purchases under your supplier's business, so the
 // owning business is named `owner*` and never read from those fields.
 export const getRecordSeller = (record) => ({
@@ -1535,7 +1535,7 @@ export const getRecordSeller = (record) => ({
  *
  * These are records saved before businesses were kept separate. They show
  * under every business, because hiding them would be worse than showing them
- * twice - which is also why the user is offered the chance to assign them
+ * twice — which is also why the user is offered the chance to assign them
  * rather than having it done silently on their behalf.
  */
 export const isUnassignedToBusiness = (record) => {
@@ -1550,7 +1550,7 @@ export const isUnassignedToBusiness = (record) => {
  * always visible rather than silently lost.
  */
 export const belongsToProfile = (record, profile) => {
-  if (!profile) return true;                     // no active business - show everything
+  if (!profile) return true;                     // no active business — show everything
   const seller = getRecordSeller(record);
   const activeGstin = normaliseGstin(profile.gstin);
   const activeName = normaliseName(profile.businessName);
@@ -1559,7 +1559,7 @@ export const belongsToProfile = (record, profile) => {
   if (seller.gstin && activeGstin) return seller.gstin === activeGstin;
   // Fall back to the business name when either side has no GSTIN.
   if (seller.name && activeName) return seller.name === activeName;
-  // Not attributable - show it.
+  // Not attributable — show it.
   return true;
 };
 
@@ -1567,7 +1567,7 @@ export const getFinancialYearStart = (date = new Date()) => (
   date.getMonth() >= 3 ? date.getFullYear() : date.getFullYear() - 1
 );
 
-// "2026-27" - the short form used on invoice numbers and FY dropdowns.
+// "2026-27" — the short form used on invoice numbers and FY dropdowns.
 export const getFinancialYearLabel = (date = new Date()) => {
   const y = getFinancialYearStart(date);
   return `${y}-${String(y + 1).slice(-2)}`;
@@ -1575,7 +1575,7 @@ export const getFinancialYearLabel = (date = new Date()) => {
 
 // Fiscal-year dropdown options for the last N years. Was previously
 // duplicated in 5 files (Dashboard / PurchaseBills / ExpenseTracker /
-// GSTReturns / ReportsView) - extracted here so a bugfix only has to
+// GSTReturns / ReportsView) — extracted here so a bugfix only has to
 // touch one place. Each entry: { value, label, from, to }.
 export const getFYOptions = (n = 5, today = new Date()) => {
   const currentYear = getFinancialYearStart(today);
@@ -1639,7 +1639,7 @@ export const BUILTIN_UNITS = [
   { label: 'Bottle',  uqc: 'BTL', kind: 'goods' },
 ];
 
-// Default unit per invoice mode - used when adding a new line item so the user
+// Default unit per invoice mode — used when adding a new line item so the user
 // doesn't have to flip the unit dropdown 90% of the time.
 // v1.10.77 (#87) - delivery / shipping charges. Added as their own invoice
 // line (SAC 996812), so every total, GST return, HSN summary, report and
@@ -1665,7 +1665,7 @@ export const getDefaultUnitForMode = (mode) => {
 
 // Filter units by invoice mode for the dropdown. Service mode hides
 // kg/ltr/box etc. (the user can still pick them via "Add custom…" if
-// they truly need a goods unit on a service invoice - rare).
+// they truly need a goods unit on a service invoice — rare).
 export const filterUnitsByMode = (units, mode) => {
   if (mode === 'mixed' || !mode) return units;
   return units.filter(u => u.kind === mode || u.kind === 'both' || u.custom);
@@ -1743,7 +1743,7 @@ export const formatExchangeRateLine = (currency, rate, baseCurrency = 'INR') => 
 // Profiles store an array `paymentAccounts: [{ id, label, bankName,
 // accountNumber, ifsc, swift, upiId, isDefault, notes }]`. The legacy flat
 // fields (profile.bankName / accountNumber / ifsc / swift / upiId) are kept
-// in place for backwards compatibility - `getPaymentAccounts(profile)`
+// in place for backwards compatibility — `getPaymentAccounts(profile)`
 // transparently synthesises a single entry from them when no array exists,
 // so old invoices and old profiles keep working without a data migration.
 
@@ -1786,14 +1786,14 @@ export const createEmptyAccount = (label = 'New account') => ({
   id: newAccountId(),
   label,
   bankName: '',
-  // v1.10.37 - Reported: bank account name often differs from the trading
+  // v1.10.37 — Reported: bank account name often differs from the trading
   // name (proprietor's personal name for sole proprietorships, HUF name,
   // abbreviated Pvt Ltd name, etc.). Client NEFT/RTGS transfers fail with
   // "beneficiary name mismatch" when the name doesn't match exactly.
-  // Optional - falls back to profile.businessName on the PDF render.
+  // Optional — falls back to profile.businessName on the PDF render.
   accountHolderName: '',
   accountNumber: '',
-  // v1.10.37 - Optional. NEFT/RTGS doesn't strictly need this but corporate
+  // v1.10.37 — Optional. NEFT/RTGS doesn't strictly need this but corporate
   // finance teams often categorize by type, and wholesale users routinely
   // use CC/OD accounts. 'savings' | 'current' | 'cc' | 'od' | ''.
   accountType: '',
@@ -1805,13 +1805,13 @@ export const createEmptyAccount = (label = 'New account') => ({
   notes: '',
 });
 
-// Active accounts only - used to populate the new-invoice dropdown so
+// Active accounts only — used to populate the new-invoice dropdown so
 // archived/disabled accounts don't appear, but they remain editable in
 // Settings and still resolve for historical invoices that referenced them.
 export const getActiveAccounts = (profile) =>
   getPaymentAccounts(profile).filter(a => a.isActive !== false);
 
-// Account number is sensitive - mask all but the last 4 digits for list rows.
+// Account number is sensitive — mask all but the last 4 digits for list rows.
 // Preserves the visual cue of length without leaking the full number.
 export const maskAccountNumber = (n) => {
   const s = String(n || '').trim();
@@ -1820,7 +1820,7 @@ export const maskAccountNumber = (n) => {
 };
 
 // Returns a NEW accounts array with the entry at fromIdx moved to toIdx.
-// Pure - caller writes the result back to profile.paymentAccounts.
+// Pure — caller writes the result back to profile.paymentAccounts.
 export const reorderAccounts = (accounts, fromIdx, toIdx) => {
   if (!Array.isArray(accounts)) return accounts;
   if (fromIdx === toIdx || fromIdx < 0 || fromIdx >= accounts.length) return accounts;
@@ -1831,7 +1831,7 @@ export const reorderAccounts = (accounts, fromIdx, toIdx) => {
   return next;
 };
 
-// Returns a NEW accounts array with exactly one default - the one matching
+// Returns a NEW accounts array with exactly one default — the one matching
 // `accountId`. Used by the Settings UI's ⭐ buttons. If no match, returns
 // the input unchanged.
 export const setDefaultAccount = (accounts, accountId) => {
@@ -1841,14 +1841,14 @@ export const setDefaultAccount = (accounts, accountId) => {
 };
 
 // Soft UPI VPA format check (warning-only). Allows alphanumerics, dot, hyphen,
-// underscore on either side of the @ - covers Indian VPAs like
+// underscore on either side of the @ — covers Indian VPAs like
 // "9999999999@upi", "acme.corp@hdfcbank", "merchant-1@paytm".
 export const isValidUpiId = (s) => /^[\w.-]+@[\w.-]+$/.test(String(s || '').trim());
 
 // ========== Feature modules ==========
 // Each module can be turned off by the user in Settings → Modules. Modules in
 // the 'core' group are always on (creating invoices, managing clients, settings)
-// - disabling them would leave the app unusable.
+// — disabling them would leave the app unusable.
 //
 // `nav` is the corresponding sidebar view id (or null if the module doesn't
 // have its own page). When a module is disabled, its nav entry is hidden and
@@ -1914,7 +1914,7 @@ export const FEATURE_GROUPS = [
   },
 ];
 
-// v1.10.6 - audit L3: removed unused exports `ALL_MODULES` and
+// v1.10.6 — audit L3: removed unused exports `ALL_MODULES` and
 // `getModuleDefaults` (no importers anywhere in src/). Reintroduce
 // if a future consumer needs the flat list.
 const ALL_MODULES = FEATURE_GROUPS.flatMap(g => g.modules.map(m => ({ ...m, group: g.id })));
@@ -1923,7 +1923,7 @@ const ALL_MODULES = FEATURE_GROUPS.flatMap(g => g.modules.map(m => ({ ...m, grou
 // User overrides in localStorage (via Settings → Modules) take precedence over defaults.
 export const isModuleEnabled = (moduleId, userMap = {}) => {
   const mod = ALL_MODULES.find(m => m.id === moduleId);
-  if (!mod) return true; // unknown module - fail open rather than hiding things
+  if (!mod) return true; // unknown module — fail open rather than hiding things
   if (mod.core) return true;
   if (Object.prototype.hasOwnProperty.call(userMap, moduleId)) return !!userMap[moduleId];
   return mod.defaultOn !== false;
@@ -2123,43 +2123,43 @@ export const TERMS_PRESETS = [
     id: 'export',
     label: 'Export / International (LUT)',
     region: 'IN',
-    body: `<p><strong>Tax Status:</strong> Supplied as a zero-rated export under <strong>LUT (Letter of Undertaking)</strong> - IGST not charged. Bond / LUT reference: <em>[insert LUT number]</em>.</p>
+    body: `<p><strong>Tax Status:</strong> Supplied as a zero-rated export under <strong>LUT (Letter of Undertaking)</strong> — IGST not charged. Bond / LUT reference: <em>[insert LUT number]</em>.</p>
 <p><strong>Payment</strong></p>
 <ul>
   <li>Payable in <em>[USD/EUR/etc.]</em> by SWIFT wire transfer to the bank account printed above.</li>
   <li>All bank charges (sender + intermediary + beneficiary) are to be borne by the buyer.</li>
   <li>Payment due within <strong>30 days</strong> of invoice date.</li>
 </ul>
-<p><strong>Delivery:</strong> FOB / CIF as per Incoterms 2020 - see the contract for the agreed term.</p>
+<p><strong>Delivery:</strong> FOB / CIF as per Incoterms 2020 — see the contract for the agreed term.</p>
 <p>Disputes subject to <em>[your city]</em>, India jurisdiction.</p>`,
   },
   {
     id: 'custom-blank',
-    label: '- Start from blank -',
+    label: '— Start from blank —',
     region: '*',
     body: '',
   },
 ];
 
-// v1.10.6 - audit L3: `getTermsPresets(region)` had no importers.
+// v1.10.6 — audit L3: `getTermsPresets(region)` had no importers.
 // Components read TERMS_PRESETS directly; that stays exported.
 
 // ========== TDS / TCS (Income Tax Act) ==========
 // Common TDS sections that appear on invoices. The buyer deducts this from the
 // payment made to us (the seller); we surface it as an informational line so
 // the client knows what to deduct, and so our records can track receivable TDS.
-// Rates here are the default - users can override per-invoice.
+// Rates here are the default — users can override per-invoice.
 export const TDS_SECTIONS = [
-  { code: '194Q', label: '194Q - Purchase of goods (buyer turnover > ₹10cr)', rate: 0.1 },
-  { code: '194C', label: '194C - Contractor / sub-contractor', rate: 1 },
-  { code: '194C-co', label: '194C - Contractor (company)', rate: 2 },
-  { code: '194J', label: '194J - Professional / technical services', rate: 10 },
-  { code: '194J-tech', label: '194J - Technical services (lower rate)', rate: 2 },
-  { code: '194I', label: '194I - Rent (land / building)', rate: 10 },
-  { code: '194I-pm', label: '194I - Rent (plant / machinery)', rate: 2 },
-  { code: '194H', label: '194H - Commission / brokerage', rate: 5 },
-  { code: '194O', label: '194O - E-commerce participant', rate: 1 },
-  { code: '195',  label: '195 - Payments to non-residents (varies)', rate: 0 },
+  { code: '194Q', label: '194Q — Purchase of goods (buyer turnover > ₹10cr)', rate: 0.1 },
+  { code: '194C', label: '194C — Contractor / sub-contractor', rate: 1 },
+  { code: '194C-co', label: '194C — Contractor (company)', rate: 2 },
+  { code: '194J', label: '194J — Professional / technical services', rate: 10 },
+  { code: '194J-tech', label: '194J — Technical services (lower rate)', rate: 2 },
+  { code: '194I', label: '194I — Rent (land / building)', rate: 10 },
+  { code: '194I-pm', label: '194I — Rent (plant / machinery)', rate: 2 },
+  { code: '194H', label: '194H — Commission / brokerage', rate: 5 },
+  { code: '194O', label: '194O — E-commerce participant', rate: 1 },
+  { code: '195',  label: '195 — Payments to non-residents (varies)', rate: 0 },
   { code: 'custom', label: 'Custom section / rate', rate: 0 },
 ];
 
@@ -2169,14 +2169,14 @@ export const TDS_SECTIONS = [
 // v1.10.73 - 206C(1H) (TCS on sale of goods) was omitted from 1 April 2025 by
 // the Finance Act 2025, so new invoices can no longer pick it. Invoices saved
 // with it keep it and reprint unchanged (see REMOVED_TCS_SECTIONS).
-export const REMOVED_TCS_SECTIONS = { '206C(1H)': '206C(1H) - removed from 1 April 2025 (older invoices only)' };
+export const REMOVED_TCS_SECTIONS = { '206C(1H)': '206C(1H) — removed from 1 April 2025 (older invoices only)' };
 export const TCS_SECTIONS = [
-  { code: '52',       label: 'CGST 52 - E-commerce operator', rate: 1 },
-  { code: '206C(1)',  label: '206C(1) - Tendu leaves / scrap / minerals (varies)', rate: 1 },
+  { code: '52',       label: 'CGST 52 — E-commerce operator', rate: 1 },
+  { code: '206C(1)',  label: '206C(1) — Tendu leaves / scrap / minerals (varies)', rate: 1 },
   { code: 'custom',   label: 'Custom rate', rate: 0 },
 ];
 
-// v1.10.6 - audit L3: getTDSSection / getTCSSection had no importers.
+// v1.10.6 — audit L3: getTDSSection / getTCSSection had no importers.
 // Components filter TDS_SECTIONS / TCS_SECTIONS directly.
 
 // ========== Round-off helper ==========
