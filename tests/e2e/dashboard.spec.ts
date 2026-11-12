@@ -144,6 +144,7 @@ test("dashboard reads real records, scopes business and currency, and opens sour
     .getByRole("button", { name: "Inspect OVERVIEW-INVOICE", exact: true })
     .click();
   await page
+    .getByRole("dialog")
     .getByRole("button", { name: "Open invoice register", exact: true })
     .click();
   await expect(page.locator(".main-content")).toHaveAttribute(
