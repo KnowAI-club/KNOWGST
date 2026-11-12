@@ -2038,7 +2038,12 @@ function nextInvoiceNumber(meta, prefix, invoiceType = 'tax-invoice', businessKe
   const key = counterKeyFor(prefix, series, businessKey);
   const next = nextCounterValue(meta[key], startFor(invoiceType, series));
   meta[key] = next;
-  return formatDocNumber({ settings: series, typePrefix: prefix, next, fyLabel: getFinancialYearLabel() });
+  const number = formatDocNumber({ settings: series, typePrefix: prefix, next, fyLabel: getFinancialYearLabel() });
+  // Same 16-character (GST Rule 46) fallback to the short year as the app's
+  // getNextInvoiceNumber (src/store.js), e.g. COMP/26-27/0001.
+  return number.length > 16
+    ? formatDocNumber({ settings: { ...series, fyStyle: 'short' }, typePrefix: prefix, next, fyLabel: getFinancialYearLabel() })
+    : number;
 }
 
 // v1.10.6 - audit L19: made async and yields between templates via
