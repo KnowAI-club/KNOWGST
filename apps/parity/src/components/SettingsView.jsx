@@ -3,11 +3,12 @@ import PageHeader from './PageHeader';
 import { useState, useEffect, useRef } from 'react';
 import { getProfile, saveProfile, exportAllData, importData, inspectBackup, getTermsTemplates, saveTermsTemplate, deleteTermsTemplate, getAllProfiles, saveBusinessProfile, deleteBusinessProfile, getRegionMode, setRegionMode, getEnabledModules, setEnabledModules, getStockAlertSettings, saveStockAlertSettings, renameNumberSeries, getInvoiceDisplayOptions, saveInvoiceDisplayOptions } from '../store';
 import { ensureToken, findOrCreateFolder, uploadJSON } from '../services/googleDrive';
+import { validatePhone, validateEmail, getAddressErrors, hasAddressErrors, getCitiesForCountry } from '../utils/addressValidation';
 import { getCountryConfig, getStatesForCountry, validateTaxId, getCountriesForRegion, FEATURE_GROUPS, isModuleEnabled, getPaymentAccounts, createEmptyAccount, maskAccountNumber, reorderAccounts, setDefaultAccount, isValidUpiId, findSameBusiness, businessKeyOf } from '../utils';
-// v1.10.36 — lucide's `Image` icon was imported as `Image`, which
+// v1.10.36 - lucide's `Image` icon was imported as `Image`, which
 // SHADOWED the browser's `HTMLImageElement` constructor. Reported:
 // "Uncaught TypeError: et is not a constructor at onChange" on logo
-// upload — the minified `et` was our imported React component, and
+// upload - the minified `et` was our imported React component, and
 // `new Image()` inside handleImageUpload was trying to construct a
 // React icon. Aliased to `ImageIcon` so `new Image()` resolves to
 // the browser primitive again.
@@ -22,7 +23,7 @@ import InvoiceNumberSettings from './InvoiceNumberSettings';
 import SignatureImages, { SIGN_LAYOUTS } from './SignatureImages';
 import { getBackupsList, restoreBackup, triggerBackup, deleteBackup, getTrashedBills, restoreTrashedBill, purgeTrashedBill, runUpdateNow, getBackupFolder, setBackupFolder } from '../store';
 
-// v1.10.36 — Section order for the jump-nav pill bar. Keeping this at
+// v1.10.36 - Section order for the jump-nav pill bar. Keeping this at
 // module scope so the scroll-spy effect below can reference it without
 // re-computing on every render.
 const JUMP_NAV_SECTIONS = [
@@ -50,14 +51,14 @@ export default function SettingsView({ onSaved }) {
   // Track the section under the sticky navigation in the workspace scroll pane.
   const [activeSection, setActiveSection] = useState(JUMP_NAV_SECTIONS[0][0]);
 
-  // v1.10.55 — reported (#43, @sangwanmail-eng): "Some time details not save
+  // v1.10.55 - reported (#43, @sangwanmail-eng): "Some time details not save
   // after update in setting tab", and the title said there was no save button
   // at all.
   //
   // There is one, but the Company form runs ~450 lines of UI and its only
   // Save button sits at the very bottom. Edit your GSTIN near the top, scroll
   // on to another section, and nothing on screen tells you the change is
-  // still unsaved — leave the page and it is gone.
+  // still unsaved - leave the page and it is gone.
   //
   // It reads as "sometimes" because this page mixes three persistence models
   // with no visible difference between them: Features toggles save silently
@@ -88,17 +89,17 @@ export default function SettingsView({ onSaved }) {
     return () => ro.disconnect();
   }, []);
 
-  // v1.10.56 — reported (#44, @sangwanmail-eng): "Firm profile setting not
+  // v1.10.56 - reported (#44, @sangwanmail-eng): "Firm profile setting not
   // saved. every time show popup".
   //
   // The profile was in fact saving fine. The v1.10.55 unsaved-changes
   // tracker was wrong: it recorded the on-disk baseline in handleSave only,
-  // but the profile is persisted from THREE places —
+  // but the profile is persisted from THREE places -
   //   1. handleSave              (the Save Profile button)
   //   2. updateAccounts          (payment accounts auto-persist, v1.10.16)
   //   3. handleLoadProfile       (switching business profile)
   // After 2 or 3, the data was on disk but the baseline still held the older
-  // copy, so the bar insisted there were unsaved changes forever — and the
+  // copy, so the bar insisted there were unsaved changes forever - and the
   // beforeunload guard then threw a browser confirm dialog on every close.
   // That popup is what the user was seeing.
   //
@@ -118,7 +119,7 @@ export default function SettingsView({ onSaved }) {
     setProfileDirty(JSON.stringify(profile) !== savedProfileRef.current);
   }, [profile]);
 
-  // v1.10.56 — the beforeunload confirm added in v1.10.55 is GONE.
+  // v1.10.56 - the beforeunload confirm added in v1.10.55 is GONE.
   // Even with the baseline bug fixed it was the wrong tool: it hijacks the
   // browser's own close dialog for a form the user may have no intention of
   // saving, and any future drift in the dirty check turns straight into a
@@ -169,7 +170,7 @@ export default function SettingsView({ onSaved }) {
     toast('Updating… your data is backed up first. This takes about a minute.', 'info', 8000);
     const result = await runUpdateNow();
     setUpdatingNow(false);
-    toast(result.ok ? 'Update finished. Reload the page to use the new version.' : `Update failed — ${result.error}`,
+    toast(result.ok ? 'Update finished. Reload the page to use the new version.' : `Update failed - ${result.error}`,
       result.ok ? 'success' : 'error', 10000);
   };
   const [regionMode, setRegionModeState] = useState(getRegionMode());
@@ -208,7 +209,7 @@ export default function SettingsView({ onSaved }) {
   useEffect(() => {
     getProfile().then((p) => {
       setProfile(p);
-      // Baseline for the unsaved-changes check — what is currently on disk.
+      // Baseline for the unsaved-changes check - what is currently on disk.
       savedProfileRef.current = JSON.stringify(p);
       setActiveBusiness(p);
     }).catch(() => {}).finally(() => setProfileLoaded(true));
@@ -253,20 +254,20 @@ export default function SettingsView({ onSaved }) {
           upiId: def.upiId || '',
         } : {}),
       };
-      // v1.10.16 — reported: "also set default is not working". Root cause:
-      // this function only updated React state via setProfile — the caller
+      // v1.10.16 - reported: "also set default is not working". Root cause:
+      // this function only updated React state via setProfile - the caller
       // was expected to click the main "Save Profile" button afterwards to
       // persist. Users clicked the ⭐ inline button, saw the star move, and
       // assumed it was saved. Reloading the page reverted it. Now every
       // account-level change (mark-default, add, delete, reorder, toggle
       // active) auto-persists to the server without needing the main Save
-      // button. Fire-and-forget — the same handler that awaits saveProfile
+      // button. Fire-and-forget - the same handler that awaits saveProfile
       // in handleSave already exists for the "save everything" path.
-      // v1.10.56 (#44) — refresh the baseline on success, or the bar would
+      // v1.10.56 (#44) - refresh the baseline on success, or the bar would
       // keep claiming unsaved changes for something already on disk.
       saveProfile(next)
         .then(() => markProfileSaved(next))
-        .catch(() => { /* non-fatal — user can retry via Save */ });
+        .catch(() => { /* non-fatal - user can retry via Save */ });
       return next;
     });
   };
@@ -350,14 +351,14 @@ export default function SettingsView({ onSaved }) {
 
   const handleImageUpload = (field, e) => {
     const file = e.target.files?.[0];
-    // v1.10.36 — Reset the input so re-selecting the SAME file re-fires
+    // v1.10.36 - Reset the input so re-selecting the SAME file re-fires
     // onChange. Without this, if a user's upload silently failed once
     // (browser can't decode HEIC etc.) they had to pick a DIFFERENT file
     // to try again; picking the same file was a no-op.
     try { e.target.value = ''; } catch { /* ignore */ }
     if (!file) return;
 
-    // v1.10.36 — Reported "not able to set logo it show nothing".
+    // v1.10.36 - Reported "not able to set logo it show nothing".
     // Previous strict MIME whitelist (png/jpeg/webp/svg) silently
     // rejected HEIC/HEIF (iPhone default), GIF, BMP, TIFF with a
     // one-line toast users often missed. Now: accept anything the
@@ -371,16 +372,16 @@ export default function SettingsView({ onSaved }) {
     // Size ceiling relaxed to 5MB (server body limit) so a phone photo
     // doesn't hit the arbitrary 2MB gate before downscaling gets to run.
     if (file.size > 5 * 1024 * 1024) {
-      toast(`Image is ${(file.size / 1024 / 1024).toFixed(1)}MB — over the 5MB cap. Try compressing at tinypng.com.`, 'warning', 6000);
+      toast(`Image is ${(file.size / 1024 / 1024).toFixed(1)}MB - over the 5MB cap. Try compressing at tinypng.com.`, 'warning', 6000);
       return;
     }
 
-    // SVGs are vector — embed as-is (no canvas needed).
+    // SVGs are vector - embed as-is (no canvas needed).
     if (file.type === 'image/svg+xml' || /\.svg$/i.test(file.name)) {
       const reader = new FileReader();
       reader.onload = (ev) => {
         setProfile(prev => ({ ...prev, [field]: ev.target.result }));
-        toast(`${({ logo: 'Logo', signature: 'Signature', stamp: 'Stamp' })[field] || 'Image'} uploaded — click Save Profile to keep it.`, 'success', 4000);
+        toast(`${({ logo: 'Logo', signature: 'Signature', stamp: 'Stamp' })[field] || 'Image'} uploaded - click Save Profile to keep it.`, 'success', 4000);
       };
       reader.onerror = () => toast('Could not read the SVG file.', 'error');
       reader.readAsDataURL(file);
@@ -388,7 +389,7 @@ export default function SettingsView({ onSaved }) {
     }
 
     // Raster: load into an Image, downscale to max 1024px on the longer edge
-    // v1.10.36 — Explicit `window.Image` so a future import (e.g. lucide's
+    // v1.10.36 - Explicit `window.Image` so a future import (e.g. lucide's
     // `Image` icon) can't shadow the browser primitive again.
     const url = URL.createObjectURL(file);
     const img = new window.Image();
@@ -397,7 +398,7 @@ export default function SettingsView({ onSaved }) {
       const MAX = 1024;
       let { width, height } = img;
       if (!width || !height) {
-        toast(`Image has zero dimensions — cannot use as logo.`, 'error');
+        toast(`Image has zero dimensions - cannot use as logo.`, 'error');
         return;
       }
       if (width > MAX || height > MAX) {
@@ -419,15 +420,15 @@ export default function SettingsView({ onSaved }) {
       const preservesAlpha = /png|webp|svg/i.test(file.type) && field !== 'logo';
       const dataUrl = canvas.toDataURL(preservesAlpha ? 'image/png' : 'image/jpeg', 0.92);
       setProfile(prev => ({ ...prev, [field]: dataUrl }));
-      toast(`${({ logo: 'Logo', signature: 'Signature', stamp: 'Stamp' })[field] || 'Image'} uploaded — click Save Profile to keep it.`, 'success', 4000);
+      toast(`${({ logo: 'Logo', signature: 'Signature', stamp: 'Stamp' })[field] || 'Image'} uploaded - click Save Profile to keep it.`, 'success', 4000);
     };
     img.onerror = () => {
       URL.revokeObjectURL(url);
-      // v1.10.36 — better error message. Common cause of the silent
+      // v1.10.36 - better error message. Common cause of the silent
       // "logo not showing" report on iOS: user uploads a HEIC file from
       // Photos, Chrome/desktop Safari can't decode it, we ended up here
       // with a generic error. Now the toast names likely fixes.
-      toast(`Could not decode this image (type: ${file.type || 'unknown'}). If it's a HEIC from iPhone, share it as JPEG — in Photos: Share → Copy Photo → Files → paste, or set Camera Format = "Most Compatible".`, 'error', 10000);
+      toast(`Could not decode this image (type: ${file.type || 'unknown'}). If it's a HEIC from iPhone, share it as JPEG - in Photos: Share → Copy Photo → Files → paste, or set Camera Format = "Most Compatible".`, 'error', 10000);
     };
     img.src = url;
   };
@@ -436,6 +437,10 @@ export default function SettingsView({ onSaved }) {
 
   const handleSave = async (e) => {
     e.preventDefault();
+    if (hasAddressErrors({ ...getAddressErrors(profile.country, profile), phone: validatePhone(profile.phone).message, email: validateEmail(profile.email).message })) {
+      toast('Fix the highlighted City, PIN code, GSTIN, email or phone before saving.', 'warning');
+      return;
+    }
     try {
       setSaving(true);
       await saveProfile(profile);
@@ -443,23 +448,23 @@ export default function SettingsView({ onSaved }) {
       const oldKey = businessKeyOf(activeBusiness);
       const newKey = businessKeyOf(profile);
       if (oldKey && newKey && oldKey !== newKey) await renameNumberSeries(oldKey, newKey).catch(() => {});
-      // v1.10.16 — reported: "uploaded logo and saved but it's not showing on
+      // v1.10.16 - reported: "uploaded logo and saved but it's not showing on
       // invoice". Root cause was a stale `freegstbill_invoiceOptions.showLogo`
-      // in localStorage from before the upload — DEFAULT_OPTIONS has it true,
+      // in localStorage from before the upload - DEFAULT_OPTIONS has it true,
       // but a false persisted from an earlier state kept it hidden even after
       // the upload. Now: whenever the user saves a profile that has a logo,
       // we force `showLogo: true` in the persisted invoice options. Same for
       // signature. Users who consciously want to hide the logo can still
-      // uncheck it in the Customize panel — this fix only rescues the
+      // uncheck it in the Customize panel - this fix only rescues the
       // silent-fail case.
       //
-      // v1.10.36 — Reported again: "not able to set logo it show nothing
+      // v1.10.36 - Reported again: "not able to set logo it show nothing
       // after saving". Root cause of the recurrence: v1.10.16 only wrote
       // to localStorage, but InvoiceGenerator fetches display options
       // from the SERVER on mount (see line ~631) and merges those over
       // the localStorage value. So a stale server-side `showLogo:false`
       // kept overriding the local override. Fix: PUSH the updated
-      // display options to the server too — one API call keeps both
+      // display options to the server too - one API call keeps both
       // stores in sync. Non-blocking (.catch()) so a slow server
       // doesn't delay the "Profile saved" toast.
       if (profile.logo || profile.signature) {
@@ -475,11 +480,11 @@ export default function SettingsView({ onSaved }) {
             const serverOpts = await getInvoiceDisplayOptions().catch(() => null);
             const merged = { ...(serverOpts || {}), ...opts };
             saveInvoiceDisplayOptions(merged).catch(() => { /* non-blocking */ });
-          } catch { /* server unreachable — localStorage still updated */ }
-        } catch { /* localStorage full or blocked — skip */ }
+          } catch { /* server unreachable - localStorage still updated */ }
+        } catch { /* localStorage full or blocked - skip */ }
       }
       if (onSaved) onSaved(profile);
-      // v1.10.55 (#43) — mark this state as the persisted baseline so the
+      // v1.10.55 (#43) - mark this state as the persisted baseline so the
       // unsaved-changes bar disappears.
       markProfileSaved(profile);
       toast('Profile saved!', 'success');
@@ -564,12 +569,12 @@ export default function SettingsView({ onSaved }) {
         } else {
           setDrivePending(true);
           const ok = await ensureToken(profile.googleClientId);
-          if (!ok) { toast('Drive auth failed — backup downloaded locally only', 'warning'); }
+          if (!ok) { toast('Drive auth failed - backup downloaded locally only', 'warning'); }
           else {
             const folderName = (profile.googleDriveFolder || 'GST Billing Invoices') + ' - Backups';
             const folderId = await findOrCreateFolder(folderName);
             const result = await uploadJSON(fileName, json, folderId);
-            toast(`Saved to Drive — ${result.name}`, 'success');
+            toast(`Saved to Drive - ${result.name}`, 'success');
           }
           setDrivePending(false);
         }
@@ -654,7 +659,7 @@ export default function SettingsView({ onSaved }) {
   const handleDeleteTemplate = async (id) => {
     if (await confirmAction({
       title: 'Delete this template?',
-      message: 'Existing invoices that used this Terms preset keep their text — this only removes the reusable template.',
+      message: 'Existing invoices that used this Terms preset keep their text - this only removes the reusable template.',
       confirmLabel: 'Delete',
       tone: 'danger',
     })) { await deleteTermsTemplate(id); toast('Deleted', 'success'); loadTemplates(); }
@@ -686,7 +691,7 @@ export default function SettingsView({ onSaved }) {
     delete loaded.id;
     setProfile(loaded);
     await saveProfile(loaded);
-    // v1.10.56 (#44) — switching profiles persists immediately, so this IS
+    // v1.10.56 (#44) - switching profiles persists immediately, so this IS
     // the saved state now.
     markProfileSaved(loaded);
     if (onSaved) onSaved(loaded);
@@ -706,7 +711,7 @@ export default function SettingsView({ onSaved }) {
     }
   };
 
-  // v1.10.67 (#66 item 3, @sangwanmail-eng) — park the company that is on
+  // v1.10.67 (#66 item 3, @sangwanmail-eng) - park the company that is on
   // screen into Business Profiles BEFORE clearing the form. This used to just
   // blank the fields, so the next Save wrote the new company over the old one
   // - and on a fresh install the old one had never been saved as a profile,
@@ -725,7 +730,7 @@ export default function SettingsView({ onSaved }) {
         return;
       }
     }
-    // #66 item 2 — a second company is almost always in the same country as
+    // #66 item 2 - a second company is almost always in the same country as
     // the first, and this is an India-first app; the browser locale guessed
     // United States on an Indian shop and started them on a US form.
     const blank = {
@@ -776,21 +781,21 @@ export default function SettingsView({ onSaved }) {
 
   return (
     <div className="settings-container">
-      {/* v1.10.36 — Header lifted with a soft primary-accent gradient
+      {/* v1.10.36 - Header lifted with a soft primary-accent gradient
            card, gear glyph in a rounded badge for visual identity, and
            a subtle count chip showing how many sections there are so
            the user has a scale expectation before diving in. */}
       <PageHeader title="Settings" subtitle="Business profile, branding, integrations & data" meta={`${JUMP_NAV_SECTIONS.length} sections`}>
-          <HelpButton title="Settings — how to use" doc="settings">
+          <HelpButton title="Settings - how to use" doc="settings">
             <ul style={{ paddingLeft: '1.1rem', margin: 0 }}>
-              <li><strong>Company Details</strong> — this is the header block on every invoice. GSTIN drives place-of-supply detection.</li>
-              <li><strong>Multi-business profiles</strong> — Save as Profile keeps the current form as a switchable profile; switch between them from the business name at the top of the sidebar.</li>
-              <li><strong>Payment Accounts</strong> — add multiple bank / UPI accounts; ⭐ marks the default. Every inline change (add / edit / ⭐ / reorder / delete) auto-saves.</li>
-              <li><strong>Invoice Number Settings</strong> — brand prefix, financial-year suffix, padding. Live preview at the bottom.</li>
-              <li><strong>Print Settings</strong> — templates, colors, watermark, thermal font size, per-type prefix overrides.</li>
-              <li><strong>Backup Management</strong> — daily auto-backups kept 30 days. Restore any date, or Delete to reclaim disk. Trash bin keeps deleted invoices for 30 days.</li>
-              <li><strong>Google Drive</strong> — sync a dedicated secondary backup folder with Drive for Desktop, or use browser OAuth with your own Google Client ID.</li>
-              <li><strong>Data Management</strong> — export all or part of your data to one backup file, and import it here or on another computer. Clients and products import from CSV on their own screens.</li>
+              <li><strong>Company Details</strong> - this is the header block on every invoice. GSTIN drives place-of-supply detection.</li>
+              <li><strong>Multi-business profiles</strong> - Save as Profile keeps the current form as a switchable profile; switch between them from the business name at the top of the sidebar.</li>
+              <li><strong>Payment Accounts</strong> - add multiple bank / UPI accounts; ⭐ marks the default. Every inline change (add / edit / ⭐ / reorder / delete) auto-saves.</li>
+              <li><strong>Invoice Number Settings</strong> - brand prefix, financial-year suffix, padding. Live preview at the bottom.</li>
+              <li><strong>Print Settings</strong> - templates, colors, watermark, thermal font size, per-type prefix overrides.</li>
+              <li><strong>Backup Management</strong> - daily auto-backups kept 30 days. Restore any date, or Delete to reclaim disk. Trash bin keeps deleted invoices for 30 days.</li>
+              <li><strong>Google Drive</strong> - sync a dedicated secondary backup folder with Drive for Desktop, or use browser OAuth with your own Google Client ID.</li>
+              <li><strong>Data Management</strong> - export all or part of your data to one backup file, and import it here or on another computer. Clients and products import from CSV on their own screens.</li>
             </ul>
           </HelpButton>
       </PageHeader>
@@ -841,7 +846,7 @@ export default function SettingsView({ onSaved }) {
                   background: active
                     ? 'linear-gradient(135deg, var(--primary), var(--primary-darker))'
                     : 'var(--bg-secondary)',
-                  color: active ? '#fff' : 'var(--text)',
+                  color: active ? 'var(--on-primary, #fff)' : 'var(--text)',
                   textDecoration: 'none',
                   border: active ? '1px solid transparent' : '1px solid var(--border)',
                   transition: 'all 0.18s ease',
@@ -867,13 +872,13 @@ export default function SettingsView({ onSaved }) {
         </nav>
       </div>
 
-      {/* v1.10.37 — Flex-column wrapper for visual reordering. Each
+      {/* v1.10.37 - Flex-column wrapper for visual reordering. Each
            section keeps its DOM position (safe for the anchor IDs +
            scroll tracking + tab order for the primary
            actions) but the CSS `order:` on each section root controls
            the on-screen sequence. Reported: "if you click on first
            Company it goes down then if you click on Profiles comes up
-           — should be sorted in a way the pages". Now the on-screen
+           - should be sorted in a way the pages". Now the on-screen
            order matches the jump-nav pill order exactly.
            Target: Company → Profiles → Terms → Print & PDF → Features
            → Stock → Region → Backups → Google Drive → Import/Export
@@ -881,9 +886,9 @@ export default function SettingsView({ onSaved }) {
       <div style={{ display: 'flex', flexDirection: 'column' }}>
 
       {/* ---- Stock Alerts ---- */}
-      {/* v1.10.36 — Redesign: prior layout had an awkward grid with the
+      {/* v1.10.36 - Redesign: prior layout had an awkward grid with the
            threshold input crammed next to inline "Common picks: 0, 3,
-           5, 10" text — hard to scan, hard to click. Now: master toggle
+           5, 10" text - hard to scan, hard to click. Now: master toggle
            + one big Threshold row with clickable preset chips ABOVE the
            input so users can pick a common value in one click, then a
            number field for fine-tuning. Save button gets a subtle live
@@ -927,7 +932,7 @@ export default function SettingsView({ onSaved }) {
           </span>
         </div>
 
-        {/* Threshold — chip presets + fine-tune input, only shown when enabled */}
+        {/* Threshold - chip presets + fine-tune input, only shown when enabled */}
         {stockAlerts.enabled && (
           <div style={{ marginBottom: '0.85rem' }}>
             <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: '0.55rem' }}>
@@ -954,7 +959,7 @@ export default function SettingsView({ onSaved }) {
                       background: active
                         ? 'linear-gradient(135deg, var(--primary), var(--primary-darker))'
                         : 'var(--bg-secondary)',
-                      color: active ? '#fff' : 'var(--text)',
+                      color: active ? 'var(--on-primary, #fff)' : 'var(--text)',
                       border: active ? '1px solid transparent' : '1px solid var(--border)',
                       fontSize: '0.85rem', fontWeight: 700,
                       cursor: 'pointer',
@@ -991,7 +996,7 @@ export default function SettingsView({ onSaved }) {
       {/* ---- Thermal Printer Settings ---- */}
       <div id="section-print" style={{ order: 4 }}><PrintSettings /></div>
 
-      {/* v1.9.5 — Backup Management + Trash Bin */}
+      {/* v1.9.5 - Backup Management + Trash Bin */}
       <div id="section-backups" style={{ order: 8 }}><BackupAndTrashPanel /></div>
 
       {/* ---- Modules / Features ---- */}
@@ -1000,7 +1005,7 @@ export default function SettingsView({ onSaved }) {
           <div>
             <h3 className="section-title" style={{ marginTop: 0, marginBottom: '0.25rem' }}>Modules</h3>
             <p style={{ fontSize: '0.8rem', color: '#64748b', margin: 0 }}>
-              Turn off the features you don't need. They disappear from the sidebar and forms — your data stays untouched.
+              Turn off the features you don't need. They disappear from the sidebar and forms - your data stays untouched.
             </p>
           </div>
           <button type="button" className="btn btn-secondary" onClick={resetModules} style={{ fontSize: '0.78rem', padding: '0.35rem 0.7rem' }}>
@@ -1015,7 +1020,7 @@ export default function SettingsView({ onSaved }) {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                 {group.modules.map(mod => {
                   const enabled = isModuleEnabled(mod.id, enabledModules);
-                  // Hide India-only modules entirely when region is "international" — toggling
+                  // Hide India-only modules entirely when region is "international" - toggling
                   // them on wouldn't have any effect.
                   if (mod.indiaOnly && regionMode === 'international') return null;
                   return (
@@ -1047,7 +1052,7 @@ export default function SettingsView({ onSaved }) {
           {[
             { id: 'india', label: '🇮🇳 India only', desc: 'GST flows, INR-first, GSTR-1/3B, E-Way Bill, UPI QR' },
             { id: 'international', label: '🌍 International', desc: 'VAT/SST/TVA labels, multi-currency, no India-only flows' },
-            { id: 'both', label: '🌐 Both / Auto', desc: 'Show all countries — pick per invoice (default)' },
+            { id: 'both', label: '🌐 Both / Auto', desc: 'Show all countries - pick per invoice (default)' },
           ].map(opt => (
             <button key={opt.id} type="button"
               onClick={() => handleRegionChange(opt.id)}
@@ -1072,6 +1077,8 @@ export default function SettingsView({ onSaved }) {
         <h3 className="section-title">Company Details</h3>
         {(() => {
           const cc = getCountryConfig(profile.country);
+          const addrErrors = { ...getAddressErrors(profile.country, profile), phone: validatePhone(profile.phone).message, email: validateEmail(profile.email).message };
+          const errStyle = { color: '#dc2626', fontSize: '0.7rem', display: 'block', marginTop: '0.2rem' };
           return (
             <div className="grid grid-cols-2 gap-4">
               <div className="form-group full-width">
@@ -1094,11 +1101,20 @@ export default function SettingsView({ onSaved }) {
               </div>
               <div className="form-group">
                 <label className="form-label">City</label>
-                <input type="text" name="city" className="form-input" value={profile.city || ''} onChange={handleChange} placeholder="e.g. Mumbai" />
+                <input type="text" name="city" className="form-input" list="profile-city-options" value={profile.city || ''}
+                  style={addrErrors.city ? { borderColor: '#dc2626' } : undefined}
+                  onChange={handleChange} placeholder="e.g. Mumbai" />
+                <datalist id="profile-city-options">{getCitiesForCountry(profile.country || 'India').map(c => <option key={c} value={c} />)}</datalist>
+                {addrErrors.city && <small style={errStyle}>{addrErrors.city}</small>}
               </div>
               <div className="form-group">
                 <label className="form-label">{cc.postalLabel}</label>
-                <input type="text" name="pin" className="form-input" value={profile.pin || ''} onChange={handleChange} placeholder={cc.postalLabel} />
+                <input type="text" name="pin" className="form-input" value={profile.pin || ''}
+                  inputMode={(profile.country || 'India') === 'India' ? 'numeric' : undefined}
+                  maxLength={(profile.country || 'India') === 'India' ? 6 : undefined}
+                  style={addrErrors.pin ? { borderColor: '#dc2626' } : undefined}
+                  onChange={handleChange} placeholder={cc.postalLabel} />
+                {addrErrors.pin && <small style={errStyle}>{addrErrors.pin}</small>}
               </div>
               <div className="form-group">
                 <label className="form-label">{cc.stateLabel}</label>
@@ -1117,22 +1133,25 @@ export default function SettingsView({ onSaved }) {
               <div className="form-group">
                 <label className="form-label">{cc.taxIdLabel}</label>
                 <input type="text" name="gstin" className="form-input"
-                  style={taxIdWarning ? { borderColor: '#f59e0b' } : undefined}
+                  style={addrErrors.gstin ? { borderColor: '#dc2626' } : taxIdWarning ? { borderColor: '#f59e0b' } : undefined}
                   value={profile.gstin}
                   onChange={(e) => { handleChange(e); if (taxIdWarning) setTaxIdWarning(''); }}
                   onBlur={handleTaxIdBlur}
-                  placeholder={cc.taxIdPlaceholder} maxLength={20} />
-                {taxIdWarning && <small style={{ color: '#d97706', fontSize: '0.7rem', display: 'block', marginTop: '0.2rem' }}>⚠ {taxIdWarning}</small>}
+                  placeholder={cc.taxIdPlaceholder} maxLength={(profile.country || 'India') === 'India' ? 15 : 20} />
+                {addrErrors.gstin && <small style={errStyle}>{addrErrors.gstin}</small>}
+                {!addrErrors.gstin && taxIdWarning && <small style={{ color: '#d97706', fontSize: '0.7rem', display: 'block', marginTop: '0.2rem' }}>⚠ {taxIdWarning}</small>}
               </div>
               <div className="form-group">
                 <label className="form-label">Email</label>
-                <input type="email" name="email" className="form-input" value={profile.email} onChange={handleChange} />
+                <input type="email" name="email" className="form-input" value={profile.email} style={addrErrors.email ? { borderColor: '#dc2626' } : undefined} onChange={handleChange} />
+                {addrErrors.email && <small style={errStyle}>{addrErrors.email}</small>}
               </div>
               <div className="form-group">
                 <label className="form-label">Phone</label>
-                <input type="text" name="phone" className="form-input" value={profile.phone} onChange={handleChange} />
+                <input type="tel" name="phone" className="form-input" maxLength={20} value={profile.phone} style={addrErrors.phone ? { borderColor: '#dc2626' } : undefined} onChange={handleChange} />
+                {addrErrors.phone && <small style={errStyle}>{addrErrors.phone}</small>}
               </div>
-              {/* v1.10.43 — GST-specific fields: AATO band + turnover
+              {/* v1.10.43 - GST-specific fields: AATO band + turnover
                   numbers. Drive the GSTR-1 export's HSN digit-length
                   gate + the gt/cur_gt root fields the offline utility
                   requires. India-only. */}
@@ -1148,18 +1167,18 @@ export default function SettingsView({ onSaved }) {
                     </label>
                   </div>
                   <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', margin: '0 0 0.6rem' }}>
-                    Drives HSN reporting rule — <strong>{profile.aatoAbove5Cr ? '6-digit HSN' : '4-digit HSN'}</strong> minimum on every item. Since Jan 2025 the portal blocks GSTR-1 if any HSN falls short.
+                    Drives HSN reporting rule - <strong>{profile.aatoAbove5Cr ? '6-digit HSN' : '4-digit HSN'}</strong> minimum on every item. Since Jan 2025 the portal blocks GSTR-1 if any HSN falls short.
                   </p>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
                     <div>
-                      <label className="form-label" style={{ fontSize: '0.72rem' }}>Previous FY aggregate turnover (₹) — sets JSON <code>gt</code></label>
+                      <label className="form-label" style={{ fontSize: '0.72rem' }}>Previous FY aggregate turnover (₹) - sets JSON <code>gt</code></label>
                       <input type="number" min="0" step="1" name="prevFYTurnover" className="form-input"
                         value={profile.prevFYTurnover ?? ''}
                         onChange={handleChange}
                         placeholder="e.g. 5000000" />
                     </div>
                     <div>
-                      <label className="form-label" style={{ fontSize: '0.72rem' }}>Current FY turnover so far (₹) — sets JSON <code>cur_gt</code></label>
+                      <label className="form-label" style={{ fontSize: '0.72rem' }}>Current FY turnover so far (₹) - sets JSON <code>cur_gt</code></label>
                       <input type="number" min="0" step="1" name="currentFYTurnover" className="form-input"
                         value={profile.currentFYTurnover ?? ''}
                         onChange={handleChange}
@@ -1167,7 +1186,7 @@ export default function SettingsView({ onSaved }) {
                     </div>
                   </div>
                   <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', margin: '0.5rem 0 0' }}>
-                    Both are optional (default 0). The portal lets you edit these while filing — you're just avoiding a schema-validation reject on upload.
+                    Both are optional (default 0). The portal lets you edit these while filing - you're just avoiding a schema-validation reject on upload.
                   </p>
                 </div>
               )}
@@ -1179,7 +1198,7 @@ export default function SettingsView({ onSaved }) {
         {(() => {
           const bankCC = getCountryConfig(profile.country);
           const isIndia = (profile.country || 'India') === 'India';
-          // Show real accounts only — never the synthesised legacy entry, since this
+          // Show real accounts only - never the synthesised legacy entry, since this
           // panel is for editing the persistent array.
           const accounts = (profile.paymentAccounts || []).filter(a => a && a.id !== 'legacy');
           const hasLegacyFlat = !accounts.length && (profile.bankName || profile.accountNumber || profile.ifsc || profile.swift || profile.upiId);
@@ -1198,7 +1217,7 @@ export default function SettingsView({ onSaved }) {
                 </button>
               </div>
 
-              {/* Migration banner — one-time prompt to lift the legacy flat fields into the new array. */}
+              {/* Migration banner - one-time prompt to lift the legacy flat fields into the new array. */}
               {hasLegacyFlat && (
                 <div className="notice notice-warn" style={{ marginTop: '0.85rem' }}>
                   <span className="notice-icon">📋</span>
@@ -1213,11 +1232,11 @@ export default function SettingsView({ onSaved }) {
                 </div>
               )}
 
-              {/* Empty state — no accounts AND no legacy fields */}
+              {/* Empty state - no accounts AND no legacy fields */}
               {accounts.length === 0 && !hasLegacyFlat && (
                 <div className="surface-card" style={{ marginTop: '0.85rem', textAlign: 'center', padding: '1.5rem' }}>
                   <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: 0 }}>
-                    No payment accounts yet. Add the first one — it's auto-marked ⭐ Primary.
+                    No payment accounts yet. Add the first one - it's auto-marked ⭐ Primary.
                   </p>
                 </div>
               )}
@@ -1276,9 +1295,9 @@ export default function SettingsView({ onSaved }) {
                         <label className="form-label">Label (shown in the dropdown)</label>
                         <input type="text" className="form-input" value={editingAccount.label}
                           onChange={e => setEditingAccount(a => ({ ...a, label: e.target.value }))}
-                          placeholder="e.g. HDFC Current — 1234" />
+                          placeholder="e.g. HDFC Current - 1234" />
                       </div>
-                      {/* v1.10.37 — Account Holder Name + Account Type
+                      {/* v1.10.37 - Account Holder Name + Account Type
                           added. Reported: clients get "beneficiary name
                           mismatch" errors on NEFT/RTGS when the account
                           name differs from the trading name (common for
@@ -1300,7 +1319,7 @@ export default function SettingsView({ onSaved }) {
                         <label className="form-label">Account Type <span style={{ fontWeight: 400, color: 'var(--text-muted)', fontSize: '0.72rem' }}>(optional)</span></label>
                         <select className="form-input" value={editingAccount.accountType || ''}
                           onChange={e => setEditingAccount(a => ({ ...a, accountType: e.target.value }))}>
-                          <option value="">— Not specified —</option>
+                          <option value="">- Not specified -</option>
                           <option value="savings">Savings Account</option>
                           <option value="current">Current Account</option>
                           <option value="cc">Cash Credit (CC)</option>
@@ -1327,7 +1346,7 @@ export default function SettingsView({ onSaved }) {
                           placeholder="e.g. HDFCINBB" />
                       </div>
                       <div className="form-group" style={{ gridColumn: 'span 2' }}>
-                        <label className="form-label">UPI ID (optional — drives the QR for this account)</label>
+                        <label className="form-label">UPI ID (optional - drives the QR for this account)</label>
                         <input type="text" className="form-input"
                           style={accountUpiWarning ? { borderColor: '#f59e0b' } : undefined}
                           value={editingAccount.upiId}
@@ -1350,7 +1369,7 @@ export default function SettingsView({ onSaved }) {
                           <input type="checkbox" checked={!!editingAccount.isDefault}
                             onChange={e => setEditingAccount(a => ({ ...a, isDefault: e.target.checked }))}
                             style={{ width: 16, height: 16, accentColor: 'var(--primary)' }} />
-                          <span><strong>⭐ Set as default account</strong> — preselected on every new invoice</span>
+                          <span><strong>⭐ Set as default account</strong> - preselected on every new invoice</span>
                         </label>
                       </div>
                     </div>
@@ -1487,7 +1506,7 @@ export default function SettingsView({ onSaved }) {
       </form>
 
       {/* ---- Multi-Business Profiles ---- */}
-      {/* v1.10.36 — Moved from ~line 1300 (was 500+ lines below the
+      {/* v1.10.36 - Moved from ~line 1300 (was 500+ lines below the
            Company Details form) to sit immediately after it. Natural
            flow: fill Company Details → Save as Profile → see it in the
            switcher below. Prior placement forced users to scroll past
@@ -1555,7 +1574,7 @@ export default function SettingsView({ onSaved }) {
         {/* Easy method */}
         <div style={{ background: 'var(--bg-secondary, #f8fafc)', borderRadius: '10px', padding: '1.25rem', marginBottom: '1rem', border: '1px solid var(--border)' }}>
           <h4 style={{ fontSize: '0.95rem', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Cloud size={18} color="var(--primary)" /> Easiest Way — Google Drive for Desktop (Recommended)
+            <Cloud size={18} color="var(--primary)" /> Easiest Way - Google Drive for Desktop (Recommended)
           </h4>
           <ol style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.8, paddingLeft: '1.25rem', margin: 0 }}>
             <li>
@@ -1564,7 +1583,7 @@ export default function SettingsView({ onSaved }) {
                 Download Google Drive for Desktop
               </a> (free from Google) and install it
             </li>
-            <li>Sign in with your Google account — your Drive folder appears in Finder on macOS or File Explorer on Windows</li>
+            <li>Sign in with your Google account - your Drive folder appears in Finder on macOS or File Explorer on Windows</li>
             <li>In Backups, choose a dedicated folder inside your synced Google Drive folder for secondary backups</li>
             <li>Create a backup and verify that the snapshot appears in Google Drive</li>
           </ol>
@@ -1634,7 +1653,7 @@ export default function SettingsView({ onSaved }) {
         {/* Quick Templates */}
         {!editingTemplate && (
           <div className="quick-templates-section">
-            <p className="form-label" style={{ marginBottom: '0.5rem' }}>Quick Start — Pick a template for your business:</p>
+            <p className="form-label" style={{ marginBottom: '0.5rem' }}>Quick Start - Pick a template for your business:</p>
             <div className="quick-templates-grid">
               {[
                 { name: 'Services (IT, Consulting, Freelance)', content: '1. Payment is due within 15 days of invoice date via NEFT/RTGS/UPI unless otherwise agreed.\n2. Any agreed late-payment charges are subject to applicable law.\n3. All amounts are exclusive of GST (CGST/SGST/IGST) as applicable under the GST Act, 2017.\n4. Services rendered are non-refundable once delivered and accepted by the client.\n5. TDS (if applicable) must be deducted as per Income Tax Act. Please share TDS certificate (Form 16A) within 15 days.\n6. All deliverables remain the intellectual property of the service provider until full payment is received.\n7. Any disputes shall be subject to the exclusive jurisdiction of courts in the service provider\'s city.\n8. This invoice was generated electronically.' },
@@ -1698,7 +1717,7 @@ export default function SettingsView({ onSaved }) {
         )}
       </div>
 
-      {/* v1.10.36 — Multi-Business Profiles block relocated above,
+      {/* v1.10.36 - Multi-Business Profiles block relocated above,
            immediately after the Company Details form. Placeholder here
            kept as a comment so a code search for "Multi-Business
            Profiles" still lands somewhere sensible. */}
@@ -1748,12 +1767,12 @@ export default function SettingsView({ onSaved }) {
       <div id="section-data" className="glass-panel p-6 mb-6" style={{ order: 11 }}>
         <h3 className="section-title">Data Management</h3>
 
-        {/* Privacy notice — uses the global .notice .notice-info utility so dark/light look identical to every other info card. */}
+        {/* Privacy notice - uses the global .notice .notice-info utility so dark/light look identical to every other info card. */}
         <div className="notice notice-info" style={{ marginBottom: '1rem' }}>
           <span className="notice-icon">🔒</span>
           <div>
             <strong>Your data is on this computer only.</strong> Nothing is uploaded to
-            us, our servers, or any third party — not invoices, not clients, not
+            us, our servers, or any third party - not invoices, not clients, not
             settings. The only time anything leaves your machine is if you explicitly
             click <em>Save to Drive</em> below (uploads to <strong>your own</strong>
             Google Drive account).
@@ -1762,7 +1781,7 @@ export default function SettingsView({ onSaved }) {
         </div>
 
         <p className="page-subtitle mb-6">
-          Choose what to back up or restore — invoices, clients, products, settings, custom units, or just specific parts.
+          Choose what to back up or restore - invoices, clients, products, settings, custom units, or just specific parts.
           Backup files are plain JSON you can keep on a USB drive, OneDrive, or your own Google Drive.
         </p>
         <div className="flex gap-4" style={{ flexWrap: 'wrap' }}>
@@ -1778,7 +1797,7 @@ export default function SettingsView({ onSaved }) {
           <div className="modal-content" style={{ maxWidth: '600px' }} onClick={e => e.stopPropagation()}>
             <h3 className="section-title" style={{ marginTop: 0 }}>Export Backup</h3>
             <p style={{ fontSize: '0.82rem', color: '#64748b', marginBottom: '0.75rem' }}>
-              Choose what to include. Everything is on by default — uncheck anything you don't want.
+              Choose what to include. Everything is on by default - uncheck anything you don't want.
             </p>
             <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
               <button type="button" className="btn btn-secondary" onClick={() => exportToggleAll(true)} style={{ fontSize: '0.72rem', padding: '0.25rem 0.55rem' }}>Select all</button>
@@ -1796,7 +1815,7 @@ export default function SettingsView({ onSaved }) {
               ))}
             </div>
 
-            {/* Optional: Google Drive copy. Uses global cbx-row utility — identical dark/light. */}
+            {/* Optional: Google Drive copy. Uses global cbx-row utility - identical dark/light. */}
             <label className="cbx-row" style={{ marginTop: '0.5rem' }}>
               <input type="checkbox" checked={exportToDrive} onChange={e => setExportToDrive(e.target.checked)} />
               <span>
@@ -1817,7 +1836,7 @@ export default function SettingsView({ onSaved }) {
         </div>
       )}
 
-      {/* v1.10.37 — end of flex-column reorder wrapper (opened after the
+      {/* v1.10.37 - end of flex-column reorder wrapper (opened after the
            jump-nav). Modal below stays outside so its z-index isn't
            captured by the flex context. */}
       </div>
@@ -1829,7 +1848,7 @@ export default function SettingsView({ onSaved }) {
             <h3 className="section-title" style={{ marginTop: 0 }}>Restore from Backup</h3>
             <div style={{ fontSize: '0.78rem', color: '#64748b', marginBottom: '0.75rem' }}>
               File contents preview
-              {importInspection.exportedAt && <span> — exported {new Date(importInspection.exportedAt).toLocaleString()}</span>}
+              {importInspection.exportedAt && <span> - exported {new Date(importInspection.exportedAt).toLocaleString()}</span>}
               {importInspection.version && <span> · v{importInspection.version}</span>}
             </div>
             <div style={{
@@ -1905,7 +1924,7 @@ function EditIcon({ size }) {
 }
 
 // ============================================================
-// v1.9.5 — Backup Management + Trash Bin
+// v1.9.5 - Backup Management + Trash Bin
 // ============================================================
 function BackupAndTrashPanel() {
   const [backups, setBackups] = useState([]);
@@ -1957,7 +1976,7 @@ function BackupAndTrashPanel() {
     })) return;
     try {
       const res = await restoreBackup(date);
-      toast(`Backup restored — please reload the page to see the data.${res?.snapshot ? ` Your data from before is in data/backups/${res.snapshot}.` : ''}`, 'success', 10000);
+      toast(`Backup restored - please reload the page to see the data.${res?.snapshot ? ` Your data from before is in data/backups/${res.snapshot}.` : ''}`, 'success', 10000);
     } catch (err) {
       toast('Restore failed: ' + err.message, 'error');
     }
@@ -1989,7 +2008,7 @@ function BackupAndTrashPanel() {
     }
   };
 
-  // v1.10.22 — reported: "add here delete option i know u added 30 days
+  // v1.10.22 - reported: "add here delete option i know u added 30 days
   // auto delete but manual delete also u add". Individual backup delete.
   const handleDeleteBackup = async (date) => {
     if (!await confirmAction({
@@ -2059,7 +2078,7 @@ function BackupAndTrashPanel() {
         <div style={{ padding: '0.85rem', background: 'var(--bg-secondary)', borderRadius: 8 }}>
           <h4 style={{ margin: '0 0 0.5rem', fontSize: '0.9rem' }}>Daily backups ({backups.length})</h4><p className="text-muted">New snapshots include records, settings, saved PDFs and PDF trash. Older data-only snapshots leave existing PDFs unchanged. JSON exports are records-only.</p>
           {loading && backups.length === 0 && <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>Loading…</p>}
-          {!loading && backups.length === 0 && <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>No backups yet — the first will be created at midnight or click "Backup now" above.</p>}
+          {!loading && backups.length === 0 && <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>No backups yet - the first will be created at midnight or click "Backup now" above.</p>}
           <div style={{ maxHeight: 260, overflowY: 'auto' }}>
             {backups.map(b => (
               <div key={b.date} style={{

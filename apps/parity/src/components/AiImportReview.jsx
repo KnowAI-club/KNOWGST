@@ -350,9 +350,9 @@ export default function AiImportReview({ activeProfile, onNavigate }) {
                       </>
                     ) : (
                       <>
-                        <td>{record.gstin || "—"}</td>
-                        <td>{record.email || "—"}</td>
-                        <td>{record.phone || "—"}</td>
+                        <td>{record.gstin || "-"}</td>
+                        <td>{record.email || "-"}</td>
+                        <td>{record.phone || "-"}</td>
                       </>
                     )}
                   </tr>
@@ -366,7 +366,7 @@ export default function AiImportReview({ activeProfile, onNavigate }) {
               <ul>
                 {plan.skipped.map((row) => (
                   <li key={row.row}>
-                    Row {row.row}: {row.name} — {row.reason}
+                    Row {row.row}: {row.name} - {row.reason}
                   </li>
                 ))}
               </ul>

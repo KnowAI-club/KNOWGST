@@ -21,7 +21,7 @@ const setDefaultPaperSize = async (paperSize) => {
 };
 
 // ============================================================================
-// v1.9.3 — First-run Setup Wizard
+// v1.9.3 - First-run Setup Wizard
 // Shown when onboardingComplete = false. 3 steps:
 //   1. Business type (auto-configures 15+ settings via BUSINESS_PRESETS)
 //   2. Paper size + language
@@ -35,15 +35,15 @@ export default function SetupWizard({ onClose }) {
   const [paperSize, setPaperSize] = useState('a4');
   const [language, setLanguage] = useState('en');
 
-  // v1.10.6 — audit L9. Prior code let `finish()` with no business
-  // preset selected behave identically to `skip()` — user got two
+  // v1.10.6 - audit L9. Prior code let `finish()` with no business
+  // preset selected behave identically to `skip()` - user got two
   // indistinguishable "did nothing" exits. Now: finish() is disabled
   // (see button below) until at least one choice is made, so hitting
   // Finish always writes something meaningful. skip() stays available
   // for users who genuinely want to dismiss and configure later.
   const finish = () => {
     const current = getPrintSettings();
-    // v1.10.33 — Clear onboardingSkipped when the user actually
+    // v1.10.33 - Clear onboardingSkipped when the user actually
     // completes setup, so the "Finish setup" pill hides for good.
     let next = { ...current, onboardingComplete: true, onboardingSkipped: false };
     // Preset first, THEN the language picked on step 2: four presets set
@@ -58,16 +58,16 @@ export default function SetupWizard({ onClose }) {
   };
 
   const skip = () => {
-    // v1.10.33 — Distinguishes "Skip" from "None of these":
+    // v1.10.33 - Distinguishes "Skip" from "None of these":
     //   Skip           → onboardingComplete=true, onboardingSkipped=true
     //                    (App shows a bottom-right "Finish setup" pill)
     //   None of these  → onboardingComplete=true, onboardingSkipped=false
-    //                    (user chose to configure manually — no nag)
+    //                    (user chose to configure manually - no nag)
     // Reported: "if user skip it should show in right side bottom so
     // they can do it again".
     const current = getPrintSettings();
     savePrintSettings({ ...current, onboardingComplete: true, onboardingSkipped: true });
-    toast('Setup skipped — use the "Finish setup" pill to come back to it.', 'info');
+    toast('Setup skipped - use the "Finish setup" pill to come back to it.', 'info');
     onClose();
   };
   const canFinish = !!selectedBiz || !!paperSize || language !== 'en';
@@ -82,7 +82,7 @@ export default function SetupWizard({ onClose }) {
               Step {step} of 3 · Takes 90 seconds
             </p>
           </div>
-          <button type="button" className="icon-btn" onClick={skip} title="Skip setup — I'll configure later"><X size={18} /></button>
+          <button type="button" className="icon-btn" onClick={skip} title="Skip setup - I'll configure later"><X size={18} /></button>
         </div>
 
         {/* Progress bar */}
@@ -108,7 +108,7 @@ export default function SetupWizard({ onClose }) {
                   style={{
                     padding: '0.85rem',
                     background: selectedBiz === key ? 'var(--primary)' : 'var(--card)',
-                    color: selectedBiz === key ? '#fff' : 'var(--text)',
+                    color: selectedBiz === key ? 'var(--on-primary, #fff)' : 'var(--text)',
                     border: `2px solid ${selectedBiz === key ? 'var(--primary)' : 'var(--border)'}`,
                     borderRadius: 8,
                     cursor: 'pointer',
@@ -121,10 +121,10 @@ export default function SetupWizard({ onClose }) {
               ))}
             </div>
             <div style={{ marginTop: '1rem', textAlign: 'center' }}>
-              {/* v1.10.33 — Was a plain "clear selection" button that did
+              {/* v1.10.33 - Was a plain "clear selection" button that did
                   nothing visible (the wizard stayed open, no progress).
                   Users tapped it, nothing happened, then reported "None
-                  of these — I'll configure manually not working". Now:
+                  of these - I'll configure manually not working". Now:
                   the button treats "configure manually" as an explicit
                   intent → mark onboarded (so the wizard stops nagging)
                   AND close. User lands on the dashboard with all defaults
@@ -133,10 +133,10 @@ export default function SetupWizard({ onClose }) {
                 onClick={() => {
                   const current = getPrintSettings();
                   savePrintSettings({ ...current, onboardingComplete: true, onboardingSkipped: false });
-                  toast('Setup dismissed — configure any time from Settings → Print & PDF.', 'info');
+                  toast('Setup dismissed - configure any time from Settings → Print & PDF.', 'info');
                   onClose();
                 }}>
-                None of these — I'll configure manually
+                None of these - I'll configure manually
               </button>
             </div>
           </>
@@ -161,7 +161,7 @@ export default function SetupWizard({ onClose }) {
                   style={{
                     padding: '0.7rem',
                     background: paperSize === key ? 'var(--primary)' : 'var(--card)',
-                    color: paperSize === key ? '#fff' : 'var(--text)',
+                    color: paperSize === key ? 'var(--on-primary, #fff)' : 'var(--text)',
                     border: `2px solid ${paperSize === key ? 'var(--primary)' : 'var(--border)'}`,
                     borderRadius: 6,
                     cursor: 'pointer',
@@ -183,7 +183,7 @@ export default function SetupWizard({ onClose }) {
                   style={{
                     padding: '0.55rem',
                     background: language === key ? 'var(--primary)' : 'var(--card)',
-                    color: language === key ? '#fff' : 'var(--text)',
+                    color: language === key ? 'var(--on-primary, #fff)' : 'var(--text)',
                     border: `1px solid ${language === key ? 'var(--primary)' : 'var(--border)'}`,
                     borderRadius: 5,
                     cursor: 'pointer',
@@ -204,7 +204,7 @@ export default function SetupWizard({ onClose }) {
             </p>
 
             <div style={{ padding: '1rem', background: 'var(--bg-secondary)', borderRadius: 8, fontSize: '0.9rem' }}>
-              <Row label="Business type" value={selectedBiz ? BUSINESS_PRESETS[selectedBiz]?.label : '(none — manual config)'} />
+              <Row label="Business type" value={selectedBiz ? BUSINESS_PRESETS[selectedBiz]?.label : '(none - manual config)'} />
               <Row label="Default paper size" value={PAPER_LABELS[paperSize] || paperSize} />
               <Row label="Section label language" value={
                 { en: 'English', hi: 'हिन्दी', ta: 'தமிழ்', mr: 'मराठी', bn: 'বাংলা' }[language]
@@ -234,7 +234,7 @@ export default function SetupWizard({ onClose }) {
             ) : (
               <button type="button" className="btn btn-primary" onClick={finish}
                 disabled={!canFinish}
-                title={canFinish ? '' : 'Pick a business type, paper size, or language first — or use Skip.'}>
+                title={canFinish ? '' : 'Pick a business type, paper size, or language first - or use Skip.'}>
                 <Check size={16} /> Finish setup
               </button>
             )}
@@ -249,7 +249,7 @@ function Row({ label, value }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.35rem 0', borderBottom: '1px solid var(--border)' }}>
       <span style={{ color: 'var(--text-muted)' }}>{label}</span>
-      <span style={{ fontWeight: 600 }}>{value || '—'}</span>
+      <span style={{ fontWeight: 600 }}>{value || '-'}</span>
     </div>
   );
 }

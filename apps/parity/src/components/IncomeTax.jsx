@@ -9,7 +9,7 @@ import HelpButton from './HelpButton';
 import AiCategorySuggestions from './AiCategorySuggestions';
 import { BANK_CATEGORY_LABELS as CATEGORY_LABELS } from '../utils/ai-categories.mjs';
 
-// v1.10.31 — Parse the user's chosen PDF accent (hex like "#1e40af") into
+// v1.10.31 - Parse the user's chosen PDF accent (hex like "#1e40af") into
 // a [r, g, b] tuple for jsPDF's setFillColor / setDrawColor. Falls back to
 // the historical Tailwind blue-900 (30,64,175) when the setting is empty or
 // the user has explicitly disabled custom colors. Kept local to IncomeTax
@@ -58,21 +58,21 @@ const expenseCost = (e) => (Number(e.amount) || 0) - (Number(e.gstAmount) || 0);
 import { toast } from './Toast';
 
 // The Income Tax module has three sub-tabs. Keeping them in one file (rather
-// than three separate route components) keeps state co-located — the Regime
+// than three separate route components) keeps state co-located - the Regime
 // Calculator can see income figures picked up from the Bank Statement
 // Import tab, for instance, without going through a global store.
 const TABS = [
-  { key: 'calculator', label: 'Regime Calculator', icon: Calculator, help: 'Compare Old vs New (Section 115BAC) — auto-picks the cheaper regime' },
-  { key: 'presumptive', label: 'Presumptive (§44AD/ADA)', icon: Briefcase, help: 'Skip full books — declare 6/8% (business) or 50% (professional) of turnover' },
+  { key: 'calculator', label: 'Regime Calculator', icon: Calculator, help: 'Compare Old vs New (Section 115BAC) - auto-picks the cheaper regime' },
+  { key: 'presumptive', label: 'Presumptive (§44AD/ADA)', icon: Briefcase, help: 'Skip full books - declare 6/8% (business) or 50% (professional) of turnover' },
   { key: 'advance',    label: 'Advance Tax',       icon: Clock,    help: 'Four installment schedule with §234B/C interest calculation' },
-  { key: 'bank',       label: 'Bank Statement Import', icon: Upload, help: 'Upload SBI / HDFC / ICICI / Axis / Kotak / PNB / Yes Bank CSV — auto-categorises' },
+  { key: 'bank',       label: 'Bank Statement Import', icon: Upload, help: 'Upload SBI / HDFC / ICICI / Axis / Kotak / PNB / Yes Bank CSV - auto-categorises' },
   { key: 'summary',    label: 'ITR Summary',    icon: FileText, help: 'Consolidated view + ITR-4 Filing Summary PDF' },
 ];
 
-// v1.10.53 — These were local constants reading '2024-25' / '2025-26',
+// v1.10.53 - These were local constants reading '2024-25' / '2025-26',
 // which SHADOWED the engine's own CURRENT_FY ('2025-26' in utils/itr.js).
 // The UI therefore labelled everything FY 2024-25 while the engine
-// computed with FY 2025-26 slabs — two different answers to "which year
+// computed with FY 2025-26 slabs - two different answers to "which year
 // is this?" in one screen.
 //
 // Worse, the prefill below filters bills with `billFY === CURRENT_FY`.
@@ -95,7 +95,7 @@ export default function IncomeTax() {
   const [purchases, setPurchases] = useState([]);
   const [profile, setProfile] = useState({});
 
-  // Regime-calculator inputs — persist to localStorage so a returning user
+  // Regime-calculator inputs - persist to localStorage so a returning user
   // doesn't have to re-enter their Form-16 salary + deductions every time
   // they open the tab. Reset button provided.
   const [inputs, setInputs] = useState(() => {
@@ -107,7 +107,7 @@ export default function IncomeTax() {
 
   const [bankImport, setBankImport] = useState({ bankName: '', transactions: [] });
 
-  // Presumptive taxation state — separate from Regime Calculator inputs
+  // Presumptive taxation state - separate from Regime Calculator inputs
   // because the flow is different: user comes in either wanting to check
   // eligibility, OR to commit to presumptive filing for the year.
   // Persisted separately to localStorage.
@@ -124,7 +124,7 @@ export default function IncomeTax() {
     } catch { return { section: '44AD', digitalReceipts: 0, cashReceipts: 0, declaredIncome: 0, heavyVehicleMonths: 0, heavyVehicleTonnage: 13, lightVehicleMonths: 0 }; }
   });
 
-  // Advance Tax state — TDS credit + payments made so far
+  // Advance Tax state - TDS credit + payments made so far
   const [advanceInputs, setAdvanceInputs] = useState(() => {
     try {
       const saved = JSON.parse(localStorage.getItem('gst_itrAdvanceTax') || '{}');
@@ -139,11 +139,11 @@ export default function IncomeTax() {
       getAllPurchases().catch(() => []),
       getProfile().catch(() => ({})),
     ]).then(([b, e, p, prof]) => {
-      // v1.10.64 (#55) — income tax is filed per business, so only the active
+      // v1.10.64 (#55) - income tax is filed per business, so only the active
       // business's invoices may contribute to its figures.
-      // v1.10.67 (#66 item 12) — cancelled invoices are not income.
+      // v1.10.67 (#66 item 12) - cancelled invoices are not income.
       setBills((b || []).filter(bill => belongsToProfile(bill, prof) && !isCancelledBill(bill)));
-      // v1.10.66 (#64) — and only its own expenses and purchases. Left
+      // v1.10.66 (#64) - and only its own expenses and purchases. Left
       // unfiltered, one company's costs reduced another company's income.
       setExpenses((e || []).filter(r => belongsToProfile(r, prof)));
       setPurchases((p || []).filter(r => belongsToProfile(r, prof)));
@@ -177,7 +177,7 @@ export default function IncomeTax() {
     try {
       const { _autofillHint, ...persist } = inputs; void _autofillHint;
       localStorage.setItem('gst_itrCalcInputs', JSON.stringify(persist));
-    } catch { /* localStorage full — surface via existing quota toast */ }
+    } catch { /* localStorage full - surface via existing quota toast */ }
   }, [inputs]);
 
   useEffect(() => {
@@ -187,7 +187,7 @@ export default function IncomeTax() {
     try { localStorage.setItem('gst_itrAdvanceTax', JSON.stringify(advanceInputs)); } catch { /* ignore */ }
   }, [advanceInputs]);
 
-  // Presumptive result — recomputes when the section or inputs change
+  // Presumptive result - recomputes when the section or inputs change
   const presumptive = useMemo(() => {
     if (presumptiveInputs.section === '44AD') return compute44AD(presumptiveInputs);
     if (presumptiveInputs.section === '44ADA') return compute44ADA(presumptiveInputs);
@@ -197,13 +197,13 @@ export default function IncomeTax() {
 
   // Regime comparison recomputes live from inputs. `compareRegimes` runs both
   // scenarios and picks the cheaper. Rendered whether or not the user has
-  // filled anything — a zero-input result is still useful.
+  // filled anything - a zero-input result is still useful.
   //
-  // MUST be declared BEFORE advanceSchedule below — v1.8.1 had this reversed,
+  // MUST be declared BEFORE advanceSchedule below - v1.8.1 had this reversed,
   // causing a TDZ ReferenceError that blanked the whole Income Tax view.
   const comparison = useMemo(() => compareRegimes(inputs), [inputs]);
 
-  // Advance-tax schedule — depends on the total tax under the RECOMMENDED regime.
+  // Advance-tax schedule - depends on the total tax under the RECOMMENDED regime.
   // Defensive: if comparison hasn't yielded a valid shape yet (first render
   // race), fall back to a zero-tax schedule so the Advance Tax tab still
   // renders instead of crashing.
@@ -219,8 +219,8 @@ export default function IncomeTax() {
 
   return (
     <div className="dashboard-container">
-      <PageHeader title="Income Tax Helper" subtitle={<>FY {CURRENT_FY} · AY {CURRENT_AY} — Old vs New Regime, bank-statement import, ITR summary</>}>
-          <HelpButton title="Income tax — how to use" doc="income-tax">
+      <PageHeader title="Income Tax Helper" subtitle={<>FY {CURRENT_FY} · AY {CURRENT_AY} - Old vs New Regime, bank-statement import, ITR summary</>}>
+          <HelpButton title="Income tax - how to use" doc="income-tax">
             <ul style={{ paddingLeft: '1.1rem', margin: 0 }}>
               <li><strong>Regime Calculator</strong>: your income and deductions, old and new regime side by side.</li>
               <li><strong>Presumptive</strong> (44AD / 44ADA / 44AE), <strong>Advance Tax</strong>, <strong>Bank Statement Import</strong> and the <strong>ITR Summary</strong> PDF.</li>
@@ -231,13 +231,13 @@ export default function IncomeTax() {
 
       <CurrentTaxYear />
 
-      {/* v1.10.53 — The slab tables in utils/itr.js only go up to the FY
+      {/* v1.10.53 - The slab tables in utils/itr.js only go up to the FY
           named by CURRENT_FY. When the real financial year has moved past
           that, everything on this screen still computes against the older
           year, and the income prefill below finds none of the user's bills
           because they fall outside it.
           Previously that failed silently: the user saw a zero and no
-          explanation. Saying it plainly is the honest option — inventing
+          explanation. Saying it plainly is the honest option - inventing
           slab rates for a year whose Budget has not been implemented here
           would be far worse than admitting the gap. */}
       {getFinancialYearLabel() !== CURRENT_FY && (
@@ -329,7 +329,7 @@ export default function IncomeTax() {
               return;
             }
             setBankImport(prev => ({ ...prev, pushed: true }));
-            // Piping the categorised totals into the calculator — user
+            // Piping the categorised totals into the calculator - user
             // switches to the Calculator tab and their income + interest
             // + rent are pre-filled.
             setInputs(prev => ({
@@ -460,9 +460,9 @@ function PresumptiveTab({ presumptiveInputs, setPresumptiveInputs, presumptive, 
               <strong>Why presumptive taxation?</strong>
               <ul style={{ margin: '0.25rem 0 0', paddingLeft: '1.2rem', lineHeight: 1.6 }}>
                 <li>Skip full books of account + audit (§44AB)</li>
-                <li>Skip advance-tax installments — pay 100% by 15 March</li>
+                <li>Skip advance-tax installments - pay 100% by 15 March</li>
                 <li>Simpler ITR-4 (Sugam) form instead of ITR-3</li>
-                <li>Once opted in, must continue for 5 assessment years — opting out early disqualifies you from §44AD for the next 5 years</li>
+                <li>Once opted in, must continue for 5 assessment years - opting out early disqualifies you from §44AD for the next 5 years</li>
               </ul>
             </div>
           </div>
@@ -510,7 +510,7 @@ function AdvanceTaxTab({ advanceInputs, setAdvanceInputs, schedule, totalTax, re
         </p>
 
         <div className="tax-form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
-          <NumberInput label="TDS already deducted" hint="From salary, contract payments, interest — as per Form 26AS" value={advanceInputs.tdsCredit} onChange={v => set({ tdsCredit: v })} />
+          <NumberInput label="TDS already deducted" hint="From salary, contract payments, interest - as per Form 26AS" value={advanceInputs.tdsCredit} onChange={v => set({ tdsCredit: v })} />
           <div>
             <Row label="Total tax liability" value={totalTax} />
             <Row label="Less: TDS credit" value={-(Number(advanceInputs.tdsCredit) || 0)} muted={!advanceInputs.tdsCredit} />
@@ -519,7 +519,7 @@ function AdvanceTaxTab({ advanceInputs, setAdvanceInputs, schedule, totalTax, re
         </div>
 
         {!schedule.applies && (
-          <div style={{ padding: '0.75rem', background: 'var(--success-bg, #ecfdf5)', borderRadius: 6, fontSize: '0.85rem' }}>
+          <div style={{ padding: '0.75rem', background: 'var(--info-bg, #ecfdf5)', color: 'var(--info-text, #065f46)', border: '1px solid var(--info-border, #bbf7d0)', borderRadius: 6, fontSize: '0.85rem' }}>
             <Check size={14} style={{ display: 'inline', marginRight: 4 }} />
             {schedule.note}
           </div>
@@ -578,8 +578,8 @@ function AdvanceTaxTab({ advanceInputs, setAdvanceInputs, schedule, totalTax, re
 
             <div className="glass-panel p-4">
               <h4 style={{ marginTop: 0, marginBottom: '0.5rem' }}>Interest under §234B / §234C</h4>
-              <Row label="§234C — installment shortfall" value={interest234C} muted={!interest234C} />
-              <Row label="§234B — post year-end delay (1% per month)" value={interest234B} muted={!interest234B} />
+              <Row label="§234C - installment shortfall" value={interest234C} muted={!interest234C} />
+              <Row label="§234B - post year-end delay (1% per month)" value={interest234B} muted={!interest234B} />
               <Row label="Total interest" value={interest234B + interest234C} bold />
               <div style={{ marginTop: '0.75rem', padding: '0.5rem', background: 'var(--bg-secondary)', borderRadius: 6, fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                 <strong>§234C</strong>: 1% per month for shortfalls in Q1-Q3 (3 months each) and Q4 (1 month). Waived if you paid ≥ 12% by 15 Jun / 36% by 15 Sep.<br /><br />
@@ -654,7 +654,7 @@ function RegimeCalculatorTab({ inputs, setInputs, comparison, onReset }) {
 
         <h4 style={{ marginTop: '1rem', marginBottom: '0.5rem', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)' }}>Deductions (Old Regime only)</h4>
         <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 0, marginBottom: '0.5rem' }}>
-          Under New Regime (default from FY 2023-24), only Section 80CCD(2) — employer NPS contribution — is allowed.
+          Under New Regime (default from FY 2023-24), only Section 80CCD(2) - employer NPS contribution - is allowed.
           These deductions ONLY reduce your Old-Regime tax.
         </p>
         {Object.entries(DEDUCTION_CAPS).map(([section, cap]) => (
@@ -664,7 +664,7 @@ function RegimeCalculatorTab({ inputs, setInputs, comparison, onReset }) {
             value={inputs.deductions?.[section] || 0}
             onChange={v => setDed(section, v)} />
         ))}
-        <NumberInput label="§80CCD(2) — employer NPS" hint="Allowed under BOTH regimes, up to 10% of salary (14% for government employees)." value={inputs.deductions?.['80CCD2'] || 0} onChange={v => setDed('80CCD2', v)} />
+        <NumberInput label="§80CCD(2) - employer NPS" hint="Allowed under BOTH regimes, up to 10% of salary (14% for government employees)." value={inputs.deductions?.['80CCD2'] || 0} onChange={v => setDed('80CCD2', v)} />
       </div>
 
       {/* Right column: side-by-side comparison */}
@@ -675,7 +675,7 @@ function RegimeCalculatorTab({ inputs, setInputs, comparison, onReset }) {
           </h3>
           <p style={{ fontSize: '0.85rem', margin: '0 0 0.75rem 0' }}>
             Saves you <strong>{formatCurrency(comparison.savings)}</strong> compared to the other regime.
-            {comparison.recommended === 'new' && ' (New Regime is the default — you don\'t need to elect anything.)'}
+            {comparison.recommended === 'new' && ' (New Regime is the default - you don\'t need to elect anything.)'}
             {comparison.recommended === 'old' && ' (You must file Form 10-IEA before the due date to elect Old Regime.)'}
           </p>
         </div>
@@ -846,9 +846,9 @@ function BankImportTab({ businessId, bankImport, setBankImport, onCommit }) {
     <>
       <div className="glass-panel p-4" style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h3 className="section-title" style={{ margin: 0 }}>{bankImport.bankName} — {bankImport.transactions.length} transactions</h3>
+          <h3 className="section-title" style={{ margin: 0 }}>{bankImport.bankName} - {bankImport.transactions.length} transactions</h3>
           <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-            Review each row's category. Auto-categorised — override any you disagree with.
+            Review each row's category. Auto-categorised - override any you disagree with.
           </p>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -924,7 +924,7 @@ function BankImportTab({ businessId, bankImport, setBankImport, onCommit }) {
 }
 
 // ============================================================================
-// ITR Summary sub-tab — consolidated snapshot
+// ITR Summary sub-tab - consolidated snapshot
 // ============================================================================
 function SummaryTab({ bills, expenses, purchases, profile, comparison, inputs, presumptive, advanceSchedule, fy, ay }) {
   const generateITR4PDF = async () => {
@@ -990,7 +990,7 @@ function SummaryTab({ bills, expenses, purchases, profile, comparison, inputs, p
         doc.setFillColor(...getAccentRGB()); doc.setTextColor(255);
         doc.rect(15, y, 180, 6, 'F');
         doc.setFontSize(9); doc.setFont('helvetica', 'bold');
-        doc.text('E — Advance Tax', 17, y + 4);
+        doc.text('E - Advance Tax', 17, y + 4);
         doc.setTextColor(0); y += 8;
 
         doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5);
@@ -1028,7 +1028,7 @@ function SummaryTab({ bills, expenses, purchases, profile, comparison, inputs, p
   const assets = fyExpenses.filter(e => e.category === 'Asset Purchase').reduce((s, e) => s + (Number(e.amount) || 0), 0);
   const netBusiness = Math.max(0, sales - trading - businessExpenses);
 
-  // Presumptive threshold check (Section 44AD — up to ₹2Cr turnover)
+  // Presumptive threshold check (Section 44AD - up to ₹2Cr turnover)
   const under44ADEligible = sales < 20_000_000 && (profile?.businessType || '').toLowerCase() !== 'professional';
 
   return (
@@ -1067,7 +1067,7 @@ function SummaryTab({ bills, expenses, purchases, profile, comparison, inputs, p
           {assets > 0 && (
             <div style={{ marginTop: '0.75rem', padding: '0.5rem', background: 'var(--warn-bg, #fffbeb)', borderRadius: 6, fontSize: '0.78rem' }}>
               <strong>Note:</strong> {formatCurrency(assets)} in Asset Purchases isn't deducted here.
-              Assets are capitalised then depreciated under §32 — enter depreciation as a business expense
+              Assets are capitalised then depreciated under §32 - enter depreciation as a business expense
               in the year it's claimed (not the year of purchase).
             </div>
           )}
@@ -1091,7 +1091,7 @@ function SummaryTab({ bills, expenses, purchases, profile, comparison, inputs, p
                 <br /><br />
               </>
             )}
-            {fy === '2025-26' ? <>AY 2026–27: non-business, non-audit returns — <strong>31 July 2026</strong>; non-audit business/profession — <strong>31 August 2026</strong>; audit cases covered by CBDT Circular 7/2026 — <strong>21 November 2026</strong>. Transfer-pricing and other special cases differ. Verified 29 October 2026; check later extensions on the income-tax portal.</> : <>Check the notified return due date for your assessment year and filing category.</>}
+            {fy === '2025-26' ? <>AY 2026–27: non-business, non-audit returns - <strong>31 July 2026</strong>; non-audit business/profession - <strong>31 August 2026</strong>; audit cases covered by CBDT Circular 7/2026 - <strong>21 November 2026</strong>. Transfer-pricing and other special cases differ. Verified 29 October 2026; check later extensions on the income-tax portal.</> : <>Check the notified return due date for your assessment year and filing category.</>}
             Advance tax installments: 15 Jun · 15 Sep · 15 Dec · 15 Mar.
           </div>
         </div>
@@ -1102,7 +1102,7 @@ function SummaryTab({ bills, expenses, purchases, profile, comparison, inputs, p
           <div>
             <h3 className="section-title" style={{ margin: 0, color: 'var(--primary)' }}>ITR-4 (Sugam) Filing Summary PDF</h3>
             <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', margin: '0.25rem 0 0' }}>
-              One PDF with every ITR-4 field pre-computed. Copy each value into the corresponding box on incometax.gov.in — or hand the PDF to your CA.
+              One PDF with every ITR-4 field pre-computed. Copy each value into the corresponding box on incometax.gov.in - or hand the PDF to your CA.
             </p>
           </div>
           <button className="btn btn-primary" onClick={generateITR4PDF}>
@@ -1114,12 +1114,12 @@ function SummaryTab({ bills, expenses, purchases, profile, comparison, inputs, p
       <div className="glass-panel p-4" style={{ marginTop: '1rem' }}>
         <h3 className="section-title">Not included yet</h3>
         <ul style={{ fontSize: '0.82rem', color: 'var(--text-muted)', margin: 0, paddingLeft: '1.2rem', lineHeight: 1.7 }}>
-          <li><strong>Form 16 upload + parse</strong> — auto-extract salary + TDS + exemptions</li>
-          <li><strong>Capital Gains module</strong> — Zerodha / Groww / ICICI Direct CSV import</li>
-          <li><strong>House Property module</strong> — multi-property, home-loan interest §24(b)</li>
-          <li><strong>ITR-1 / ITR-2 / ITR-3 support</strong> — for salaried + rental + capital-gains assessees</li>
-          <li><strong>ITR JSON export</strong> — upload directly to the IT portal</li>
-          <li><strong>Form 26AS reconciliation</strong> — upload TDS certificate</li>
+          <li><strong>Form 16 upload + parse</strong> - auto-extract salary + TDS + exemptions</li>
+          <li><strong>Capital Gains module</strong> - Zerodha / Groww / ICICI Direct CSV import</li>
+          <li><strong>House Property module</strong> - multi-property, home-loan interest §24(b)</li>
+          <li><strong>ITR-1 / ITR-2 / ITR-3 support</strong> - for salaried + rental + capital-gains assessees</li>
+          <li><strong>ITR JSON export</strong> - upload directly to the IT portal</li>
+          <li><strong>Form 26AS reconciliation</strong> - upload TDS certificate</li>
         </ul>
       </div>
     </>
@@ -1152,7 +1152,7 @@ const SECTION_DESCRIPTIONS = {
   '80D':     'Health insurance (self + family + parents)',
   '80TTA':   'Savings-account interest (< 60 yrs)',
   '80TTB':   'Bank / PO deposit interest (senior citizens)',
-  '80E':     'Education-loan interest — no cap, 8 years',
+  '80E':     'Education-loan interest - no cap, 8 years',
   '80G':     'Donations to approved funds',
   '80GG':    'Rent paid when HRA is not received',
   '80DDB':   'Specified serious illness',

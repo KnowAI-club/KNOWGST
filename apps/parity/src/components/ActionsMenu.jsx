@@ -71,7 +71,7 @@ export default function ActionsMenu({ items, label = 'More actions' }) {
       {pos && (
         <div ref={menu} role="menu" className="actions-menu" aria-label={label} onKeyDown={onMenuKey} style={{
           position: 'fixed', zIndex: 1000, ...pos, minWidth: 190,
-          background: 'var(--card, #fff)', border: '1px solid var(--border)', borderRadius: 8,
+          background: 'var(--card-bg, #fff)', border: '1px solid var(--border)', borderRadius: 8,
           boxShadow: '0 10px 30px rgba(0,0,0,0.18)', padding: 4,
         }}>
           {visible.map((item) => {

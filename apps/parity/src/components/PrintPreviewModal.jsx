@@ -3,7 +3,7 @@ import { X, Printer, Download, Loader, ZoomIn, ZoomOut } from 'lucide-react';
 import InvoicePreview from './InvoicePreview';
 import { getPaperSize } from '../utils';
 
-// v1.10.36 — Portal-based print preview modal.
+// v1.10.36 - Portal-based print preview modal.
 //
 // Design decision (per user report on v1.10.35): DO NOT re-serialize
 // the receipt HTML into an iframe. The v1.10.35 approach did that
@@ -14,7 +14,7 @@ import { getPaperSize } from '../utils';
 //
 // This modal is PURELY VISUAL. It renders <InvoicePreview> with the
 // EXACT SAME props the parent passes into the main on-screen preview
-// — same component, same code path, guaranteed identical output. When
+// - same component, same code path, guaranteed identical output. When
 // the user clicks Print inside the modal, we DON'T print the modal's
 // DOM: we close the modal and call the parent's `onPrint` callback,
 // which triggers the existing directPrint → buildPDF → printViaIframe
@@ -86,7 +86,7 @@ export default function PrintPreviewModal({
   };
 
   // For thermal the preview scales to fit the modal since the receipt
-  // is very narrow (48-104mm) — a 1:1 view would show a strip that's
+  // is very narrow (48-104mm) - a 1:1 view would show a strip that's
   // dwarfed by the modal chrome. For A4 we show at ~70% so the whole
   // page fits without scrolling on typical laptop viewports.
   const fitZoom = isThermal ? 160 : 70; // on the slider's 5% steps
@@ -121,7 +121,7 @@ export default function PrintPreviewModal({
               Print preview
             </h3>
             <p style={{ margin: '0.2rem 0 0 1.75rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-              {paperLabel} — click Print to send to your printer
+              {paperLabel} - click Print to send to your printer
             </p>
           </div>
           <button type="button" className="icon-btn" onClick={onClose} disabled={printing}
@@ -130,7 +130,7 @@ export default function PrintPreviewModal({
           </button>
         </div>
 
-        {/* Preview area — the SAME InvoicePreview component + SAME props
+        {/* Preview area - the SAME InvoicePreview component + SAME props
             as the main on-screen preview. React re-uses the render, so
             what the user sees here is bit-for-bit what the print pipeline
             will rasterize. */}

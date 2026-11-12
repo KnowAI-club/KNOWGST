@@ -1,9 +1,9 @@
-// v1.10.1 — Tax compliance test harness. Exercises every finding from
+// v1.10.1 - Tax compliance test harness. Exercises every finding from
 // the audit's Bundle 2 (GST / TDS / TCS / precision / ITR).
 //
 // Run: `node scripts/tax-test.mjs`
 //
-// Each test is a plain assertion — the file exits non-zero on any
+// Each test is a plain assertion - the file exits non-zero on any
 // failure. Uses only the exported pure helpers from src/utils.js and
 // src/utils/itr.js so we can run it without booting the React app.
 
@@ -107,7 +107,7 @@ function approx(actual, expected, label, tol = 0.01) {
 function truthy(x, label) { if (x) { passed++; console.log(`  ✓ ${label}`); } else { failed++; console.log(`  ✗ ${label}  (got ${JSON.stringify(x)})`); } }
 
 // ─────────────────────────────────────────────────────────────────────
-// C5 — Interstate detection when profile.state is BLANK
+// C5 - Interstate detection when profile.state is BLANK
 // ─────────────────────────────────────────────────────────────────────
 console.log('\n[C5] Interstate detection when business state is blank');
 {
@@ -124,7 +124,7 @@ console.log('\n[C5] Interstate detection when business state is blank');
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// C6 — UTGST for intra-UT supplies (Chandigarh)
+// C6 - UTGST for intra-UT supplies (Chandigarh)
 // ─────────────────────────────────────────────────────────────────────
 console.log('\n[C6] UTGST bucket for intra-UT supplies');
 {
@@ -152,7 +152,7 @@ console.log('\n[C6] UTGST bucket for intra-UT supplies');
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// C7 — E-Way Bill taxable value when tax-inclusive
+// C7 - E-Way Bill taxable value when tax-inclusive
 // ─────────────────────────────────────────────────────────────────────
 console.log('\n[C7] E-Way Bill respects tax-inclusive');
 {
@@ -176,7 +176,7 @@ console.log('\n[C7] E-Way Bill respects tax-inclusive');
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// H6 — TCS 206C(1H) base includes GST
+// H6 - TCS 206C(1H) base includes GST
 // ─────────────────────────────────────────────────────────────────────
 console.log('\n[H6/H7] TCS/TDS on right base + 50L threshold');
 {
@@ -205,7 +205,7 @@ console.log('\n[H6/H7] TCS/TDS on right base + 50L threshold');
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// M5 — RCM + tax-inclusive should not double-charge buyer
+// M5 - RCM + tax-inclusive should not double-charge buyer
 // ─────────────────────────────────────────────────────────────────────
 console.log('\n[M5] RCM + tax-inclusive back-out embedded tax');
 {
@@ -222,7 +222,7 @@ console.log('\n[M5] RCM + tax-inclusive back-out embedded tax');
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// M8 — totalTaxCollected includes cess (+ UTGST)
+// M8 - totalTaxCollected includes cess (+ UTGST)
 // ─────────────────────────────────────────────────────────────────────
 console.log('\n[M8] totalTaxCollected includes cess and UTGST');
 {
@@ -236,7 +236,7 @@ console.log('\n[M8] totalTaxCollected includes cess and UTGST');
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// M10 — non-numeric rate coerced safely
+// M10 - non-numeric rate coerced safely
 // ─────────────────────────────────────────────────────────────────────
 console.log('\n[M10] Non-numeric rate/qty stays finite');
 {
@@ -251,7 +251,7 @@ console.log('\n[M10] Non-numeric rate/qty stays finite');
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// H11 — Per-line rounding consistent between invoice and GSTR-1 export
+// H11 - Per-line rounding consistent between invoice and GSTR-1 export
 // ─────────────────────────────────────────────────────────────────────
 console.log('\n[H11] Rounding: sum-of-rounded-lines used consistently');
 {
@@ -305,7 +305,7 @@ console.log('\n[H10] 80D cap depends on senior status');
 
 console.log('\n[M6] 234B uses calendar months (not 30-day months)');
 {
-  // v1.10.31 — Test now specifies fy so compute234BInterest picks the
+  // v1.10.31 - Test now specifies fy so compute234BInterest picks the
   // correct April-1 anchor (was hardcoded to 2025-04-01; now FY-relative).
   const sched = { applies: true, netLiability: 100000, totalPaid: 0, fy: '2024-25' };
   // 1-Apr-2025 to 31-May-2025 = 2 calendar months. 1% × 2 × 100000 = 2000.
@@ -314,11 +314,11 @@ console.log('\n[M6] 234B uses calendar months (not 30-day months)');
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// v1.10.31 — Audit-driven test cases. Every Critical/High tax finding from
+// v1.10.31 - Audit-driven test cases. Every Critical/High tax finding from
 // the July 2026 comprehensive audit gets a regression test here.
 // ═══════════════════════════════════════════════════════════════════════════
 
-console.log('\n[V31-C2] FY 25-26 new regime — Budget 2025 slabs + ₹60k rebate at ₹12L');
+console.log('\n[V31-C2] FY 25-26 new regime - Budget 2025 slabs + ₹60k rebate at ₹12L');
 {
   // Salaried ₹12L income, new regime FY 25-26. Correct tax = ₹0 after 87A.
   const r = computeTax({ salary: 1_275_000, regime: 'new', fy: '2025-26' });
@@ -328,7 +328,7 @@ console.log('\n[V31-C2] FY 25-26 new regime — Budget 2025 slabs + ₹60k rebat
   truthy(r2.totalTax > 0, '₹14L salary above rebate threshold → some tax');
 }
 
-console.log('\n[V31-C4] Capital gains rates — post-July-2024 (STCG 20%, LTCG 12.5%, exempt ₹1.25L)');
+console.log('\n[V31-C4] Capital gains rates - post-July-2024 (STCG 20%, LTCG 12.5%, exempt ₹1.25L)');
 {
   const cg = getCapitalGainsConfig('2025-26');
   approx(cg.stcgRate, 0.20, 'STCG rate FY 25-26 = 20% (Finance No.2 Act 2024)');
@@ -376,7 +376,7 @@ console.log('\n[V31-H1] effectiveDeductionCap wired into computeAllowedDeduction
   // Non-senior with non-senior parents claiming ₹1L for 80D. Statute cap = ₹50k.
   const total = computeAllowedDeductions({ '80D': 100_000 }, 'old', { selfSenior: false, parentsSenior: false });
   approx(total, 50_000, 'Non-senior 80D capped at ₹50k (not ₹1L which was the static max)');
-  // Senior claiming ₹1L for 80D — allowed the full ₹1L (self ₹50k + parents ₹50k).
+  // Senior claiming ₹1L for 80D - allowed the full ₹1L (self ₹50k + parents ₹50k).
   const total2 = computeAllowedDeductions({ '80D': 100_000 }, 'old', { selfSenior: true, parentsSenior: true });
   approx(total2, 100_000, 'Both senior 80D allows full ₹1L');
 }
@@ -424,11 +424,11 @@ console.log('\n[V31-H3] Marginal relief on surcharge crossings');
 {
   // Income ₹50,00,010 old regime. Base tax (before surcharge) ~₹13,12,503.
   // Without relief: 10% surcharge = ~₹1,31,250. That's ₹1.3L extra tax for
-  // ₹10 extra income — reduced to ₹10 by marginal relief.
+  // ₹10 extra income - reduced to ₹10 by marginal relief.
   const tax_at_5cr = 1_312_500; // rough
   const sr = computeSurcharge(tax_at_5cr, 5_000_010, 'old');
   // Marginal relief caps surcharge at delta between thresholds. Actual value
-  // depends on exact tax — we just verify it's WAY under ₹1.3L.
+  // depends on exact tax - we just verify it's WAY under ₹1.3L.
   truthy(sr < 50_000, `Marginal relief at ₹50,00,010 caps surcharge (got ₹${sr.toFixed(0)}, way under raw ₹1,31,250)`);
 }
 
@@ -441,7 +441,7 @@ console.log('\n[V31-H4] Rule 119A ₹100 rounding on 234B shortfall');
   approx(int234b, 2998, 'Rule 119A: shortfall ₹1,49,999 → interest on ₹1,49,900');
 }
 
-console.log('\n[V31-M2] Section 234A — late-filing interest');
+console.log('\n[V31-M2] Section 234A - late-filing interest');
 {
   // FY 25-26 (due 31-Jul-2026). Filed 15-Aug-2026 → 1 month at 1%.
   // Outstanding ₹1L → interest = 100_000 × 0.01 × 1 = ₹1,000.
@@ -456,7 +456,7 @@ console.log('\n[V31-M2] Section 234A — late-filing interest');
   // Taxes fully paid via TDS + advance → no outstanding → no 234A.
   const int4 = compute234AInterest(100_000, 100_000, '2026-08-15', undefined, '2025-26');
   approx(int4, 0, 'Zero outstanding (fully paid via TDS/advance) → no 234A');
-  // Rule 119A rounding — ₹1,49,999 outstanding → interest on ₹1,49,900.
+  // Rule 119A rounding - ₹1,49,999 outstanding → interest on ₹1,49,900.
   const int5 = compute234AInterest(149_999, 0, '2026-08-15', undefined, '2025-26');
   approx(int5, 1499, 'Rule 119A: ₹1,49,999 rounded down to ₹1,49,900 for interest calc');
   // Explicit dueDate override (audit case, 31-Oct-2026).
@@ -464,7 +464,7 @@ console.log('\n[V31-M2] Section 234A — late-filing interest');
   approx(int6, 1000, 'Audit case: due 31-Oct, filed 15-Nov → 1 month');
 }
 
-console.log('\n[V31-M3] §44AE parity — isEligible, negative clamp, declared-below-deemed');
+console.log('\n[V31-M3] §44AE parity - isEligible, negative clamp, declared-below-deemed');
 {
   // 2 heavy vehicles × 12 tonnes × 12 months → ₹2,88,000 deemed.
   const ok = compute44AE({ heavyVehicleMonths: 24, heavyVehicleTonnage: 12, lightVehicleMonths: 0 });
@@ -483,7 +483,7 @@ console.log('\n[V31-M3] §44AE parity — isEligible, negative clamp, declared-b
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// v1.10.66 (#61) — IGST vs CGST + SGST, and the flag the invoice relies on.
+// v1.10.66 (#61) - IGST vs CGST + SGST, and the flag the invoice relies on.
 // The printed tax rows now follow `isInterstate` from these totals, so the
 // flag has to be right in every case the rows can be asked to describe.
 // ─────────────────────────────────────────────────────────────────────
@@ -526,7 +526,7 @@ console.log('\n[V66-#61] Interstate decision and the isInterstate flag');
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// v1.10.67 (#66 items 7 and 12) — what counts as turnover. The dashboard
+// v1.10.67 (#66 items 7 and 12) - what counts as turnover. The dashboard
 // cards, Reports, GST Returns and Income Tax all lean on this one rule.
 // ─────────────────────────────────────────────────────────────────────
 console.log('\n[V67-#66] Sales documents, credit notes and cancelled invoices');
@@ -549,7 +549,7 @@ console.log('\n[V67-#66] Sales documents, credit notes and cancelled invoices');
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// v1.10.68 (#68) — what a GSTIN says on its own, with no API key and no
+// v1.10.68 (#68) - what a GSTIN says on its own, with no API key and no
 // internet. The state it names decides place of supply, so a wrong one
 // silently swaps CGST + SGST for IGST on every invoice to that client.
 // ─────────────────────────────────────────────────────────────────────

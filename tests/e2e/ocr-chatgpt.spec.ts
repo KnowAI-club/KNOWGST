@@ -83,7 +83,7 @@ test("ChatGPT extraction requires consent and preserves product stock link and c
     x.fillStyle = "#222";
     x.font = "26px Arial";
     [
-      "DEMO SUPPLIER — FICTIONAL SAMPLE",
+      "DEMO SUPPLIER - FICTIONAL SAMPLE",
       "Invoice: OCR-AI-1     Date: 01/11/2026",
       "Mineral water | HSN 2201",
       "Quantity 2 | Rate 100.00 | Taxable 200.00",

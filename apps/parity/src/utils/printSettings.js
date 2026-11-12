@@ -1,5 +1,5 @@
 // ============================================================================
-// Thermal Print Settings — app-wide defaults, stored in localStorage.
+// Thermal Print Settings - app-wide defaults, stored in localStorage.
 // Consumed by InvoicePreview (as fallback under per-invoice options) and
 // PrintSettings.jsx (as the UI form state).
 // ============================================================================
@@ -53,7 +53,7 @@ export const DEFAULT_PRINT_SETTINGS = {
 
   // -- Multi-copy print (GST rule 48) --
   multiCopyEnabled: false,
-  multiCopyCount: 3,          // 1|2|3 — Original / Duplicate / Triplicate
+  multiCopyCount: 3,          // 1|2|3 - Original / Duplicate / Triplicate
   multiCopyLabels: ['ORIGINAL FOR RECIPIENT', 'DUPLICATE FOR TRANSPORTER', 'TRIPLICATE FOR SUPPLIER'],
 
   // -- Page numbers + header on subsequent pages --
@@ -82,7 +82,7 @@ export const DEFAULT_PRINT_SETTINGS = {
   // -- T&C on separate page --
   termsSeparatePage: false,  // put terms + notes on their own page 2
 
-  // v1.10.37 — T&C rendering mode. Reported: PDF was showing terms as
+  // v1.10.37 - T&C rendering mode. Reported: PDF was showing terms as
   // a compact all-caps run-together block that was hard to read.
   // Now:
   //   'compact'   → historical behaviour: tiny 0.6rem font, honours the
@@ -99,11 +99,11 @@ export const DEFAULT_PRINT_SETTINGS = {
   feedbackQrLabel: 'Rate us · Give feedback',
 
   // -- Reprint indicator (automatic) --
-  // v1.10.41 — Default flipped from true to false. Reported: user was
+  // v1.10.41 - Default flipped from true to false. Reported: user was
   // surprised by "REPRINT · Copy #2" stamp appearing on their invoice's
   // top-left, overlapping the logo, the second time they downloaded it.
   // Freelancer / services / manufacturing users have no need for POS
-  // reprint tracking — it's a retail-counter feature (customer asks for
+  // reprint tracking - it's a retail-counter feature (customer asks for
   // a duplicate bill). The Print Settings toggle is already gated to
   // retail/restaurant business presets (v1.10.36) so those users can
   // opt in; every other user gets the badge OFF unless they turn it on.
@@ -111,11 +111,11 @@ export const DEFAULT_PRINT_SETTINGS = {
                               // whose printedCount > 0 (based on bill.printedCount field)
 
   // ============================================================
-  // v1.9.1 additions — all dynamic (on/off toggles)
+  // v1.9.1 additions - all dynamic (on/off toggles)
   // ============================================================
 
   // -- Print quality (PDF file size / render sharpness trade-off) --
-  // v1.10.27 — default flipped from 'standard' to 'hd' after user report:
+  // v1.10.27 - default flipped from 'standard' to 'hd' after user report:
   // "make sure print is full 100% hd quality in pdf". HD uses PNG @ scale
   // capped at 6 (dpr × 2.5), which is 3-5× larger file than standard's
   // JPEG @ scale ≤ 4 but crisp on high-res prints. Users who prefer
@@ -125,8 +125,8 @@ export const DEFAULT_PRINT_SETTINGS = {
 
   // -- Dual currency display (for foreign clients) --
   dualCurrencyEnabled: false,
-  dualCurrencyCode: 'USD',   // 'USD' | 'EUR' | 'GBP' | 'AED' | 'SGD' | 'AUD' — the "≈" secondary
-  dualCurrencyRate: 83,      // 1 INR = 1/rate secondary — user maintains manually (or per-invoice)
+  dualCurrencyCode: 'USD',   // 'USD' | 'EUR' | 'GBP' | 'AED' | 'SGD' | 'AUD' - the "≈" secondary
+  dualCurrencyRate: 83,      // 1 INR = 1/rate secondary - user maintains manually (or per-invoice)
   dualCurrencyPosition: 'below', // 'below' (line under primary) | 'inline' (same line, in parens)
 
   // -- PDF template style. Accepts 5 values but only 3 physical render
@@ -137,7 +137,7 @@ export const DEFAULT_PRINT_SETTINGS = {
 
   // -- Company letterhead --
   letterheadEnabled: false,
-  letterheadImage: '',       // base64 data URL — full-page A4 background (renders behind content)
+  letterheadImage: '',       // base64 data URL - full-page A4 background (renders behind content)
   letterheadOpacity: 100,    // 0-100 (typically 100 for pre-designed letterhead)
   letterheadHideHeader: true, // when using letterhead, most users hide the generated header block
 
@@ -145,29 +145,29 @@ export const DEFAULT_PRINT_SETTINGS = {
   previewZoom: 100,          // 50-200 percent
 
   // ============================================================
-  // v1.9.2 — full user control over PDF colours + font scale
+  // v1.9.2 - full user control over PDF colours + font scale
   // ============================================================
   // When userColorsEnabled = true, the following colours override any
   // template defaults. Users can tune every aspect of the visual output
   // without needing developer changes. Live preview updates instantly.
   userColorsEnabled: false,
   pdfPrimaryText: '#242824',    // main body text (dark)
-  pdfMutedText: '#626862',      // secondary text (labels, addresses) — v1.9.2 default darkened from #64748b
+  pdfMutedText: '#626862',      // secondary text (labels, addresses) - v1.9.2 default darkened from #64748b
   pdfAccent: '#343c34',         // section labels + table header background
   pdfAccentText: '#ffffff',     // text on accent-coloured backgrounds
   pdfHeaderBg: '#f4f5f2',       // invoice header block background (modern template)
   pdfDividerColor: '#dfe2dc',   // hairlines between sections (darkened default)
 
-  // Font size scale multiplier — 0.8 to 1.4. Applied via CSS transform to the
+  // Font size scale multiplier - 0.8 to 1.4. Applied via CSS transform to the
   // whole invoice-preview-container, so everything scales proportionally.
   pdfFontScale: 1.0,            // 1.0 = default; 0.85 = compact; 1.15 = large
 
-  // Print-mode text darkening — turn off if user has a modern high-quality
+  // Print-mode text darkening - turn off if user has a modern high-quality
   // printer and prefers the on-screen greys.
   pdfDarkenOnPrint: true,
 
   // ============================================================
-  // v1.9.3 — Full user control. Every hardcoded string / format
+  // v1.9.3 - Full user control. Every hardcoded string / format
   // / preset now overridable so no developer changes are ever
   // needed for personalisation. The "easiest tool to use"
   // philosophy: 55+ settings, all discoverable, all persistent.
@@ -184,10 +184,10 @@ export const DEFAULT_PRINT_SETTINGS = {
   labelBankDetails: '',
   labelTerms: '',
   labelNotes: '',
-  // v1.10.36 — Removed labelShipTo / labelAuthorizedSignatory /
+  // v1.10.36 - Removed labelShipTo / labelAuthorizedSignatory /
   // labelSubtotal / labelTotal / labelInvoice. All five were declared
   // as overridable label fields, but grep-verified they were never
-  // consumed — InvoicePreview.jsx calls getLabel() only for billTo,
+  // consumed - InvoicePreview.jsx calls getLabel() only for billTo,
   // placeOfSupply, amountInWords, bankDetails, terms, notes. The
   // dead ones just added noise to every localStorage payload and
   // gave users controls that did nothing when they tried to rename.
@@ -211,10 +211,10 @@ export const DEFAULT_PRINT_SETTINGS = {
   // Additive to the built-in list. User adds/removes via UI.
   customTaxRates: [],            // [0.1, 0.25, 3, 7.5] etc.
 
-  // v1.10.36 — Removed customInvoiceFields[] and columnWidths{}.
+  // v1.10.36 - Removed customInvoiceFields[] and columnWidths{}.
   // Both had "NOT YET WIRED" comments dating to v1.10.5, and nine
   // months later they still aren't consumed anywhere. Kept the door
-  // open too long — deleting to trim every user's localStorage payload
+  // open too long - deleting to trim every user's localStorage payload
   // and prevent settings-migration false positives.
 
   // -- Saved custom PDF templates --
@@ -225,19 +225,19 @@ export const DEFAULT_PRINT_SETTINGS = {
   // -- Setup / onboarding --
   onboardingComplete: false,     // set to true after user finishes the setup wizard
 
-  // v1.9.13 — Tracks which design preset the user last clicked, so the
+  // v1.9.13 - Tracks which design preset the user last clicked, so the
   // preset picker can highlight it correctly. Multiple presets share the
   // same pdfTemplate value, so pdfTemplate alone is ambiguous.
   activePresetId: '',            // '' | 'modern' | 'classic' | 'corporate' | 'minimalist' | 'colorful' | 'minimal' | 'enterprise' | 'itservices' | 'retail'
 
-  // v1.10.10 — Per-invoice-type prefix overrides. Empty string = fall
+  // v1.10.10 - Per-invoice-type prefix overrides. Empty string = fall
   // back to the built-in default from `INVOICE_TYPES[type].prefix`.
   // Users can now brand each series independently: `RTL` for retail
   // tax invoices, `RPT` for repeat customers, `QTE` for quotes,
   // whatever fits their internal numbering. Report request:
   // "every type should have special code to starts with because it
   // will mismatch". Each type gets its own atomic counter (already
-  // the case — the server-side counter is per-prefix), so switching
+  // the case - the server-side counter is per-prefix), so switching
   // Tax Invoice → 'INV' to 'RTL' resets the counter for RTL.
   customPrefixes: {
     'tax-invoice': '',      // default 'INV'
@@ -249,7 +249,7 @@ export const DEFAULT_PRINT_SETTINGS = {
     'delivery-challan': '', // default 'DC'
   },
 
-  // v1.10.11 — Compact upper-header mode. Reduces the padding + spacing
+  // v1.10.11 - Compact upper-header mode. Reduces the padding + spacing
   // in the header / parties / place-of-supply blocks so users can fit
   // more product rows on page 1 before the invoice spills to page 2.
   // Reported: "upper header portion till before product rows make it
@@ -257,8 +257,8 @@ export const DEFAULT_PRINT_SETTINGS = {
   // existing users don't see their invoices unexpectedly restyled.
   headerCompact: false,
 
-  // v1.10.42 — Thermal print delivery mode. Reported (session-follow-up
-  // to the v1.10.36 revert): "phir se laiye — direct print without
+  // v1.10.42 - Thermal print delivery mode. Reported (session-follow-up
+  // to the v1.10.36 revert): "phir se laiye - direct print without
   // creating PDF wala".
   //   'direct' → invoice HTML is written into a hidden iframe with an
   //              @page size matching the roll width and printed via
@@ -277,7 +277,7 @@ export const DEFAULT_PRINT_SETTINGS = {
   // by an edge case can flip to 'pdf' without a code change.
   thermalPrintMode: 'direct',   // 'direct' | 'pdf'
 
-  // v1.10.11 — Thermal buffer-safe mode. Old thermal printers with
+  // v1.10.11 - Thermal buffer-safe mode. Old thermal printers with
   // small internal buffers (< 128 KB is common on ₹800-₹2000 units)
   // get stuck when the browser sends a colour or high-DPI receipt.
   // Enabling this switches the thermal render to grayscale + smaller
@@ -287,14 +287,14 @@ export const DEFAULT_PRINT_SETTINGS = {
   thermalBufferSafe: false,
 
   // ============================================================
-  // v1.9.4 — Payment reminder auto-scheduling + accessibility opts
+  // v1.9.4 - Payment reminder auto-scheduling + accessibility opts
   // ============================================================
   // Reminders are advisory: when the notification centre polls upcoming
   // filings + low stock, it also checks overdue invoices and surfaces
   // them here. Users get a bell-badge count; clicking opens the affected
   // bill's WhatsApp share prefilled with a reminder message.
   reminderEnabled: true,             // consumed by notification bell (overdue count)
-  // v1.10.36 — Removed reminderDaysBeforeDue / reminderDaysAfterOverdue /
+  // v1.10.36 - Removed reminderDaysBeforeDue / reminderDaysAfterOverdue /
   // reminderTemplate. All three had "NOT YET WIRED" comments from
   // v1.10.5 and nine months later still aren't consumed anywhere.
 };
@@ -317,7 +317,7 @@ export function savePrintSettings(settings) {
 }
 
 // ============================================================================
-// v1.9.3 — Multi-language section labels
+// v1.9.3 - Multi-language section labels
 // Presets for major Indian languages. User can override any individual label
 // via labelXxx field regardless of preset.
 // ============================================================================
@@ -389,7 +389,7 @@ export const LABEL_PRESETS = {
   },
 };
 
-// Resolve a label — priority: user override → language preset → English default
+// Resolve a label - priority: user override → language preset → English default
 export function getLabel(settings, key) {
   const overrideKey = 'label' + key.charAt(0).toUpperCase() + key.slice(1);
   if (settings[overrideKey]) return settings[overrideKey];
@@ -398,7 +398,7 @@ export function getLabel(settings, key) {
 }
 
 // ============================================================================
-// v1.9.3 — Number + date formatting
+// v1.9.3 - Number + date formatting
 // ============================================================================
 export function formatNumber(n, settings) {
   const num = Number(n) || 0;
@@ -457,7 +457,7 @@ export function formatDate(dateStr, settings) {
 }
 
 // ============================================================================
-// v1.9.3 — Business type presets (one-click configuration)
+// v1.9.3 - Business type presets (one-click configuration)
 // Each preset patches printSettings with a common baseline for that vertical.
 // User can still tweak everything afterwards.
 // ============================================================================
@@ -485,7 +485,7 @@ export function applyBusinessPreset(currentSettings, presetKey) {
   return preset ? { ...currentSettings, ...preset.patch } : currentSettings;
 }
 
-// Sample invoice for the Test Print button — uses the user's real business
+// Sample invoice for the Test Print button - uses the user's real business
 // profile when available so the receipt looks realistic on their printer.
 export const buildSampleInvoice = (profile) => ({
   profile: profile || {

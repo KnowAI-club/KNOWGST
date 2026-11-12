@@ -86,9 +86,12 @@ export default function DashboardOverview({
             aria-label="Dashboard month"
             type="month"
             min="1900-01"
+            max={localToday().slice(0, 7)}
             value={month}
             onChange={(e) => {
-              if (e.target.value) setMonth(e.target.value);
+              // A typed month later than the current one is ignored: no future months.
+              const picked = e.target.value;
+              if (picked) setMonth(picked > localToday().slice(0, 7) ? localToday().slice(0, 7) : picked);
             }}
           />
         </label>
@@ -284,7 +287,7 @@ export default function DashboardOverview({
                 </button>
               </div>
               <p className="overview-chart-note">
-                Recorded payments, receipts and expenses—not a bank balance.
+                Recorded payments, receipts and expenses-not a bank balance.
                 Untracked purchase payments and manual journals are excluded.
               </p>
             </section>
@@ -446,8 +449,8 @@ export default function DashboardOverview({
                 Open{" "}
                 {type === "All"
                   ? "invoice register"
-                  : `${type.toLowerCase()} register`}{" "}
-                ↗
+                  : `${type.toLowerCase()} register`}
+                <ArrowUpRight size={12} aria-hidden="true" />
               </button>
             </div>
           </section>
@@ -456,7 +459,7 @@ export default function DashboardOverview({
               <div className="overview-card-head">
                 <h2>Books & tax</h2>
                 <button onClick={() => go("filing")}>
-                  Open GST workspace ↗
+                  Open GST workspace <ArrowUpRight size={12} aria-hidden="true" />
                 </button>
               </div>
               <div className="overview-bottom-content">
@@ -494,7 +497,9 @@ export default function DashboardOverview({
                     records
                   </p>
                 </div>
-                <button onClick={() => go("controlpanel")}>Manage ↗</button>
+                <button onClick={() => go("controlpanel")}>
+                  Manage <ArrowUpRight size={12} aria-hidden="true" />
+                </button>
               </div>
             </section>
           </div>

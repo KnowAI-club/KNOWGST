@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { getCountryConfig, getStatesForCountry, validateTaxId, detectCountryFromBrowser, getCountriesForRegion, PAPER_SIZES, decodeGstin } from '../utils';
 import { getRegionMode } from '../store';
+import { validatePhone, validateEmail, getAddressErrors, hasAddressErrors, getCitiesForCountry } from '../utils/addressValidation';
 
 export default function ClientModal({ show, onClose, onSave, client, isEditing, defaultCountry }) {
   // Country defaults: explicit prop (active business profile) → browser locale → 'India'.
@@ -9,7 +10,7 @@ export default function ClientModal({ show, onClose, onSave, client, isEditing, 
   const emptyForm = {
     name: '', address: '', city: '', pin: '', state: '', gstin: '', email: '', phone: '',
     country: fallbackCountry, isSEZ: false,
-    // v1.9.1 — per-client print preferences. When set, they auto-populate
+    // v1.9.1 - per-client print preferences. When set, they auto-populate
     // invoiceOptions when the user creates a new invoice for this client.
     // Left blank = use app-wide defaults.
     preferredPaperSize: '',   // '' | 'a4' | 'a5' | 'thermal80' | ...
@@ -40,9 +41,11 @@ export default function ClientModal({ show, onClose, onSave, client, isEditing, 
   if (!show) return null;
 
   const cc = getCountryConfig(form.country);
+  const addrErrors = { ...getAddressErrors(form.country, form), phone: validatePhone(form.phone).message, email: validateEmail(form.email).message };
+  const errStyle = { color: '#dc2626', fontSize: '0.7rem', display: 'block', marginTop: '0.2rem' };
   const stateOptions = getStatesForCountry(form.country);
 
-  // v1.10.68 (#68, idea from @deppen12) — a GSTIN already says which state the
+  // v1.10.68 (#68, idea from @deppen12) - a GSTIN already says which state the
   // client is registered in and carries a checksum, so fill the state in and
   // catch a typo here, offline. The state drives place of supply, so a wrong
   // one silently swaps CGST + SGST for IGST on every invoice to this client.
@@ -53,7 +56,7 @@ export default function ClientModal({ show, onClose, onSave, client, isEditing, 
     const decoded = decodeGstin(form.gstin);
     if (!decoded) return;
     if (!decoded.checksumOk) {
-      setTaxIdWarning('This GSTIN fails its own checksum — check for a typo.');
+      setTaxIdWarning('This GSTIN fails its own checksum - check for a typo.');
       return;
     }
     if (!decoded.state) return;
@@ -66,6 +69,7 @@ export default function ClientModal({ show, onClose, onSave, client, isEditing, 
 
   const handleSave = () => {
     if (!form.name.trim()) return;
+    if (hasAddressErrors(addrErrors)) return;
     onSave(form);
   };
 
@@ -100,11 +104,19 @@ export default function ClientModal({ show, onClose, onSave, client, isEditing, 
           </div>
           <div className="form-group">
             <label className="form-label">City</label>
-            <input type="text" className="form-input" value={form.city} onChange={e => setForm(prev => ({ ...prev, city: e.target.value }))} placeholder="e.g. Mumbai" />
+            <input type="text" className="form-input" list="client-city-options" value={form.city}
+              style={addrErrors.city ? { borderColor: '#dc2626' } : undefined}
+              onChange={e => setForm(prev => ({ ...prev, city: e.target.value }))} placeholder="e.g. Mumbai" />
+            <datalist id="client-city-options">{getCitiesForCountry(form.country).map(c => <option key={c} value={c} />)}</datalist>
+            {addrErrors.city && <small style={errStyle}>{addrErrors.city}</small>}
           </div>
           <div className="form-group">
             <label className="form-label">{cc.postalLabel}</label>
-            <input type="text" className="form-input" value={form.pin} onChange={e => setForm(prev => ({ ...prev, pin: e.target.value }))} placeholder={cc.postalLabel} />
+            <input type="text" className="form-input" inputMode={form.country === 'India' ? 'numeric' : undefined}
+              maxLength={form.country === 'India' ? 6 : undefined}
+              style={addrErrors.pin ? { borderColor: '#dc2626' } : undefined}
+              value={form.pin} onChange={e => setForm(prev => ({ ...prev, pin: e.target.value }))} placeholder={cc.postalLabel} />
+            {addrErrors.pin && <small style={errStyle}>{addrErrors.pin}</small>}
           </div>
           <div className="form-group">
             <label className="form-label">{cc.stateLabel}</label>
@@ -120,20 +132,23 @@ export default function ClientModal({ show, onClose, onSave, client, isEditing, 
           <div className="form-group">
             <label className="form-label">{cc.taxIdLabel}</label>
             <input type="text" className="form-input"
-              style={taxIdWarning ? { borderColor: '#f59e0b' } : undefined}
+              style={addrErrors.gstin ? { borderColor: '#dc2626' } : taxIdWarning ? { borderColor: '#f59e0b' } : undefined}
               value={form.gstin}
               onChange={e => { setForm(prev => ({ ...prev, gstin: e.target.value.toUpperCase() })); if (taxIdWarning) setTaxIdWarning(''); }}
               onBlur={handleTaxIdBlur}
-              placeholder={cc.taxIdPlaceholder} maxLength={20} />
-            {taxIdWarning && <small style={{ color: '#d97706', fontSize: '0.7rem', display: 'block', marginTop: '0.2rem' }}>⚠ {taxIdWarning}</small>}
+              placeholder={cc.taxIdPlaceholder} maxLength={form.country === 'India' ? 15 : 20} />
+            {addrErrors.gstin && <small style={errStyle}>{addrErrors.gstin}</small>}
+            {!addrErrors.gstin && taxIdWarning && <small style={{ color: '#d97706', fontSize: '0.7rem', display: 'block', marginTop: '0.2rem' }}>⚠ {taxIdWarning}</small>}
           </div>
           <div className="form-group">
             <label className="form-label">Email</label>
-            <input type="email" className="form-input" value={form.email} onChange={e => setForm(prev => ({ ...prev, email: e.target.value }))} placeholder="client@example.com" />
+            <input type="email" className="form-input" value={form.email} style={addrErrors.email ? { borderColor: '#dc2626' } : undefined} onChange={e => setForm(prev => ({ ...prev, email: e.target.value }))} placeholder="client@example.com" />
+            {addrErrors.email && <small style={errStyle}>{addrErrors.email}</small>}
           </div>
           <div className="form-group">
             <label className="form-label">Phone</label>
-            <input type="tel" className="form-input" value={form.phone} onChange={e => setForm(prev => ({ ...prev, phone: e.target.value }))} placeholder="+91 98765 43210" />
+            <input type="tel" className="form-input" maxLength={20} value={form.phone} style={addrErrors.phone ? { borderColor: '#dc2626' } : undefined} onChange={e => setForm(prev => ({ ...prev, phone: e.target.value }))} placeholder="+91 98765 43210" />
+            {addrErrors.phone && <small style={errStyle}>{addrErrors.phone}</small>}
           </div>
           {form.country === 'India' && (
             <div className="form-group" style={{ gridColumn: 'span 2' }}>
@@ -141,12 +156,12 @@ export default function ClientModal({ show, onClose, onSave, client, isEditing, 
                 <input type="checkbox" checked={!!form.isSEZ}
                   onChange={e => setForm(prev => ({ ...prev, isSEZ: e.target.checked }))}
                   style={{ width: 16, height: 16, accentColor: 'var(--primary)' }} />
-                <span><strong>SEZ unit / Developer</strong> — supplies will be charged IGST regardless of state (Section 16, IGST Act).</span>
+                <span><strong>SEZ unit / Developer</strong> - supplies will be charged IGST regardless of state (Section 16, IGST Act).</span>
               </label>
             </div>
           )}
 
-          {/* v1.9.1 — per-client print preferences. All optional; leave blank
+          {/* v1.9.1 - per-client print preferences. All optional; leave blank
               to use the app-wide defaults from Settings. When set, they
               auto-apply the next time an invoice is created for this client. */}
           <div className="form-group" style={{ gridColumn: 'span 2', paddingTop: '0.5rem', borderTop: '1px solid var(--border)', marginTop: '0.5rem' }}>
@@ -187,7 +202,7 @@ export default function ClientModal({ show, onClose, onSave, client, isEditing, 
                 <input type="checkbox" checked={!!form.autoPrint}
                   onChange={e => setForm(prev => ({ ...prev, autoPrint: e.target.checked }))}
                   style={{ width: 15, height: 15, accentColor: 'var(--primary)' }} />
-                <span><strong>Auto-print on save for this client</strong> — overrides global setting</span>
+                <span><strong>Auto-print on save for this client</strong> - overrides global setting</span>
               </label>
             </div>
           </div>

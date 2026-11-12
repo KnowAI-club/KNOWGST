@@ -249,8 +249,9 @@ export default function AiReviewInsights({ activeProfile, onNavigate, model }) {
             className="form-input"
             type="month"
             min="1900-01"
+            max={localToday().slice(0, 7)}
             value={month}
-            onChange={(event) => setMonth(event.target.value)}
+            onChange={(event) => setMonth(event.target.value > localToday().slice(0, 7) ? localToday().slice(0, 7) : event.target.value)}
           />
         </label>
         <label>
@@ -272,8 +273,9 @@ export default function AiReviewInsights({ activeProfile, onNavigate, model }) {
             className="form-input"
             type="date"
             min="1900-01-01"
+            max={localToday()}
             value={asOf}
-            onChange={(event) => setAsOf(event.target.value)}
+            onChange={(event) => setAsOf(event.target.value > localToday() ? localToday() : event.target.value)}
           />
         </label>
         {tab === "suppliers" && (

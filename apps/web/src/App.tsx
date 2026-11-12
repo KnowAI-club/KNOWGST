@@ -281,7 +281,7 @@ export function App() {
                               </td>
                               <td className="numeric">
                                 {i.status === "draft"
-                                  ? "—"
+                                  ? "-"
                                   : formatMinor(
                                       (
                                         BigInt(i.calculation.totals.total) -
@@ -385,7 +385,7 @@ export function App() {
                     </div>
                     <Totals calculation={selected.calculation} />
                     <p className="print-disclaimer">
-                      DEVELOPMENT PREVIEW — NOT FOR TAX FILING OR CUSTOMER USE
+                      DEVELOPMENT PREVIEW - NOT FOR TAX FILING OR CUSTOMER USE
                     </p>
                   </article>
                   <aside className="panel inspector no-print">

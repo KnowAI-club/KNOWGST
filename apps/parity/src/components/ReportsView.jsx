@@ -16,7 +16,7 @@ const MONTHS = [
   'July', 'August', 'September', 'October', 'November', 'December'
 ];
 
-// v1.10.6 — audit L4: local copy removed, imported from utils above.
+// v1.10.6 - audit L4: local copy removed, imported from utils above.
 
 const getBillCurrency = billCurrency;
 
@@ -43,11 +43,11 @@ export default function ReportsView({initialTab}) {
       const [billData, expData, prof] = await Promise.all([
         getAllBills(), getAllExpenses(), getProfile().catch(() => null),
       ]);
-      // v1.10.64 (#55) — reports are per business. Mixing two companies'
+      // v1.10.64 (#55) - reports are per business. Mixing two companies'
       // turnover into one profit figure is simply a wrong number.
-      // v1.10.67 (#66 item 12) — cancelled invoices earned nothing.
+      // v1.10.67 (#66 item 12) - cancelled invoices earned nothing.
       setBills((billData || []).filter(b => belongsToProfile(b, prof) && !isCancelledBill(b)));
-      // v1.10.66 (#64) — expenses too. Filtering only the invoices left every
+      // v1.10.66 (#64) - expenses too. Filtering only the invoices left every
       // company's expenses in each company's profit and loss.
       setExpenses((expData || []).filter(e => belongsToProfile(e, prof)));
       setBusinessName(prof?.businessName || '');
@@ -80,7 +80,7 @@ export default function ReportsView({initialTab}) {
   // proforma is a quote and a challan moves goods without selling them, so
   // neither is revenue; a credit note reduces revenue (salesSign -1).
   const allFilteredBills = bills.filter(bill => bill.data && salesSign(bill) !== 0 && filterByPeriod(bill.invoiceDate));
-  // v1.10.1 — Filter expenses by the same currency as the P&L view.
+  // v1.10.1 - Filter expenses by the same currency as the P&L view.
   // Prior code left this unfiltered, so USD-invoice revenue got INR
   // expenses subtracted → nonsense net profit. Expenses without a
   // `currency` field are assumed INR (legacy records).
@@ -103,7 +103,7 @@ export default function ReportsView({initialTab}) {
   const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
   const exportSubtitle = (extra = '') => [businessName, periodLabel, currencyFilter !== 'INR' ? currencyFilter : '', extra].filter(Boolean).join(', ');
 
-  // Bills for P&L — only selected currency
+  // Bills for P&L - only selected currency
   const plBills = allFilteredBills.filter(b => getBillCurrency(b) === currencyFilter);
 
   // P&L
@@ -118,7 +118,7 @@ export default function ReportsView({initialTab}) {
   const expenseExGST = totalExpenseAmount - totalExpenseGST;
   const netProfit = revenueExTax - expenseExGST;
 
-  // Monthly breakdown — per selected currency
+  // Monthly breakdown - per selected currency
   const monthlyPL = {};
   plBills.forEach(b => {
     if (!b.invoiceDate) return;
@@ -142,7 +142,7 @@ export default function ReportsView({initialTab}) {
   // never a receivable).
   const unpaidBills = bills.filter(b => countsAsSales(b) && b.status !== 'paid');
   const agingData = unpaidBills.map(b => {
-    // Guard against missing or invalid dates — `new Date(undefined)` returns Invalid Date
+    // Guard against missing or invalid dates - `new Date(undefined)` returns Invalid Date
     // which propagates as NaN through the aging math and breaks the chart.
     const dueDate = b.data?.details?.dueDate || b.invoiceDate;
     const due = dueDate ? parseLocalDate(dueDate) : null;
@@ -173,7 +173,7 @@ export default function ReportsView({initialTab}) {
     ? agingData.filter(r => r.clientName.toLowerCase().includes(agingSearch.toLowerCase()))
     : agingData;
 
-  // Aging summary — group by currency
+  // Aging summary - group by currency
   const agingByCurrency = {};
   agingFiltered.forEach(r => {
     if (!agingByCurrency[r.currency]) agingByCurrency[r.currency] = { total: 0, current: 0, '31to60': 0, '61to90': 0, '90plus': 0 };
@@ -188,7 +188,7 @@ export default function ReportsView({initialTab}) {
   return (
     <div className="dashboard-container">
       <PageHeader title="Reports" subtitle={<>Financial reports and receivables analysis</>}>
-          <HelpButton title="Reports — how to use" doc="reports">
+          <HelpButton title="Reports - how to use" doc="reports">
             <ul style={{ paddingLeft: '1.1rem', margin: 0 }}>
               <li><strong>Profit &amp; Loss</strong>: sales against expenses, without GST, by year or month.</li>
               <li><strong>Outstanding &amp; Aging</strong>: who owes you and how late, in 30-day groups.</li>
@@ -199,7 +199,7 @@ export default function ReportsView({initialTab}) {
           </HelpButton>
       </PageHeader>
 
-      {/* Tab Selector — v1.9.5 adds Client + Product tabs */}
+      {/* Tab Selector - v1.9.5 adds Client + Product tabs */}
       <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
         <button className={`btn ${activeTab === 'accounting' ? 'btn-primary' : 'btn-secondary'}`} onClick={()=>setActiveTab('accounting')}>Accounts & history</button>
         <button className={`btn ${activeTab === 'pl' ? 'btn-primary' : 'btn-secondary'}`}
@@ -253,12 +253,15 @@ export default function ReportsView({initialTab}) {
                   <div className="form-group" style={{ margin: 0 }}>
                     <label className="form-label">Month</label>
                     <select className="form-input" value={monthFilter} onChange={e => setMonthFilter(e.target.value)}>
-                      {MONTHS.map((m, i) => <option key={i} value={i}>{m}</option>)}
+                      {MONTHS.map((m, i) => <option key={i} value={i} disabled={parseInt(yearFilter) === currentYear && i > new Date().getMonth()}>{m}</option>)}
                     </select>
                   </div>
                   <div className="form-group" style={{ margin: 0 }}>
                     <label className="form-label">Year</label>
-                    <select className="form-input" value={yearFilter} onChange={e => setYearFilter(e.target.value)}>
+                    <select className="form-input" value={yearFilter} onChange={e => {
+                      setYearFilter(e.target.value);
+                      if (parseInt(e.target.value) === currentYear && parseInt(monthFilter) > new Date().getMonth()) setMonthFilter(String(new Date().getMonth()));
+                    }}>
                       {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
                     </select>
                   </div>
@@ -410,7 +413,7 @@ export default function ReportsView({initialTab}) {
 
       {activeTab === 'aging' && (
         <>
-          {/* Aging Summary Cards — per currency */}
+          {/* Aging Summary Cards - per currency */}
           {agingCurrencies.map(cur => (
             <div key={cur} style={{ marginBottom: '1rem' }}>
               {agingCurrencies.length > 1 && (
@@ -515,14 +518,14 @@ export default function ReportsView({initialTab}) {
       )}
 
       {/* ============================================================ */}
-      {/* v1.9.5 — CLIENT ANALYTICS (revenue by client, aging, retention) */}
+      {/* v1.9.5 - CLIENT ANALYTICS (revenue by client, aging, retention) */}
       {/* ============================================================ */}
       {activeTab === 'clients' && (() => {
         const filteredBills = allFilteredBills.filter(b => getBillCurrency(b) === currencyFilter);
         // Aggregate revenue + outstanding + count per client
         const byClient = {};
         filteredBills.forEach(b => {
-          const name = b.clientName || '—';
+          const name = b.clientName || '-';
           if (!byClient[name]) byClient[name] = { name, revenue: 0, paid: 0, outstanding: 0, count: 0, lastInvoiceDate: '' };
           const sign = salesSign(b);
           byClient[name].revenue += sign * (b.totalAmount || 0);
@@ -541,9 +544,9 @@ export default function ReportsView({initialTab}) {
         return (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 400px), 1fr))', gap: '1rem' }}>
             <div className="glass-panel" style={{ padding: '1.25rem' }}>
-              <h3 style={{ marginTop: 0, fontSize: '1rem' }}>🏆 Top clients by revenue</h3>
+              <h3 style={{ marginTop: 0, marginBottom: '0.75rem', fontSize: '1rem' }}>🏆 Top clients by revenue</h3>
               {topByRevenue.length === 0 ? <p className="text-muted">No client data for this period.</p> : (
-                <table className="data-table" style={{ marginBottom: 0 }}>
+                <table className="data-table report-table" style={{ marginBottom: 0 }}>
                   <thead><tr><th>Client</th><th style={{ textAlign: 'right' }}>Revenue</th><th style={{ textAlign: 'right' }}>Invoices</th></tr></thead>
                   <tbody>
                     {topByRevenue.map((c, i) => (
@@ -559,16 +562,16 @@ export default function ReportsView({initialTab}) {
             </div>
 
             <div className="glass-panel" style={{ padding: '1.25rem' }}>
-              <h3 style={{ marginTop: 0, fontSize: '1rem' }}>⚠️ Highest outstanding (worst payers)</h3>
+              <h3 style={{ marginTop: 0, marginBottom: '0.75rem', fontSize: '1rem' }}>⚠️ Highest outstanding (worst payers)</h3>
               {worstPayers.length === 0 ? <p className="text-muted">Everyone is up to date. 🎉</p> : (
-                <table className="data-table" style={{ marginBottom: 0 }}>
+                <table className="data-table report-table" style={{ marginBottom: 0 }}>
                   <thead><tr><th>Client</th><th style={{ textAlign: 'right' }}>Outstanding</th><th style={{ textAlign: 'right' }}>% Unpaid</th></tr></thead>
                   <tbody>
                     {worstPayers.map((c, i) => (
                       <tr key={i}>
                         <td className="font-medium">{c.name}</td>
                         <td style={{ textAlign: 'right', color: '#dc2626', fontWeight: 700 }}>{formatCurrency(c.outstanding, currencyFilter)}</td>
-                        <td style={{ textAlign: 'right', color: 'var(--text-muted)' }}>{c.revenue > 0 ? `${Math.round((c.outstanding / c.revenue) * 100)}%` : '—'}</td>
+                        <td style={{ textAlign: 'right', color: 'var(--text-muted)' }}>{c.revenue > 0 ? `${Math.round((c.outstanding / c.revenue) * 100)}%` : '-'}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -584,7 +587,7 @@ export default function ReportsView({initialTab}) {
                   rows={[...clientArr].sort((a, b) => b.revenue - a.revenue).map(c => [c.name, c.count, r2(c.revenue), r2(c.paid), r2(c.outstanding), c.lastInvoiceDate || ''])} />
               </div>
               <div style={{ overflowX: 'auto' }}>
-                <table className="data-table" style={{ marginBottom: 0 }}>
+                <table className="data-table report-table" style={{ marginBottom: 0 }}>
                   <thead><tr>
                     <th>Client</th>
                     <th style={{ textAlign: 'right' }}>Invoices</th>
@@ -601,9 +604,9 @@ export default function ReportsView({initialTab}) {
                         <td style={{ textAlign: 'right' }}>{formatCurrency(c.revenue, currencyFilter)}</td>
                         <td style={{ textAlign: 'right', color: '#059669' }}>{formatCurrency(c.paid, currencyFilter)}</td>
                         <td style={{ textAlign: 'right', color: c.outstanding > 0 ? '#dc2626' : 'var(--text-muted)', fontWeight: c.outstanding > 0 ? 600 : 400 }}>
-                          {c.outstanding > 0 ? formatCurrency(c.outstanding, currencyFilter) : '—'}
+                          {c.outstanding > 0 ? formatCurrency(c.outstanding, currencyFilter) : '-'}
                         </td>
-                        <td className="text-muted">{c.lastInvoiceDate ? new Date(c.lastInvoiceDate).toLocaleDateString('en-IN') : '—'}</td>
+                        <td className="text-muted">{c.lastInvoiceDate ? new Date(c.lastInvoiceDate).toLocaleDateString('en-IN') : '-'}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -615,7 +618,7 @@ export default function ReportsView({initialTab}) {
       })()}
 
       {/* ============================================================ */}
-      {/* v1.9.5 — PRODUCT PERFORMANCE (best sellers, revenue per SKU) */}
+      {/* v1.9.5 - PRODUCT PERFORMANCE (best sellers, revenue per SKU) */}
       {/* ============================================================ */}
       {activeTab === 'products' && (() => {
         const filteredBills = allFilteredBills.filter(b => getBillCurrency(b) === currencyFilter);
@@ -648,9 +651,9 @@ export default function ReportsView({initialTab}) {
         return (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 400px), 1fr))', gap: '1rem' }}>
             <div className="glass-panel" style={{ padding: '1.25rem' }}>
-              <h3 style={{ marginTop: 0, fontSize: '1rem' }}>💰 Top revenue producers</h3>
+              <h3 style={{ marginTop: 0, marginBottom: '0.75rem', fontSize: '1rem' }}>💰 Top revenue producers</h3>
               {bestSellers.length === 0 ? <p className="text-muted">No product data for this period.</p> : (
-                <table className="data-table" style={{ marginBottom: 0 }}>
+                <table className="data-table report-table" style={{ marginBottom: 0 }}>
                   <thead><tr><th>Product</th><th style={{ textAlign: 'right' }}>Revenue</th><th style={{ textAlign: 'right' }}>Qty sold</th></tr></thead>
                   <tbody>
                     {bestSellers.map((p, i) => (
@@ -666,9 +669,9 @@ export default function ReportsView({initialTab}) {
             </div>
 
             <div className="glass-panel" style={{ padding: '1.25rem' }}>
-              <h3 style={{ marginTop: 0, fontSize: '1rem' }}>📦 Most units sold</h3>
+              <h3 style={{ marginTop: 0, marginBottom: '0.75rem', fontSize: '1rem' }}>📦 Most units sold</h3>
               {mostSoldByUnits.length === 0 ? <p className="text-muted">No product data.</p> : (
-                <table className="data-table" style={{ marginBottom: 0 }}>
+                <table className="data-table report-table" style={{ marginBottom: 0 }}>
                   <thead><tr><th>Product</th><th style={{ textAlign: 'right' }}>Qty sold</th><th style={{ textAlign: 'right' }}>Txns</th></tr></thead>
                   <tbody>
                     {mostSoldByUnits.map((p, i) => (
@@ -691,7 +694,7 @@ export default function ReportsView({initialTab}) {
                   rows={[...productArr].sort((a, b) => b.revenue - a.revenue).map(p => [p.name, p.hsn || '', p.qty, r2(p.revenue), p.qty > 0 ? r2(p.revenue / p.qty) : 0, p.txns, p.lastSold || ''])} />
               </div>
               <div style={{ overflowX: 'auto' }}>
-                <table className="data-table" style={{ marginBottom: 0 }}>
+                <table className="data-table report-table" style={{ marginBottom: 0 }}>
                   <thead><tr>
                     <th>Product</th><th>HSN</th>
                     <th style={{ textAlign: 'right' }}>Qty sold</th>
@@ -704,12 +707,12 @@ export default function ReportsView({initialTab}) {
                     {productArr.sort((a, b) => b.revenue - a.revenue).map((p, i) => (
                       <tr key={i}>
                         <td className="font-medium">{p.name}</td>
-                        <td className="text-muted" style={{ fontSize: '0.78rem' }}>{p.hsn || '—'}</td>
+                        <td className="text-muted" style={{ fontSize: '0.78rem' }}>{p.hsn || '-'}</td>
                         <td style={{ textAlign: 'right' }}>{p.qty}</td>
                         <td style={{ textAlign: 'right' }}>{formatCurrency(p.revenue, currencyFilter)}</td>
-                        <td style={{ textAlign: 'right', color: 'var(--text-muted)' }}>{p.qty > 0 ? formatCurrency(p.revenue / p.qty, currencyFilter) : '—'}</td>
+                        <td style={{ textAlign: 'right', color: 'var(--text-muted)' }}>{p.qty > 0 ? formatCurrency(p.revenue / p.qty, currencyFilter) : '-'}</td>
                         <td style={{ textAlign: 'right' }}>{p.txns}</td>
-                        <td className="text-muted">{p.lastSold ? new Date(p.lastSold).toLocaleDateString('en-IN') : '—'}</td>
+                        <td className="text-muted">{p.lastSold ? new Date(p.lastSold).toLocaleDateString('en-IN') : '-'}</td>
                       </tr>
                     ))}
                   </tbody>

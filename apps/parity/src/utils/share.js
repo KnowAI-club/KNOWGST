@@ -1,7 +1,7 @@
-// v1.10.31 — Single WhatsApp URL opener used by Dashboard, ClientsView,
+// v1.10.31 - Single WhatsApp URL opener used by Dashboard, ClientsView,
 // InvoiceGenerator (share button + payment reminder). Prior to this the
-// same 4-line snippet — sanitize phone, encode message, pick wa.me route,
-// window.open with noopener — was inlined at every call site. When a bug
+// same 4-line snippet - sanitize phone, encode message, pick wa.me route,
+// window.open with noopener - was inlined at every call site. When a bug
 // showed up ("share opens in same tab" or "phone with + prefix breaks the
 // url") it had to be fixed in every copy. Now: one function, one bug fix
 // spot.
@@ -14,7 +14,7 @@
 
 /**
  * Sanitize a phone number for WhatsApp deep-link.
- * WhatsApp requires digits only — no +, spaces, dashes, or parens.
+ * WhatsApp requires digits only - no +, spaces, dashes, or parens.
  * Empty / undefined → empty string (caller picks the no-phone URL).
  */
 export function sanitizeWhatsAppPhone(phone) {
@@ -25,12 +25,12 @@ export function sanitizeWhatsAppPhone(phone) {
 /**
  * Open WhatsApp with the given phone (optional) and prefilled message.
  * Opens in a new tab so the user's current invoice / modal / draft state
- * isn't lost — reported as GH #12: "push reminder and whatsapp in new
+ * isn't lost - reported as GH #12: "push reminder and whatsapp in new
  * tab not the tab or windows we are working on".
  *
- * @param {string|null|undefined} phone — recipient phone; empty → generic share
- * @param {string} message — plain text (WhatsApp caption); may include *bold*
- * @returns {Window|null} — the new tab handle, or null if blocked
+ * @param {string|null|undefined} phone - recipient phone; empty → generic share
+ * @param {string} message - plain text (WhatsApp caption); may include *bold*
+ * @returns {Window|null} - the new tab handle, or null if blocked
  */
 export function openWhatsAppShare(phone, message) {
   const clean = sanitizeWhatsAppPhone(phone);

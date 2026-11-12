@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { AlertTriangle, Trash2, HelpCircle } from 'lucide-react';
 
-// v1.10.34 — In-app replacement for `window.confirm()` and `window.prompt()`.
+// v1.10.34 - In-app replacement for `window.confirm()` and `window.prompt()`.
 // The native dialogs look like OS chrome (title bar with the URL, generic
 // OK/Cancel buttons, no branding, no icon), which broke the product's
 // visual identity every time the user hit Delete on an invoice. Now every
@@ -34,7 +34,7 @@ let dispatchFn = null;
 export function confirmAction(options) {
   return new Promise((resolve) => {
     if (typeof dispatchFn !== 'function') {
-      // Container not mounted yet — fall back to native so calls made
+      // Container not mounted yet - fall back to native so calls made
       // pre-mount don't silently return undefined.
       resolve(window.confirm(options?.message || options?.title || 'Are you sure?'));
       return;
@@ -97,7 +97,7 @@ export default function ConfirmModalContainer() {
         inputRef.current.focus();
         inputRef.current.select();
       } else {
-        // Confirm modal — focus the primary button.
+        // Confirm modal - focus the primary button.
         const btn = document.querySelector('.confirm-modal-primary');
         btn?.focus?.();
       }

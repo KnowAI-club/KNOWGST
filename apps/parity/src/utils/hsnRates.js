@@ -1,7 +1,7 @@
 /*
- * v1.10.22 — Curated HSN / SAC → GST rate lookup.
+ * v1.10.22 - Curated HSN / SAC → GST rate lookup.
  *
- * Not the full CBIC schedule (~50k rows, 5MB) — a hand-picked subset
+ * Not the full CBIC schedule (~50k rows, 5MB) - a hand-picked subset
  * covering the ~200 HSN codes that account for >95% of small-business
  * invoicing in India, plus the 30 most-used SAC codes for services.
  * The dropdown suggestion in InvoiceGenerator uses this to auto-fill the
@@ -17,7 +17,7 @@
  */
 
 // Common HSN codes for goods (4 or 6 digit).
-// Curated for coverage — priority given to categories used by design
+// Curated for coverage - priority given to categories used by design
 // agencies, retail shops, IT freelancers, food vendors, garment
 // traders and general contractors (nvwork-design's cohort).
 export const HSN_RATES = {
@@ -74,7 +74,7 @@ export const HSN_RATES = {
   // ─── Furniture, hardware, building (12% / 18% / 28%) ───────────
   '7308': { rate: 18,   label: 'Structures of iron / steel' },
   '7318': { rate: 18,   label: 'Screws, bolts, nuts, washers' },
-  '9401': { rate: 18,   label: 'Seats (chairs, sofas) — HSN default' },
+  '9401': { rate: 18,   label: 'Seats (chairs, sofas) - HSN default' },
   '9403': { rate: 18,   label: 'Other furniture (tables, cabinets)' },
   '9405': { rate: 12,   label: 'Lamps, lighting fittings' },
   '6810': { rate: 18,   label: 'Cement / concrete / stone articles' },
@@ -100,13 +100,13 @@ export const HSN_RATES = {
   '9615': { rate: 18,   label: 'Combs, hair-slides' },
 };
 
-// SAC (Services Accounting Code) — mostly 18%. Curated for design
+// SAC (Services Accounting Code) - mostly 18%. Curated for design
 // agencies, IT freelancers, professional services, hospitality etc.
 export const SAC_RATES = {
   '9954': { rate: 18,   label: 'Construction services (residential / commercial)' },
-  '9963': { rate: 5,    label: 'Restaurant & catering — non-AC without alcohol' },
-  '9964': { rate: 5,    label: 'Passenger transport — road (AC)' },
-  '9965': { rate: 5,    label: 'Goods transport — road (GTA)' },
+  '9963': { rate: 5,    label: 'Restaurant & catering - non-AC without alcohol' },
+  '9964': { rate: 5,    label: 'Passenger transport - road (AC)' },
+  '9965': { rate: 5,    label: 'Goods transport - road (GTA)' },
   '9967': { rate: 18,   label: 'Supporting services for transport' },
   '9971': { rate: 18,   label: 'Financial and related services (except banking)' },
   '9972': { rate: 18,   label: 'Real estate services (except lease of land)' },

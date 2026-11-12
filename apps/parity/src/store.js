@@ -33,7 +33,7 @@ export const setLockPin = (pin, currentPin) => apiFetch(`${API}/lock/set`, { met
 // ---- Invoice Number Settings ----
 const DEFAULT_INV_SETTINGS = {
   format: 'branded',      // 'branded' | 'sequential' | 'random'
-  brandPrefix: '',         // e.g. 'ACME' — empty means use type prefix (INV/EST/CN/BOS)
+  brandPrefix: '',         // e.g. 'ACME' - empty means use type prefix (INV/EST/CN/BOS)
   separator: '/',          // '/' | '-' | '#'
   showFinYear: true,       // include 2026-27 financial year
   startNumber: 1,          // starting counter value
@@ -123,7 +123,7 @@ export const saveInvoiceDisplayOptions = async (options) => {
 
 // ---- Region preference: 'india' | 'international' | 'both' (default 'both') ----
 // Drives which countries appear in pickers and whether GST-only flows show up in the UI.
-// Stored in localStorage for instant boot — server copy is async-best-effort.
+// Stored in localStorage for instant boot - server copy is async-best-effort.
 const REGION_KEY = 'gst_regionMode';
 export const getRegionMode = () => {
   try { return localStorage.getItem(REGION_KEY) || 'both'; } catch { return 'both'; }
@@ -154,7 +154,7 @@ export const setEnabledModules = (map) => {
 // read 5 and both write 6 (= duplicate invoice numbers, which is a GST audit failure).
 //
 // Since v1.6.8: pass { peek: true } to preview the number WITHOUT reserving it.
-// Used by InvoiceGenerator to show the next number on form mount — the atomic
+// Used by InvoiceGenerator to show the next number on form mount - the atomic
 // reservation happens only when the user actually saves. Cancelled forms no
 // longer burn counter values, so CA-audited businesses keep gapless sequences.
 // v1.10.78 (#93) - pass invoiceType: a tax invoice starts at least from
@@ -181,11 +181,11 @@ export const getNextInvoiceNumber = async (prefix = 'INV', { peek = false, expli
     next = inc.value;
   }
 
-  // v1.10.10 — When `explicitPrefix` is true, the caller (per-type
+  // v1.10.10 - When `explicitPrefix` is true, the caller (per-type
   // prefix override from Print Settings) wants THEIR prefix used as-is
   // instead of the global brandPrefix from Invoice Number Settings.
-  // v1.10.53 — the financial year label is India's April-March FY.
-  // v1.10.79 — formatting lives in utils (formatDocNumber), shared with the
+  // v1.10.53 - the financial year label is India's April-March FY.
+  // v1.10.79 - formatting lives in utils (formatDocNumber), shared with the
   // server's recurring invoices.
   return formatDocNumber({
     settings, typePrefix, next,
@@ -197,7 +197,7 @@ export const getNextInvoiceNumber = async (prefix = 'INV', { peek = false, expli
 // ---- Bills ----
 // Pass overwrite: true when the caller knows they're updating an existing
 // bill (edit flow, bulk-status change, auto-fire re-process). Default is
-// to refuse silent overwrites — server returns 409 with an actionable
+// to refuse silent overwrites - server returns 409 with an actionable
 // message that the UI can show as "Invoice number already exists".
 // Invoice, linked receipts and stock are committed together by the local service.
 export const saveInvoiceTransaction = async (operations) => {
@@ -221,11 +221,11 @@ export const deleteBill = async (id, revision) => {
   return apiFetch(`${API}/bills/${encodeURIComponent(id)}`, { method: 'DELETE', ...(revision ? {headers:{'If-Match':revision}} : {}) });
 };
 
-// v1.9.5 — Automatic backups + trash bin
+// v1.9.5 - Automatic backups + trash bin
 export const getBackupsList = async () => apiFetch(`${API}/backups`);
 export const restoreBackup = async (date) => apiFetch(`${API}/backups/${encodeURIComponent(date)}/restore`, { method: 'POST', body: JSON.stringify({}) });
 export const triggerBackup = async () => apiFetch(`${API}/backups/now`, { method: 'POST', body: JSON.stringify({}) });
-// v1.10.22 — manual delete for a specific backup date.
+// v1.10.22 - manual delete for a specific backup date.
 export const deleteBackup = async (date) => apiFetch(`${API}/backups/${encodeURIComponent(date)}`, { method: 'DELETE' });
 
 // v1.10.80 (#99) - a second copy of each daily backup in a folder you choose
@@ -407,19 +407,19 @@ export const deleteBusinessProfile = async (id) => {
 // backup. Each key is documented with what it stores and whether losing it matters.
 // Exact keys we back up + restore. Wildcard patterns handled separately
 // below because localStorage doesn't have a native "keys matching pattern"
-// API — we iterate localStorage and match.
+// API - we iterate localStorage and match.
 const EXPORTABLE_LOCALSTORAGE_KEYS = [
   'gst_customUnits',                 // user-defined units for line items
   'gst_regionMode',                  // 'india' | 'international' | 'both'
   'gst_enabledModules',              // map of disabled feature toggles
   'gst_filing_status',               // GSTR-1/3B "Filed" pill states per period key
-  'gst_printSettings',               // v1.8.4 — thermal printer defaults (font, weight, all-caps, etc.)
-  'gst_itrCalcInputs',               // v1.7.0 — regime calculator inputs
-  'gst_itrPresumptive',              // v1.8.0 — presumptive taxation state
-  'gst_itrAdvanceTax',               // v1.8.0 — advance tax state
-  'gst_stockAlertSettings',          // v1.6.3 — low-stock threshold + on/off
+  'gst_printSettings',               // v1.8.4 - thermal printer defaults (font, weight, all-caps, etc.)
+  'gst_itrCalcInputs',               // v1.7.0 - regime calculator inputs
+  'gst_itrPresumptive',              // v1.8.0 - presumptive taxation state
+  'gst_itrAdvanceTax',               // v1.8.0 - advance tax state
+  'gst_stockAlertSettings',          // v1.6.3 - low-stock threshold + on/off
   'freegstbill_invoiceOptions',      // per-invoice display preference defaults
-  'freegstbill_theme',               // light/dark (was written as 'theme' in the old whitelist — typo)
+  'freegstbill_theme',               // light/dark (was written as 'theme' in the old whitelist - typo)
   'freegstbill_onboarded',           // skip welcome wizard on next launch
   'freegstbill_dismissedUpdate',     // version the user dismissed the update banner for
   'freegstbill_pwa_dismissed_at',    // 14-day PWA-install-banner cooldown timestamp
@@ -437,7 +437,7 @@ const collectLocalStorage = () => {
   EXPORTABLE_LOCALSTORAGE_KEYS.forEach(k => {
     try { const v = localStorage.getItem(k); if (v !== null) out[k] = v; } catch { /* sandboxed */ }
   });
-  // Prefix-matched keys — iterate all localStorage keys and include any hit.
+  // Prefix-matched keys - iterate all localStorage keys and include any hit.
   try {
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
@@ -456,12 +456,12 @@ const isRestorable = (k) => EXPORTABLE_LOCALSTORAGE_KEYS.includes(k)
 const restoreLocalStorage = (map) => {
   if (!map || typeof map !== 'object') return;
   Object.entries(map).forEach(([k, v]) => {
-    if (!isRestorable(k)) return; // ignore foreign keys — never let a backup smuggle unrelated writes in
+    if (!isRestorable(k)) return; // ignore foreign keys - never let a backup smuggle unrelated writes in
     try { localStorage.setItem(k, v); } catch { /* ignore */ }
   });
 };
 
-// Cached app version — pulled from server once per session via /api/version so the
+// Cached app version - pulled from server once per session via /api/version so the
 // frontend doesn't have to ship its own copy of package.json. Falls back to 'unknown'
 // only if the server is unreachable, which only happens during the brief startup
 // window before the user opens the app.
@@ -471,15 +471,15 @@ const getAppVersion = async () => {
   try {
     const { current } = await apiFetch(`${API}/version`);
     if (current) { cachedAppVersion = current; return current; }
-  } catch { /* server down — best effort */ }
+  } catch { /* server down - best effort */ }
   return 'unknown';
 };
 
 // Full export. Returns the JSON-serialised bundle (server data + localStorage).
-// Pass `selection` to limit what's included — undefined ⇒ everything.
+// Pass `selection` to limit what's included - undefined ⇒ everything.
 //
 // `selection` shape: { profile, profiles, bills, clients, products, expenses,
-//   purchases, recurring, receipts, termsTemplates, meta, localStorage } — each bool.
+//   purchases, recurring, receipts, termsTemplates, meta, localStorage } - each bool.
 // v1.10.69 - starting an update. The "Update Now" buttons used to be links to
 // freegstbill-update://run, a URL protocol that the OLD Install FreeGSTBill.bat
 // registered in the registry. The HTA launcher replaced that installer in
@@ -522,7 +522,7 @@ export const exportAllData = async (selection) => {
   return JSON.stringify(data, null, 2);
 };
 
-// Inspect a backup file without committing — returns counts so the UI can show
+// Inspect a backup file without committing - returns counts so the UI can show
 // what's in it before the user picks what to restore.
 export const inspectBackup = (jsonString) => {
   let data;
@@ -556,7 +556,7 @@ export const importData = async (jsonString, selection) => {
   const data = inspected.raw;
   const sel = selection || { profile: true, profiles: true, bills: true, clients: true, products: true, expenses: true, purchases: true, recurring: true, receipts: true, termsTemplates: true, meta: true, localStorage: true };
 
-  // Build a filtered payload — never touch collections the user didn't tick.
+  // Build a filtered payload - never touch collections the user didn't tick.
   const payload = {};
   if (sel.profile && data.profile)               payload.profile = data.profile;
   if (sel.profiles && data.profiles)             payload.profiles = data.profiles;
